@@ -43,6 +43,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | [技術スタック](docs/tech-stack.md) | 使う技術とバージョン |
 | [インフラ構成](docs/infrastructure.md) | AWS の構成図（暫定案） |
 | [機能定義書](docs/feature-specs/README.md) | 機能分類ごとの処理の流れ・エラー時の動き・受け入れ条件（8本） |
+| [モックアップ実装計画書](docs/mockup-plan.md) | 本実装前に作成した静的モックアップの内容と動作確認結果 |
 
 ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSCode では拡張機能「Markdown Preview Mermaid Support」を入れるとプレビューで表示できる。
 
@@ -53,9 +54,19 @@ ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSC
 ├── backend/    # Spring Boot バックエンド（REST API）
 ├── frontend/   # React + Vite フロントエンド（SPA）
 ├── docs/       # 要件定義・設計ドキュメント
+├── mockup/     # 実装前に作成した静的HTML/CSS/JSモックアップ
 ├── infra/      # AWS構築用の Terraform コード・デプロイスクリプト
 └── docker-compose.yml   # ローカルの PostgreSQL・LocalStack 起動用
 ```
+
+## モックアップ
+
+本実装の前に、HTML/CSS/JavaScript だけで動く静的モックを作成した（データはメモリのみ。リロードで初期データに戻る）。
+
+- `mockup/index.html` をブラウザで直接開く（または `cd mockup && python3 -m http.server 8000` で `http://localhost:8000`）
+- ログイン画面のデモ用アカウント（例：`yamada@example.com` / `password123`）をクリックしてログインする
+
+内容と動作確認結果は[モックアップ実装計画書](docs/mockup-plan.md)を参照。
 
 ## セットアップ・起動方法
 
