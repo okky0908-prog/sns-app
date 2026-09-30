@@ -1,0 +1,998 @@
+/* ===== 基本 ===== */
+:root {
+  --color-bg: #f5f7f9;
+  --color-surface: #ffffff;
+  --color-border: #e3e8ec;
+  --color-text: #0f1419;
+  --color-sub: #536471;
+  --color-primary: #1d9bf0;
+  --color-primary-dark: #1a8cd8;
+  --color-danger: #f4212e;
+  --color-like: #f91880;
+  --color-hover: #f7f9f9;
+  --radius: 12px;
+  --content-width: 640px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.mock-note {
+  margin: 0;
+  padding: 6px 16px;
+  background: #fff8e1;
+  border-bottom: 1px solid #f3e2a9;
+  color: #7a5b00;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ===== ボタン ===== */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background: var(--color-hover);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button.primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.button.primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.button.dark {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: #fff;
+}
+
+.button.danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.button.full {
+  width: 100%;
+  padding: 10px 16px;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--color-hover);
+}
+
+/* フォローボタン：フォロー中はマウスを乗せると「フォロー解除」に変わる */
+.follow-button {
+  min-width: 112px;
+}
+
+.follow-button.is-following .label-hover {
+  display: none;
+}
+
+.follow-button.is-following:hover {
+  border-color: #fdc9ce;
+  background: #fee;
+  color: var(--color-danger);
+}
+
+.follow-button.is-following:hover .label-default {
+  display: none;
+}
+
+.follow-button.is-following:hover .label-hover {
+  display: inline;
+}
+
+/* ===== ヘッダー ===== */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 16px;
+}
+
+.logo {
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.logo:hover {
+  text-decoration: none;
+}
+
+.header-search {
+  flex: 1;
+  max-width: 320px;
+}
+
+.header-search input {
+  width: 100%;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #eff3f4;
+}
+
+.header-search input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: #fff;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.header-nav a {
+  color: var(--color-text);
+  font-weight: bold;
+}
+
+.header-nav a.active {
+  color: var(--color-primary);
+}
+
+/* ===== メイン ===== */
+.app-main {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  min-height: calc(100vh - 90px);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.page-header .button {
+  margin-left: auto;
+}
+
+.back-link {
+  color: var(--color-text);
+  font-size: 20px;
+}
+
+.back-link:hover {
+  text-decoration: none;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 0;
+  color: var(--color-sub);
+  font-weight: bold;
+  text-align: center;
+}
+
+.tab:hover {
+  background: var(--color-hover);
+  text-decoration: none;
+}
+
+.tab.active {
+  color: var(--color-text);
+  box-shadow: inset 0 -4px 0 var(--color-primary);
+}
+
+.empty-message {
+  padding: 40px 24px;
+  color: var(--color-sub);
+  text-align: center;
+}
+
+.more-area {
+  padding: 16px;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.section-heading {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 17px;
+}
+
+/* ===== アバター ===== */
+.avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  color: #fff;
+  font-weight: bold;
+  object-fit: cover;
+}
+
+.avatar.small {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+
+.avatar.large {
+  width: 96px;
+  height: 96px;
+  font-size: 36px;
+  border: 4px solid #fff;
+}
+
+/* ===== ユーザーへのリンク ===== */
+.user-link {
+  color: var(--color-text);
+}
+
+.user-link:hover {
+  text-decoration: none;
+}
+
+.user-link:hover .display-name {
+  text-decoration: underline;
+}
+
+.display-name {
+  font-weight: bold;
+}
+
+.username,
+.meta {
+  color: var(--color-sub);
+}
+
+/* ===== 投稿カード ===== */
+.post-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.post-card:hover {
+  background: var(--color-hover);
+}
+
+.post-card.detail {
+  cursor: default;
+}
+
+.post-card.detail:hover {
+  background: none;
+}
+
+.post-card.detail .post-content {
+  font-size: 18px;
+}
+
+.post-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.post-head .menu-wrapper {
+  margin-left: auto;
+}
+
+.post-content {
+  margin: 4px 0 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.post-images {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.post-images.count-2,
+.post-images.count-3,
+.post-images.count-4 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.post-images.count-3 img:first-child {
+  grid-row: span 2;
+}
+
+.post-images img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+
+.post-images.count-1 img {
+  max-height: 400px;
+}
+
+.post-images.count-2 img,
+.post-images.count-4 img {
+  aspect-ratio: 4 / 3;
+}
+
+.post-actions {
+  display: flex;
+  gap: 48px;
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 56px;
+  padding: 4px 8px 4px 0;
+  border: none;
+  background: none;
+  color: var(--color-sub);
+  cursor: pointer;
+}
+
+.action-button .action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 16px;
+}
+
+.action-button.comment:hover {
+  color: var(--color-primary);
+}
+
+.action-button.comment:hover .action-icon {
+  background: #e8f5fd;
+}
+
+.action-button.like:hover,
+.action-button.like.liked {
+  color: var(--color-like);
+}
+
+.action-button.like:hover .action-icon {
+  background: #fde8f1;
+}
+
+/* …メニュー */
+.menu-wrapper {
+  position: relative;
+}
+
+.menu-list {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 5;
+  min-width: 140px;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.menu-list button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-list button:hover {
+  background: var(--color-hover);
+}
+
+.menu-list button.danger {
+  color: var(--color-danger);
+}
+
+/* ===== コメント ===== */
+.comment-form {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.comment-form .form-main {
+  flex: 1;
+}
+
+.comment-form textarea {
+  width: 100%;
+  padding: 8px 0;
+  border: none;
+  resize: vertical;
+  font-size: 16px;
+}
+
+.comment-form textarea:focus {
+  outline: none;
+}
+
+.comment-form .form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.comment-head .link-button {
+  margin-left: auto;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.comment-content {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ===== プロフィール ===== */
+.profile-cover {
+  height: 120px;
+  background: linear-gradient(120deg, #8ecdf7, #c3b6f4);
+}
+
+.profile-info {
+  padding: 0 16px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.profile-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: -48px;
+}
+
+.profile-name {
+  margin: 8px 0 0;
+  font-size: 20px;
+}
+
+.profile-bio {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.profile-counts {
+  display: flex;
+  gap: 16px;
+}
+
+.profile-counts a {
+  color: var(--color-sub);
+}
+
+.profile-counts strong {
+  color: var(--color-text);
+}
+
+/* ===== ユーザー一覧の行（S-09・S-10共通） ===== */
+.user-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.user-row:hover {
+  background: var(--color-hover);
+}
+
+.user-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-row-bio {
+  margin: 2px 0 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ===== 検索 ===== */
+.search-box {
+  position: relative;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 44px 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #eff3f4;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: #fff;
+}
+
+.search-box .icon-button {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
+  font-size: 16px;
+}
+
+.loading {
+  padding: 24px;
+  color: var(--color-sub);
+  text-align: center;
+}
+
+/* ===== フォーム（ログイン・新規登録・プロフィール編集） ===== */
+.auth-page {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.auth-title {
+  margin: 0 0 24px;
+  font-size: 26px;
+  text-align: center;
+}
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+.field.has-error input,
+.field.has-error textarea {
+  border-color: var(--color-danger);
+}
+
+.input-with-prefix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-error,
+.form-error {
+  min-height: 1em;
+  margin: 4px 0 0;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.form-error:empty,
+.field-error:empty {
+  display: none;
+}
+
+.form-alert {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fee;
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.auth-switch {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.demo-accounts {
+  margin-top: 28px;
+  padding: 12px 16px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: #fafbfc;
+  color: var(--color-sub);
+  font-size: 13px;
+}
+
+.demo-accounts p {
+  margin: 0 0 6px;
+}
+
+.demo-accounts ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.demo-accounts button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.settings-form {
+  padding: 16px;
+}
+
+.icon-edit {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.char-counter {
+  color: var(--color-sub);
+  font-size: 13px;
+  text-align: right;
+}
+
+.char-counter.over {
+  color: var(--color-danger);
+  font-weight: bold;
+}
+
+.form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ===== モーダル・ダイアログ ===== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 16px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.modal-small {
+  max-width: 380px;
+  margin-top: 80px;
+  padding: 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.modal-body {
+  padding: 12px 16px;
+}
+
+.compose {
+  display: flex;
+  gap: 12px;
+}
+
+.compose-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.compose textarea {
+  width: 100%;
+  border: none;
+  resize: vertical;
+  font-size: 18px;
+}
+
+.compose textarea:focus {
+  outline: none;
+}
+
+.compose-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.compose-image {
+  position: relative;
+}
+
+.compose-image img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.compose-image .remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(15, 20, 25, 0.75);
+  color: #fff;
+  cursor: pointer;
+}
+
+.compose-note {
+  margin: 8px 0 0;
+  color: var(--color-sub);
+  font-size: 13px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.modal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-add-button {
+  color: var(--color-primary);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.image-add-button.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.confirm-message {
+  margin: 0 0 20px;
+  white-space: pre-wrap;
+}
+
+.confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lightbox {
+  align-items: center;
+  cursor: zoom-out;
+}
+
+.lightbox img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 8px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 200;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.toast.error {
+  background: var(--color-danger);
+}
+
+/* ===== スマートフォン（崩れない程度の対応） ===== */
+@media (max-width: 640px) {
+  .header-inner {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .post-actions {
+    gap: 24px;
+  }
+}
