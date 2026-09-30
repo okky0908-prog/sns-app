@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# 秘密情報（環境変数ファイル）
+.env
+.env.*
+!.env.example
+
+# エディタ
+.idea/
+*.iml
+
+# Terraform（state にパスワードなどが平文で残るため）
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/terraform.tfvars
