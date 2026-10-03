@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.okimoto.sns.backend.user.UserMapper">
+
+  <sql id="columns">
+    id, username, display_name, email, password_hash, bio, icon_key, created_at, updated_at
+  </sql>
+
+  <select id="findById" resultType="com.okimoto.sns.backend.user.User">
+    SELECT <include refid="columns"/>
+    FROM users
+    WHERE id = #{id}
+  </select>
+
+  <select id="findByEmail" resultType="com.okimoto.sns.backend.user.User">
+    SELECT <include refid="columns"/>
+    FROM users
+    WHERE email = #{email}
+  </select>
+
+  <!-- 大文字・小文字を区別せずに比べる（uq_users_username_lower と同じ考え方） -->
+  <select id="existsByUsernameIgnoreCase" resultType="boolean">
+    SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(username) = LOWER(#{username}))
+  </select>
+
+  <select id="existsByEmail" resultType="boolean">
+    SELECT EXISTS (SELECT 1 FROM users WHERE email = #{email})
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO users (username, display_name, email, password_hash, bio, icon_key, created_at, updated_at)
+    VALUES (#{username}, #{displayName}, #{email}, #{passwordHash}, #{bio}, #{iconKey}, #{createdAt}, #{updatedAt})
+  </insert>
+
+</mapper>

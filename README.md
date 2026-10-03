@@ -23,7 +23,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 |---|---|
 | フロントエンド | React 19 + TypeScript 7 + Vite 8（React Router） |
 | バックエンド | Java 25 + Spring Boot 4.1 (Gradle Kotlin DSL)、Spring Security + JWT |
-| データベース | PostgreSQL 17（Spring Data JPA + Flyway） |
+| データベース | PostgreSQL 17（MyBatis + Flyway） |
 | 画像保存 | Amazon S3 + CloudFront |
 | ローカル環境 | Docker Compose（PostgreSQL・LocalStack コンテナ） |
 | インフラ（暫定案） | AWS（ALB + EC2 + RDS）、Terraform |
@@ -70,4 +70,52 @@ ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSC
 
 ## セットアップ・起動方法
 
-実装開始後に記載する。
+現在はバックエンド（ユーザー登録・ログインの API）のみ実装済み。フロントエンドはこれから実装する。
+
+固定ポート（`backend: 8080` / `postgres: 5432`）で起動する。ポートが競合したときの対処など詳しい手順は[.claude/skills/run/SKILL.md](.claude/skills/run/SKILL.md)を参照。
+
+### 前提条件
+
+- Java 25（例：`brew install openjdk@25`。keg-only のため `JAVA_HOME` の指定が必要）
+- Docker（Docker Compose）
+
+### 1. 環境変数ファイルを用意する
+
+```bash
+cp .env.example .env
+# .env の JWT_SECRET に、32バイト以上のランダムな文字列を入れる
+openssl rand -base64 48
+```
+
+`.env` は docker compose とバックエンドの両方が読む（Git には入れない）。
+
+### 2. PostgreSQL を起動する
+
+```bash
+docker compose up -d postgres
+```
+
+### 3. バックエンドを起動する
+
+```bash
+cd backend
+JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew bootRun
+```
+
+起動時に Flyway がテーブルを作成する。動作確認の例：
+
+```bash
+curl -s -H 'Content-Type: application/json' \
+  -d '{"username":"yamada","displayName":"山田太郎","email":"yamada@example.com","password":"password123"}' \
+  http://localhost:8080/api/auth/signup
+```
+
+### テスト・整形チェック
+
+```bash
+cd backend
+JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew check   # Spotless の整形チェック + テスト
+JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew spotlessApply   # 整形を自動で直す
+```
+
+テストはローカルの PostgreSQL（`docker compose up -d postgres`）を使う。各テストは終了時にロールバックされ、データは残らない。

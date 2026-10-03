@@ -41,7 +41,7 @@
 | テスト | JUnit 5 + Spring Boot Test（MockMvc） | ○ | |
 | コード整形 | Spotless 8.10.0（Google Java Format） | ○ | `./gradlew check` で整形崩れを検出 |
 | 認証 | spring-boot-starter-security（Spring Boot 4.1.0 が管理するバージョン） | 新規 | 前回はログイン機能がなかった |
-| JWT | JJWT（`io.jsonwebtoken:jjwt-api` ほか。バージョン未定） | 新規 | トークンの発行と検証 |
+| JWT | JJWT 0.13.0（`jjwt-api`・`jjwt-impl`・`jjwt-gson`） | 新規 | トークンの発行と検証。JSON の処理には Gson を使う（`jjwt-jackson` は Jackson 2 に依存し、Spring Boot 4 が使う Jackson 3 と混ざるため。Gson のバージョンは Spring Boot が管理） |
 | パスワードのハッシュ化 | BCrypt（Spring Security に含まれる `BCryptPasswordEncoder`） | 新規 | 追加のライブラリは不要 |
 | S3 | AWS SDK for Java v2（`software.amazon.awssdk:bom` で S3 モジュールを使う。バージョン未定） | 新規 | 画像のアップロード・削除 |
 
@@ -50,7 +50,7 @@
 | 項目 | 技術・バージョン | 前回と同じ | 理由・補足 |
 |---|---|---|---|
 | DB | PostgreSQL 17（Docker イメージ `postgres:17`、AWS は RDS for PostgreSQL 17） | ○ | |
-| ORM | Spring Data JPA（Hibernate ORM 7.4.1.Final） | ○ | 一覧の集計（いいね数・コメント数）はネイティブ SQL も使う |
+| DB アクセス | MyBatis（`mybatis-spring-boot-starter` 4.1.0、MyBatis 3.5.19） | 新規 | 前回の Spring Data JPA から変更。SQL を `backend/src/main/resources/mapper/*.xml` に自分で書く。一覧の集計（いいね数・コメント数）やユーザー検索など、SQL を細かく書く場面が多いため。値は必ず `#{}` で渡す |
 | JDBC ドライバ | PostgreSQL JDBC 42.7.11 | ○ | |
 | マイグレーション | Flyway 12.4.0（`flyway-database-postgresql`） | ○ | テーブル作成・インデックス・pg_trgm 拡張の有効化を SQL ファイルで管理する |
 
@@ -81,6 +81,6 @@
 | 区分 | 追加するもの | 使わなくなるもの |
 |---|---|---|
 | フロントエンド | React Router | dnd-kit |
-| バックエンド | Spring Security、JJWT、AWS SDK for Java v2 | |
+| バックエンド | MyBatis、Spring Security、JJWT、AWS SDK for Java v2 | Spring Data JPA（Hibernate） |
 | 開発環境 | LocalStack | |
 | インフラ | ALB、S3、CloudFront | |
