@@ -14,6 +14,7 @@ erDiagram
     users ||--o{ likes : "いいねする"
     users ||--o{ follows : "フォローする (follower_id)"
     users ||--o{ follows : "フォローされる (followee_id)"
+    users ||--o{ refresh_tokens : "ログイン状態を保つ"
     posts ||--o{ post_images : "画像を持つ"
     posts ||--o{ comments : "コメントされる"
     posts ||--o{ likes : "いいねされる"
@@ -68,6 +69,15 @@ erDiagram
         BIGINT followee_id FK "フォローされる側"
         TIMESTAMPTZ created_at
     }
+
+    refresh_tokens {
+        BIGINT id PK
+        BIGINT user_id FK
+        CHAR token_hash UK "SHA-256 のハッシュ"
+        TIMESTAMPTZ expires_at
+        TIMESTAMPTZ revoked_at "無効にした日時 有効ならNULL"
+        TIMESTAMPTZ created_at
+    }
 ```
 
 ### リレーションのまとめ
@@ -79,6 +89,7 @@ erDiagram
 | users – posts（comments 経由） | 多 対 多 | 誰でも、どの投稿にも、何回でもコメントできる |
 | users – posts（likes 経由） | 多 対 多 | 誰でも、どの投稿にもいいねできる。ただし同じ組み合わせは1回だけ |
 | users – users（follows 経由） | 多 対 多（自己参照） | ユーザー同士がフォローし合う。同じテーブルを2回参照する |
+| users – refresh_tokens | 1 対 多 | ログインした端末（ブラウザ）ごと、再発行のたびに1行増える。古いものは無効（revoked_at あり）として残る |
 
 ## テーブル定義
 
@@ -175,6 +186,22 @@ ON CONFLICT (post_id, user_id) DO NOTHING;
 - **CHECK(follower_id <> followee_id)**: 自分自身はフォローできない（エラーメッセージをわかりやすくするため、アプリ側でもチェックする）
 - 「Aさんのフォロワー」= `followee_id = A` の行、「Aさんがフォロー中」= `follower_id = A` の行
 
+### refresh_tokens（リフレッシュトークン）
+
+ログイン状態を保つためのリフレッシュトークン（[機能定義書：認証](./feature-specs/01_auth.md)）。
+
+| カラム | 型 | NULL | 制約・初期値 | 説明 |
+|---|---|---|---|---|
+| id | BIGINT | × | PK, IDENTITY | |
+| user_id | BIGINT | × | FK → users.id, ON DELETE CASCADE | トークンの持ち主 |
+| token_hash | CHAR(64) | × | UNIQUE | トークンの SHA-256 ハッシュ（16進数64文字）。トークンそのものは保存しない |
+| expires_at | TIMESTAMPTZ | × | | 有効期限（発行から14日） |
+| revoked_at | TIMESTAMPTZ | ○ | | 無効にした日時（再発行で使用済みになった、ログアウトした、使い回しを検知した）。NULL なら有効 |
+| created_at | TIMESTAMPTZ | × | | 発行日時 |
+
+- トークンそのものではなくハッシュを保存するのは、DB の中身が漏れてもトークンとして使えないようにするため（パスワードを BCrypt で保存するのと同じ考え方。トークンは十分に長いランダムな値なので、高速な SHA-256 でよい）
+- 無効にした行も、使い回しの検知のために残しておく。期限切れの行は今後まとめて削除する（今回は未対応）
+
 ## インデックス
 
 PostgreSQL では、UNIQUE 制約には自動でインデックスが作られるが、**外部キーの列には自動で作られない**（MySQL とは違う点）。
@@ -191,6 +218,8 @@ PostgreSQL では、UNIQUE 制約には自動でインデックスが作られ�
 | follows | UNIQUE(follower_id, followee_id) | タイムライン取得時の「自分がフォロー中の人」の検索、フォロー中一覧 |
 | follows | (followee_id) | フォロワー一覧、フォロワー数の集計 |
 | post_images | UNIQUE(post_id, sort_order) | 投稿の画像取得 |
+| refresh_tokens | UNIQUE(token_hash) | 再発行・ログアウトでトークンを探す |
+| refresh_tokens | (user_id) | 使い回しを検知したときに、そのユーザーのトークンをまとめて無効にする。ユーザー削除時の CASCADE |
 | users | UNIQUE(LOWER(username)) | ユーザー名の重複チェック（大文字・小文字を区別しない）、プロフィール表示 |
 | users | (created_at DESC) | ユーザー検索でキーワードが空のときの「最近参加したユーザー」 |
 | users | GIN(username gin_trgm_ops)<br>GIN(display_name gin_trgm_ops) | ユーザー検索の部分一致（`ILIKE '%キーワード%'`） |
@@ -278,7 +307,7 @@ LIMIT 20 OFFSET :offset;
 | 削除するもの | 一緒に消えるもの |
 |---|---|
 | 投稿 | その投稿の画像（post_images）、コメント、いいね |
-| ユーザー（今回は画面なし） | そのユーザーの投稿（とそこにぶら下がるもの全部）、コメント、いいね、フォロー関係 |
+| ユーザー（今回は画面なし） | そのユーザーの投稿（とそこにぶら下がるもの全部）、コメント、いいね、フォロー関係、リフレッシュトークン |
 
 - DB の行は `ON DELETE CASCADE` で消える。S3 上の画像ファイルは DB では消えないので、アプリ側で S3 から削除する
 - S3 の削除は、DB のトランザクションがコミットされた後に行う（先に S3 を消して DB の削除が失敗すると、投稿は残るのに画像だけ消えてしまうため）。S3 の削除に失敗しても、ログに残すだけでエラーにはしない
@@ -291,7 +320,8 @@ LIMIT 20 OFFSET :offset;
 | ファイル | 内容 | 状態 |
 |---|---|---|
 | `V1__create_users.sql` | users テーブルの作成（ユーザー名の大文字小文字を区別しない一意インデックス、ユーザー名の形式・メールの小文字の CHECK 制約、登録日時のインデックス） | 作成済み（ユーザー登録・ログイン） |
-| `V2__`〜 | posts・post_images・comments・likes・follows テーブル | 各機能の実装時に追加 |
+| `V2__create_refresh_tokens.sql` | refresh_tokens テーブルの作成（トークンのハッシュの一意制約、user_id のインデックス） | 作成済み（アクセストークン＋リフレッシュトークン方式） |
+| `V3__`〜 | posts・post_images・comments・likes・follows テーブル | 各機能の実装時に追加 |
 | （未定） | ローカル動作確認用のサンプルデータ（複数ユーザー、投稿、コメント、いいね、フォロー関係） | 投稿・タイムラインの実装時に追加 |
 
 - pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V3__add_user_search_index.sql` として追加する

@@ -2,4 +2,7 @@
 app:
   jwt:
     secret: test-secret-key-for-unit-tests-only-0123456789
-    expiration: 24h
+    expiration: 15m
+  refresh-token:
+    expiration: 14d
+    cookie-secure: false

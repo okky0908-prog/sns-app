@@ -1,19 +1,23 @@
 package com.okimoto.sns.backend.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
+import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,12 +30,13 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-/** 認証 API（A-01〜A-03）のテスト。テストごとにロールバックするので、DB にデータは残らない。 */
+/** 認証 API（A-01〜A-05）のテスト。テストごとにロールバックするので、DB にデータは残らない。 */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -43,6 +48,7 @@ class AuthControllerTest {
   @Autowired private UserMapper userMapper;
   @Autowired private PasswordEncoder passwordEncoder;
   @Autowired private JwtProperties jwtProperties;
+  @Autowired private RefreshTokenMapper refreshTokenMapper;
 
   // ===== 道具 =====
 
@@ -71,7 +77,29 @@ class AuthControllerTest {
             .getResponse()
             .getContentAsString();
     JsonNode node = objectMapper.readTree(json);
-    return node.get("token").asString();
+    return node.get("accessToken").asString();
+  }
+
+  /** Set-Cookie ヘッダーからリフレッシュトークンの値を取り出す */
+  private static String refreshTokenOf(MvcResult result) {
+    String setCookie = result.getResponse().getHeader(HttpHeaders.SET_COOKIE);
+    assertThat(setCookie).startsWith(AuthController.REFRESH_TOKEN_COOKIE + "=");
+    return setCookie.substring(setCookie.indexOf('=') + 1, setCookie.indexOf(';'));
+  }
+
+  private String signupAndGetRefreshToken(String username, String email) throws Exception {
+    return refreshTokenOf(
+        postJson("/api/auth/signup", signupBody(username, "テスト太郎", email, "password123"))
+            .andExpect(status().isCreated())
+            .andReturn());
+  }
+
+  private ResultActions postRefresh(String refreshToken) throws Exception {
+    var request = post("/api/auth/refresh");
+    if (refreshToken != null) {
+      request.cookie(new Cookie(AuthController.REFRESH_TOKEN_COOKIE, refreshToken));
+    }
+    return mockMvc.perform(request);
   }
 
   private ResultActions getMe(String authorization) throws Exception {
@@ -90,7 +118,7 @@ class AuthControllerTest {
             "/api/auth/signup",
             signupBody("test_user1", "  テスト太郎  ", "Test.User1@Example.com", "password123"))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.token").value(notNullValue()))
+        .andExpect(jsonPath("$.accessToken").value(notNullValue()))
         .andExpect(jsonPath("$.user.id").value(notNullValue()))
         .andExpect(jsonPath("$.user.username").value("test_user1"))
         .andExpect(jsonPath("$.user.displayName").value("テスト太郎"))
@@ -205,7 +233,7 @@ class AuthControllerTest {
     signupAndGetToken("loginuser", "login@example.com");
     postJson("/api/auth/login", Map.of("email", "  LOGIN@Example.com ", "password", "password123"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.token").value(notNullValue()))
+        .andExpect(jsonPath("$.accessToken").value(notNullValue()))
         .andExpect(jsonPath("$.user.username").value("loginuser"));
   }
 
@@ -266,6 +294,102 @@ class AuthControllerTest {
           .andExpect(jsonPath("$.status").value(401))
           .andExpect(jsonPath("$.message").value("ログインが必要です"));
     }
+  }
+
+  // ===== リフレッシュトークン（A-04 再発行・A-05 ログアウト） =====
+
+  @Test
+  void 登録とログインでリフレッシュトークンがHttpOnlyのCookieで返り_JSONには入らない() throws Exception {
+    for (ResultActions result :
+        new ResultActions[] {
+          postJson(
+              "/api/auth/signup",
+              signupBody("cookieuser", "名前", "cookie@example.com", "password123")),
+          postJson(
+              "/api/auth/login", Map.of("email", "cookie@example.com", "password", "password123"))
+        }) {
+      result
+          .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refresh_token=")))
+          .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
+          .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")))
+          .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Path=/api/auth")))
+          .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=1209600")))
+          .andExpect(jsonPath("$.refreshToken").doesNotExist());
+    }
+    // DB にはトークンそのものではなくハッシュを保存する
+    String token = signupAndGetRefreshToken("hashcheck", "hashcheck@example.com");
+    assertThat(refreshTokenMapper.findByTokenHash(token)).isEmpty();
+    assertThat(refreshTokenMapper.findByTokenHash(RefreshTokenService.hash(token))).isPresent();
+  }
+
+  @Test
+  void refresh_新しいアクセストークンが返り_リフレッシュトークンも新しいものに交換される() throws Exception {
+    String oldRefresh = signupAndGetRefreshToken("refreshuser", "refresh@example.com");
+    MvcResult result =
+        postRefresh(oldRefresh)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken").value(notNullValue()))
+            .andExpect(jsonPath("$.user.username").value("refreshuser"))
+            .andReturn();
+    String newRefresh = refreshTokenOf(result);
+    assertThat(newRefresh).isNotEqualTo(oldRefresh);
+
+    String accessToken =
+        objectMapper
+            .readTree(result.getResponse().getContentAsString())
+            .get("accessToken")
+            .asString();
+    getMe("Bearer " + accessToken).andExpect(status().isOk());
+    postRefresh(newRefresh).andExpect(status().isOk());
+  }
+
+  @Test
+  void refresh_使用済みのトークンが再び使われたら401_そのユーザーのトークンをすべて無効にする() throws Exception {
+    String oldRefresh = signupAndGetRefreshToken("reuseuser", "reuse@example.com");
+    String newRefresh =
+        refreshTokenOf(postRefresh(oldRefresh).andExpect(status().isOk()).andReturn());
+
+    // 盗まれた古いトークンが使われた
+    postRefresh(oldRefresh)
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value(AuthService.SESSION_EXPIRED));
+    // 正規の利用者が持つ新しいトークンも無効になっている（もう一度ログインが必要）
+    postRefresh(newRefresh).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void refresh_Cookieなし_知らないトークン_期限切れはすべて401() throws Exception {
+    postRefresh(null)
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.status").value(401))
+        .andExpect(jsonPath("$.message").value(AuthService.SESSION_EXPIRED));
+    postRefresh("unknown-token").andExpect(status().isUnauthorized());
+
+    signupAndGetRefreshToken("expireduser", "expired@example.com");
+    long userId = userMapper.findByEmail("expired@example.com").orElseThrow().getId();
+    OffsetDateTime now = OffsetDateTime.now();
+    refreshTokenMapper.insert(
+        new RefreshToken(
+            userId,
+            RefreshTokenService.hash("expired-token"),
+            now.minusMinutes(1),
+            now.minusDays(14)));
+    postRefresh("expired-token").andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void logout_リフレッシュトークンを無効にしてCookieを消す() throws Exception {
+    String refresh = signupAndGetRefreshToken("logoutuser", "logout@example.com");
+    mockMvc
+        .perform(
+            post("/api/auth/logout")
+                .cookie(new Cookie(AuthController.REFRESH_TOKEN_COOKIE, refresh)))
+        .andExpect(status().isNoContent())
+        .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+    postRefresh(refresh).andExpect(status().isUnauthorized());
+
+    // Cookie がなくても（すでにログアウト済みでも）エラーにしない
+    mockMvc.perform(post("/api/auth/logout")).andExpect(status().isNoContent());
   }
 
   @Test

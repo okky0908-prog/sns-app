@@ -8,7 +8,8 @@ export interface UserSummary {
 }
 
 export interface AuthResponse {
-  token: string
+  /** アクセストークン（有効期限15分）。リフレッシュトークンは HttpOnly Cookie で届くので、ここには含まれない */
+  accessToken: string
   user: UserSummary
 }
 

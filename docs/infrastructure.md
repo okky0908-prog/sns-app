@@ -109,6 +109,7 @@ Spring Boot の `application-production.yml` で、次の値を環境変数か�
 |---|---|---|
 | DB の接続先 | `DB_HOST`・`POSTGRES_PORT`・`POSTGRES_DB`・`POSTGRES_USER`・`POSTGRES_PASSWORD` | RDS のエンドポイントと認証情報（ローカルの `.env` と同じ名前） |
 | JWT の署名鍵 | `JWT_SECRET` | サーバー上でだけ作る。リポジトリには入れない |
+| リフレッシュトークンの Cookie | `REFRESH_TOKEN_COOKIE_SECURE=true` | Cookie に Secure 属性を付け、HTTPS のときだけ送らせる。そのため本番は HTTPS 化が前提（下の「今後の課題」参照） |
 | S3 | `S3_BUCKET`・`AWS_REGION` | バケット名とリージョン。アクセスキーは IAM ロールから自動で取得されるため設定しない |
 | 画像の配信元 | `IMAGE_BASE_URL` | CloudFront の URL（例: `https://dxxxxxxxx.cloudfront.net`） |
 | アップロードサイズ | `spring.servlet.multipart.max-file-size` など | 1枚5MB・1回のリクエストで合計20MB（4枚）まで |

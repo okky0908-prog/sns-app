@@ -30,6 +30,10 @@ management:
 
 app:
   jwt:
-    # 32バイト以上のランダムな文字列。ソースコードには書かず、.env または環境変数 JWT_SECRET で渡す
+    # アクセストークン（JWT）。32バイト以上のランダムな文字列。ソースコードには書かず、.env または環境変数 JWT_SECRET で渡す
     secret: ${JWT_SECRET:}
-    expiration: 24h
+    expiration: 15m
+  refresh-token:
+    expiration: 14d
+    # Cookie の Secure 属性。HTTPS の本番では true にする（ローカル開発は HTTP なので false）
+    cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
