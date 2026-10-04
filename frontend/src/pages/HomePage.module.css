@@ -34,6 +34,32 @@
   font-size: 14px;
 }
 
+.check {
+  margin: 0 0 24px;
+}
+
+.secondary {
+  padding: 6px 16px;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkResult {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--color-sub);
+  font-size: 13px;
+}
+
 .logout {
   padding: 8px 24px;
   border: 1px solid var(--color-border);

@@ -4,38 +4,30 @@ import type { LoginInput, SignupInput, UserSummary } from '../api/types'
 import { AuthContext, type AuthContextValue } from './authContext'
 
 /**
- * ログイン状態を管理する。
- * - トークンは localStorage に保存し、アプリを開いたときに /api/auth/me で有効か確かめる
- * - ログアウトはトークンを捨てるだけ（バックエンドに API はない。docs/feature-specs/01_auth.md）
+ * ログイン状態を管理する（docs/feature-specs/01_auth.md）。
+ * - アプリを開いたら、リフレッシュトークン（HttpOnly Cookie）でアクセストークンを再発行して、ログイン状態を復元する
+ * - ログアウトは、サーバーでリフレッシュトークンを無効にしてから、手元の状態を消す
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserSummary | null>(null)
-  // トークンがあるときだけ、確認が終わるまで「読み込み中」にする
-  const [loading, setLoading] = useState(() => api.getToken() !== null)
+  // Cookie は JavaScript から見えないので、ログイン状態かどうかは再発行を試すまでわからない
+  const [loading, setLoading] = useState(true)
 
-  const logout = useCallback(() => {
-    api.clearToken()
-    setUser(null)
+  useEffect(() => {
+    // 再発行もできずに 401 になったら（リフレッシュトークンの期限切れなど）ログアウト状態にする
+    api.setUnauthorizedHandler(() => setUser(null))
+    return () => api.setUnauthorizedHandler(null)
   }, [])
 
   useEffect(() => {
-    // ログインが必要な API で 401 が返ったら（期限切れなど）ログアウトする
-    api.setUnauthorizedHandler(logout)
-    return () => api.setUnauthorizedHandler(null)
-  }, [logout])
-
-  useEffect(() => {
-    if (!api.getToken()) {
-      return
-    }
     let cancelled = false
     api
-      .fetchMe()
-      .then((me) => {
-        if (!cancelled) setUser(me)
+      .refresh()
+      .then((res) => {
+        if (!cancelled) setUser(res.user)
       })
       .catch(() => {
-        // 401 のときは unauthorizedHandler がトークンを捨てる。通信エラーのときは未ログインとして扱う
+        // リフレッシュトークンがない・無効なら未ログイン。通信エラーのときも未ログインとして扱う
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -47,14 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (input: LoginInput) => {
     const res = await api.login(input)
-    api.saveToken(res.token)
     setUser(res.user)
   }, [])
 
   const signup = useCallback(async (input: SignupInput) => {
-    const res = await api.signup(input)
-    api.saveToken(res.token) // 登録後はそのままログイン状態にする
+    const res = await api.signup(input) // 登録後はそのままログイン状態にする
     setUser(res.user)
+  }, [])
+
+  const logout = useCallback(async () => {
+    try {
+      await api.logout()
+    } catch {
+      // 通信に失敗しても、画面上はログアウトする（リフレッシュトークンは期限で無効になる）
+    }
+    setUser(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(

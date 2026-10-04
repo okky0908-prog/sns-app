@@ -17,13 +17,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 新規登録・ログイン・ログイン中のユーザー情報の取得（docs/feature-specs/01_auth.md）。 */
+/** 新規登録・ログイン・トークンの再発行・ログアウト・ログイン中のユーザー情報の取得（docs/feature-specs/01_auth.md）。 */
 @Service
 public class AuthService {
 
   static final String USERNAME_TAKEN = "このユーザー名はすでに使われています";
   static final String EMAIL_TAKEN = "このメールアドレスはすでに登録されています";
   static final String INVALID_LOGIN = "メールアドレスまたはパスワードが正しくありません";
+  static final String SESSION_EXPIRED = "ログインの有効期限が切れました。もう一度ログインしてください";
   static final String PASSWORD_TOO_LONG = "パスワードが長すぎます（全角文字は1文字を3バイトとして、72バイトまで）";
 
   /** BCrypt が扱えるのは72バイトまで */
@@ -32,22 +33,28 @@ public class AuthService {
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
+  private final RefreshTokenService refreshTokenService;
   private final Clock clock;
 
   /** 存在しないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
   private final String dummyPasswordHash;
 
   public AuthService(
-      UserMapper userMapper, PasswordEncoder passwordEncoder, JwtService jwtService, Clock clock) {
+      UserMapper userMapper,
+      PasswordEncoder passwordEncoder,
+      JwtService jwtService,
+      RefreshTokenService refreshTokenService,
+      Clock clock) {
     this.userMapper = userMapper;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
+    this.refreshTokenService = refreshTokenService;
     this.clock = clock;
     this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
   }
 
   @Transactional
-  public AuthResponse signup(SignupRequest request) {
+  public AuthResult signup(SignupRequest request) {
     String username = request.username();
     String email = normalizeEmail(request.email());
     if (!fitsBcrypt(request.password())) {
@@ -84,11 +91,11 @@ public class AuthService {
                   ? new ApiError.FieldError("email", EMAIL_TAKEN)
                   : new ApiError.FieldError("username", USERNAME_TAKEN)));
     }
-    return toResponse(user);
+    return issueTokens(user);
   }
 
-  @Transactional(readOnly = true)
-  public AuthResponse login(LoginRequest request) {
+  @Transactional
+  public AuthResult login(LoginRequest request) {
     Optional<User> user = userMapper.findByEmail(normalizeEmail(request.email()));
     // ユーザーがいなくても同じようにハッシュの照合をして、応答時間から登録済みのメールアドレスを推測されないようにする
     String hash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
@@ -98,7 +105,31 @@ public class AuthService {
       // どちらが違うかは教えない
       throw new ApiException(HttpStatus.UNAUTHORIZED, INVALID_LOGIN);
     }
-    return toResponse(user.get());
+    return issueTokens(user.get());
+  }
+
+  /**
+   * リフレッシュトークンを新しいものに交換し、アクセストークンを再発行する。
+   *
+   * <p>トランザクションは RefreshTokenService#rotate の中で完結させる（無効なトークンのときに投げる例外で、使い回し検知の処理がロールバックされないように）。
+   */
+  public AuthResult refresh(String refreshToken) {
+    RefreshTokenService.Rotation rotation =
+        refreshTokenService
+            .rotate(refreshToken)
+            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, SESSION_EXPIRED));
+    User user =
+        userMapper
+            .findById(rotation.userId())
+            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, SESSION_EXPIRED));
+    return new AuthResult(
+        jwtService.issue(user.getId()), rotation.refreshToken(), UserResponse.from(user));
+  }
+
+  /** ログアウト。リフレッシュトークンを無効にする（アクセストークンは期限の15分が過ぎるまで有効なまま）。 */
+  @Transactional
+  public void logout(String refreshToken) {
+    refreshTokenService.revoke(refreshToken);
   }
 
   @Transactional(readOnly = true)
@@ -110,8 +141,11 @@ public class AuthService {
         .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ログインが必要です"));
   }
 
-  private AuthResponse toResponse(User user) {
-    return new AuthResponse(jwtService.issue(user.getId()), UserResponse.from(user));
+  private AuthResult issueTokens(User user) {
+    return new AuthResult(
+        jwtService.issue(user.getId()),
+        refreshTokenService.issue(user.getId()),
+        UserResponse.from(user));
   }
 
   /** メールアドレスは小文字にそろえる（Yamada@Example.com と yamada@example.com を同じとみなす） */

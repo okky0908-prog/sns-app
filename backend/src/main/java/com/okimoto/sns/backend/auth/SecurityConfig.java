@@ -22,7 +22,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <ul>
  *   <li>セッションは使わず、リクエストごとに JWT で本人確認する
- *   <li>新規登録・ログイン・ヘルスチェック以外の API はログイン必須
+ *   <li>新規登録・ログイン・再発行・ログアウト・ヘルスチェック以外の API はログイン必須（再発行・ログアウトはアクセストークンの代わりにリフレッシュトークンの Cookie を使う）
  *   <li>未ログインは 401、権限なしは 403 を、docs/api.md のエラー形式（JSON）で返す
  * </ul>
  */
@@ -40,7 +40,12 @@ public class SecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login")
+                auth.requestMatchers(
+                        HttpMethod.POST,
+                        "/api/auth/signup",
+                        "/api/auth/login",
+                        "/api/auth/refresh",
+                        "/api/auth/logout")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/health")
                     .permitAll()

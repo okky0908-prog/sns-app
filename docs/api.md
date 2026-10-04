@@ -8,7 +8,7 @@
 |---|---|
 | ベースURL | `/api` |
 | データ形式 | JSON（画像を送る API だけ `multipart/form-data`） |
-| 認証 | ログインで受け取った JWT を `Authorization: Bearer <token>` ヘッダーで送る |
+| 認証 | ログイン・新規登録・再発行で受け取ったアクセストークン（JWT、15分）を `Authorization: Bearer <token>` ヘッダーで送る。リフレッシュトークン（14日）は HttpOnly Cookie で届き、ブラウザが `/api/auth` の下にだけ自動で送る（[機能定義書：認証](feature-specs/01_auth.md)） |
 | 日時 | ISO 8601 形式（例: `2026-09-30T10:15:00+09:00`） |
 | JSON のキー | キャメルケース（例: `likeCount`） |
 | ページング | `?page=0` から始まる。1ページ20件。レスポンスに `hasNext` を含める |
@@ -41,6 +41,8 @@
 | A-01 | POST | `/api/auth/signup` | 不要 | 新規登録。成功したらトークンも返す | F-01 |
 | A-02 | POST | `/api/auth/login` | 不要 | ログイン | F-02 |
 | A-03 | GET | `/api/auth/me` | 必要 | ログイン中のユーザー情報 | F-04 |
+| A-04 | POST | `/api/auth/refresh` | リフレッシュトークン（Cookie） | アクセストークンの再発行。リフレッシュトークンも新しいものに交換する | F-04 |
+| A-05 | POST | `/api/auth/logout` | リフレッシュトークン（Cookie） | ログアウト。リフレッシュトークンを無効にする | F-03 |
 | A-10 | GET | `/api/timeline?page=0` | 必要 | フォロー中タイムライン（自分 + フォロー中の投稿） | F-20, F-21 |
 | A-15 | GET | `/api/timeline/all?page=0` | 必要 | 全体タイムライン（全ユーザーの投稿） | F-22, F-21 |
 | A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart） | F-10 |
@@ -61,7 +63,7 @@
 | A-62 | PUT | `/api/users/me` | 必要 | 自分のプロフィール編集（multipart） | F-61 |
 | A-70 | GET | `/api/users/search?q=yama&page=0` | 必要 | ユーザー検索。`q` が空なら最近参加したユーザー | F-70, F-71 |
 
-- ログアウト（F-03）は JWT をフロントで破棄するだけなので API はない
+- 「認証：必要」はアクセストークンが必要という意味。期限切れなどで 401 が返ったら、画面側は A-04 で再発行して1回だけやり直す
 - ALB のヘルスチェック用に `GET /api/health`（認証不要、200 を返すだけ）を用意する（[インフラ構成](infrastructure.md)）
 - 各機能の画面の動き・エラー時の動きは [機能定義書](feature-specs/README.md) を参照
 - 画像のアップロードは Spring Boot が受け取って S3 に保存する。ブラウザが画像を表示するときは、API が返す `url`（CloudFront の URL）から直接取得し、Spring Boot は経由しない
@@ -181,11 +183,16 @@ A-10, A-11, A-12, A-13, A-15, A-61 で返す。
 
 // レスポンス 201 Created
 {
-  "token": "eyJhbGciOi...",
+  "accessToken": "eyJhbGciOi...",
   "user": { "id": 1, "username": "yamada", "displayName": "山田太郎", "iconUrl": null }
 }
 ```
 
+```
+Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; SameSite=Strict（本番は Secure も付ける）
+```
+
+- リフレッシュトークンは JSON には入れず、Cookie でだけ返す
 - ユーザー名・メールアドレスが登録済みなら 409
 
 ### A-02 ログイン
@@ -196,11 +203,34 @@ A-10, A-11, A-12, A-13, A-15, A-61 で返す。
 // リクエスト
 { "email": "yamada@example.com", "password": "password123" }
 
-// レスポンス 200 OK（A-01 と同じ形）
-{ "token": "eyJhbGciOi...", "user": { ... } }
+// レスポンス 200 OK（A-01 と同じ形。リフレッシュトークンの Cookie も返す）
+{ "accessToken": "eyJhbGciOi...", "user": { ... } }
 ```
 
 - メールアドレスかパスワードが違えば 401（どちらが違うかは返さない）
+
+### A-04 アクセストークンの再発行
+
+`POST /api/auth/refresh`（リクエストの本文はなし。リフレッシュトークンの Cookie をブラウザが自動で付ける）
+
+```json
+// レスポンス 200 OK（A-01 と同じ形。新しいリフレッシュトークンの Cookie も返す）
+{ "accessToken": "eyJhbGciOi...", "user": { ... } }
+
+// レスポンス 401（Cookie がない・知らないトークン・期限切れ・使用済みのトークン）
+{ "status": 401, "message": "ログインの有効期限が切れました。もう一度ログインしてください", "errors": [] }
+```
+
+- 使ったリフレッシュトークンは無効にし、新しいものを Cookie で返す（ローテーション）
+- 使用済みのリフレッシュトークンがもう一度使われたら、そのユーザーのリフレッシュトークンをすべて無効にして 401 を返す
+- 画面を開いたときにも呼び、ログイン状態を復元する（レスポンスの `user` を使う）
+
+### A-05 ログアウト
+
+`POST /api/auth/logout`（リクエストの本文はなし）
+
+- レスポンス 204 No Content。`Set-Cookie: refresh_token=; Max-Age=0` で Cookie を消す
+- リフレッシュトークンを無効にする。Cookie がない（すでにログアウト済み）ときも 204
 
 ### A-11 投稿作成
 
