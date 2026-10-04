@@ -90,7 +90,7 @@ users・posts・post_images・comments・likes・follows の6テーブルで構�
 
 - アプリのサーバーを AWS 上に構築するか（構築する場合の構成は 11章）
 - インターネットに公開する場合の HTTPS 化（独自ドメインの取得）
-- 今回新しく使うライブラリのバージョン：React Router・AWS SDK for Java v2・LocalStack（導入時の最新安定版に決め、[技術スタック](./tech-stack.md) に記載する）
+- 今回新しく使うライブラリのバージョン：AWS SDK for Java v2・LocalStack（導入時の最新安定版に決め、[技術スタック](./tech-stack.md) に記載する）
 
 ## 11. インフラ構成（AWS）
 

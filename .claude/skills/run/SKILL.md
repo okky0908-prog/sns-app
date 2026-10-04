@@ -29,11 +29,11 @@ docker compose up -d postgres localstack   # LocalStack を追加するまでは
 # 2. バックエンド（リポジトリルートから）。Java 25 は Homebrew の openjdk@25（keg-only のため JAVA_HOME を指定）
 cd backend && JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew bootRun
 
-# 3. フロントエンド（別ターミナル、リポジトリルートから）
+# 3. フロントエンド（別ターミナル、リポジトリルートから）。初回は npm ci で依存関係を入れる
 cd frontend && npm run dev
 ```
 
-- 現在の実装状況：バックエンド（認証 API）と PostgreSQL のみ。LocalStack は画像投稿、フロントエンドは画面の実装時に追加する。まだないものは起動しなくてよい
+- 現在の実装状況：PostgreSQL・バックエンド（認証 API）・フロントエンド（ログイン・新規登録画面）。LocalStack は画像投稿の実装時に追加する。まだないものは起動しなくてよい
 - バックエンドより先に LocalStack を起動しておくこと（画像のアップロード先の S3 バケットが必要なため）
 - S3 バケットは LocalStack の起動時に初期化スクリプトで作成する。バケットがない場合は、LocalStack が起動しきっているか（下の起動確認）を確認する
 

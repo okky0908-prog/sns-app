@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // Viteの自動JSXランタイムを使用しているためReactのスコープ内インポートは不要
+    "react/react-in-jsx-scope": "off",
+    // フォームを開いた際に最初の入力欄へ意図的にフォーカスしている
+    "jsx-a11y/no-autofocus": "off"
+  }
+}

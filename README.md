@@ -70,13 +70,14 @@ ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSC
 
 ## セットアップ・起動方法
 
-現在はバックエンド（ユーザー登録・ログインの API）のみ実装済み。フロントエンドはこれから実装する。
+現在は、ユーザー登録・ログイン・ログアウトまで実装済み（バックエンドの API と、フロントエンドのログイン・新規登録画面）。ログイン後の画面は「ログイン成功」を表示する仮の画面で、タイムラインなどはこれから実装する。
 
-固定ポート（`backend: 8080` / `postgres: 5432`）で起動する。ポートが競合したときの対処など詳しい手順は[.claude/skills/run/SKILL.md](.claude/skills/run/SKILL.md)を参照。
+固定ポート（`backend: 8080` / `frontend: 5173` / `postgres: 5432`）で起動する。ポートが競合したときの対処など詳しい手順は[.claude/skills/run/SKILL.md](.claude/skills/run/SKILL.md)を参照。
 
 ### 前提条件
 
 - Java 25（例：`brew install openjdk@25`。keg-only のため `JAVA_HOME` の指定が必要）
+- Node.js 24系（`frontend/.nvmrc`）
 - Docker（Docker Compose）
 
 ### 1. 環境変数ファイルを用意する
@@ -110,6 +111,16 @@ curl -s -H 'Content-Type: application/json' \
   http://localhost:8080/api/auth/signup
 ```
 
+### 4. フロントエンドを起動する（別のターミナル）
+
+```bash
+cd frontend
+npm ci        # 初回だけ
+npm run dev
+```
+
+http://localhost:5173 を開くとログイン画面が表示される。「新規登録はこちら」からアカウントを作ると、そのままログインして「ログイン成功」の画面に移る。`/api` へのリクエストは Vite のプロキシでバックエンド（8080）に中継される。
+
 ### テスト・整形チェック
 
 ```bash
@@ -119,3 +130,11 @@ JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradle
 ```
 
 テストはローカルの PostgreSQL（`docker compose up -d postgres`）を使う。各テストは終了時にロールバックされ、データは残らない。
+
+フロントエンドの型チェック・ビルドと lint：
+
+```bash
+cd frontend
+npm run build   # TypeScript の型チェック + ビルド
+npm run lint    # oxlint
+```

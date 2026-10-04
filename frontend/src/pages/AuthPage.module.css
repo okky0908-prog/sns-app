@@ -1,0 +1,47 @@
+/* ログイン・新規登録画面で共通（mockup/style.css の .auth-page などを移したもの） */
+
+.page {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.title {
+  margin: 0 0 24px;
+  font-size: 26px;
+  text-align: center;
+}
+
+.alert {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fee;
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.submit {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switch {
+  margin-top: 20px;
+  text-align: center;
+}
