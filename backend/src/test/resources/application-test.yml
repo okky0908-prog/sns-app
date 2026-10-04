@@ -1,0 +1,5 @@
+# テスト用の設定（@ActiveProfiles("test")）。.env がなくてもテストが動くように、テスト専用の署名鍵を置く
+app:
+  jwt:
+    secret: test-secret-key-for-unit-tests-only-0123456789
+    expiration: 24h

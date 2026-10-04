@@ -2,7 +2,7 @@
 
 [要件定義書](./requirements.md) の詳細ドキュメント。X風SNSアプリのデータ構造・データベース設計をまとめる。
 
-DBエンジンは PostgreSQL 17、スキーマ管理は Flyway で行う（[技術スタック](./tech-stack.md)参照）。実装後は、以下のテーブル定義を実際のマイグレーション（`backend/src/main/resources/db/migration/`）および JPA エンティティと一致させる。データベースの文字コードは `UTF8`（絵文字もそのまま保存できる）。
+DBエンジンは PostgreSQL 17、スキーマ管理は Flyway で行う（[技術スタック](./tech-stack.md)参照）。実装後は、以下のテーブル定義を実際のマイグレーション（`backend/src/main/resources/db/migration/`）および MyBatis の Mapper（`backend/src/main/resources/mapper/*.xml`）と一致させる。データベースの文字コードは `UTF8`（絵文字もそのまま保存できる）。
 `VARCHAR(n)` の `n` はバイト数ではなく文字数なので、日本語でも「280文字まで」をそのまま表せる。
 
 ## ER図
@@ -84,9 +84,9 @@ erDiagram
 
 共通ルール
 
-- 主キーはすべて `id BIGINT GENERATED ALWAYS AS IDENTITY`（表では「IDENTITY」と略す）。JPA では `@GeneratedValue(strategy = GenerationType.IDENTITY)` を使う
+- 主キーはすべて `id BIGINT GENERATED ALWAYS AS IDENTITY`（表では「IDENTITY」と略す）。MyBatis では `<insert useGeneratedKeys="true" keyProperty="id">` で採番された ID を受け取る
 - 日時の列はすべて `TIMESTAMPTZ`（`TIMESTAMP WITH TIME ZONE`）。タイムゾーンつきで保存するので、サーバーの設定が変わっても日時がずれない
-- `created_at` / `updated_at` はアプリ側（JPA の `@CreationTimestamp` / `@UpdateTimestamp` など）で設定する。PostgreSQL には MySQL の `ON UPDATE CURRENT_TIMESTAMP` のような機能がないため
+- `created_at` / `updated_at` はアプリ側（サービスで現在時刻を入れて INSERT・UPDATE する）で設定する。PostgreSQL には MySQL の `ON UPDATE CURRENT_TIMESTAMP` のような機能がないため
 - 論理削除はしない（削除は物理削除）
 
 ### users（ユーザー）
@@ -286,12 +286,13 @@ LIMIT 20 OFFSET :offset;
 ## マイグレーション管理
 
 - Flyway でスキーマを管理し、`backend/src/main/resources/db/migration/` 配下に `V<番号>__<説明>.sql` の形式で配置する（前回と同じ）
-- 予定しているマイグレーション
+- テーブルは、それを使う機能を実装するときに1つずつマイグレーションを追加する（全テーブルを最初にまとめて作らない）
 
-| ファイル | 内容 |
-|---|---|
-| `V1__init.sql` | users / posts / post_images / comments / likes / follows テーブルの作成、一意制約・CHECK 制約・インデックスの作成 |
-| `V2__seed_data.sql` | ローカル動作確認用のサンプルデータ投入（複数ユーザー、投稿、コメント、いいね、フォロー関係）。いいね数・コメント数・フォロー一覧の表示を確認できるようにする |
+| ファイル | 内容 | 状態 |
+|---|---|---|
+| `V1__create_users.sql` | users テーブルの作成（ユーザー名の大文字小文字を区別しない一意インデックス、ユーザー名の形式・メールの小文字の CHECK 制約、登録日時のインデックス） | 作成済み（ユーザー登録・ログイン） |
+| `V2__`〜 | posts・post_images・comments・likes・follows テーブル | 各機能の実装時に追加 |
+| （未定） | ローカル動作確認用のサンプルデータ（複数ユーザー、投稿、コメント、いいね、フォロー関係） | 投稿・タイムラインの実装時に追加 |
 
 - pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V3__add_user_search_index.sql` として追加する
 - `bootRun` 起動時に Flyway が未適用のマイグレーションを自動実行する（[技術スタック](./tech-stack.md)参照）

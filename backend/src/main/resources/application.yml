@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: backend
+  config:
+    # ローカル開発ではリポジトリ直下の .env（docker-compose と共通）から DB・JWT の設定を読む。
+    # 本番（AWS）では .env は置かず、環境変数で渡す
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sns}
+    username: ${POSTGRES_USER:sns}
+    password: ${POSTGRES_PASSWORD:sns}
+  flyway:
+    enabled: true
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+management:
+  endpoints:
+    web:
+      # ALB のヘルスチェック用に /api/health で公開する（docs/infrastructure.md）
+      base-path: /api
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  jwt:
+    # 32バイト以上のランダムな文字列。ソースコードには書かず、.env または環境変数 JWT_SECRET で渡す
+    secret: ${JWT_SECRET:}
+    expiration: 24h

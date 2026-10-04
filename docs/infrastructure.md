@@ -107,7 +107,7 @@ Spring Boot の `application-production.yml` で、次の値を環境変数か�
 
 | 役割 | 環境変数（例） | 内容 |
 |---|---|---|
-| DB の接続先 | `DB_HOST`・`DB_NAME`・`DB_USERNAME`・`DB_PASSWORD` | RDS のエンドポイントと認証情報 |
+| DB の接続先 | `DB_HOST`・`POSTGRES_PORT`・`POSTGRES_DB`・`POSTGRES_USER`・`POSTGRES_PASSWORD` | RDS のエンドポイントと認証情報（ローカルの `.env` と同じ名前） |
 | JWT の署名鍵 | `JWT_SECRET` | サーバー上でだけ作る。リポジトリには入れない |
 | S3 | `S3_BUCKET`・`AWS_REGION` | バケット名とリージョン。アクセスキーは IAM ロールから自動で取得されるため設定しない |
 | 画像の配信元 | `IMAGE_BASE_URL` | CloudFront の URL（例: `https://dxxxxxxxx.cloudfront.net`） |

@@ -82,7 +82,7 @@ users・posts・post_images・comments・likes・follows の6テーブルで構�
 
 ## 9. 技術スタック
 
-前回のタスク管理アプリと同じ技術は同じバージョンを使う。フロントエンドは React 19 + TypeScript 7 + Vite 8（React Router を追加）、バックエンドは Java 25 + Spring Boot 4.1（Spring Security + JWT を追加）、DB は PostgreSQL 17（Spring Data JPA + Flyway）、画像は Amazon S3 を採用する。
+前回のタスク管理アプリと同じ技術は同じバージョンを使う。フロントエンドは React 19 + TypeScript 7 + Vite 8（React Router を追加）、バックエンドは Java 25 + Spring Boot 4.1（Spring Security + JWT を追加）、DB は PostgreSQL 17（MyBatis + Flyway）、画像は Amazon S3 を採用する。
 
 → 詳細は [技術スタック](./tech-stack.md) を参照
 
@@ -90,7 +90,7 @@ users・posts・post_images・comments・likes・follows の6テーブルで構�
 
 - アプリのサーバーを AWS 上に構築するか（構築する場合の構成は 11章）
 - インターネットに公開する場合の HTTPS 化（独自ドメインの取得）
-- 今回新しく使うライブラリのバージョン：React Router・JJWT・AWS SDK for Java v2・LocalStack（導入時の最新安定版に決め、[技術スタック](./tech-stack.md) に記載する）
+- 今回新しく使うライブラリのバージョン：React Router・AWS SDK for Java v2・LocalStack（導入時の最新安定版に決め、[技術スタック](./tech-stack.md) に記載する）
 
 ## 11. インフラ構成（AWS）
 
