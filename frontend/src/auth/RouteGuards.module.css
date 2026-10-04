@@ -1,0 +1,5 @@
+.loading {
+  padding: 40px 16px;
+  color: var(--color-sub);
+  text-align: center;
+}
