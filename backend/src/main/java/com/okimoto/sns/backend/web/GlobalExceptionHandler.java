@@ -7,6 +7,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /** 例外を docs/api.md のエラー形式に変換する。 */
 @RestControllerAdvice
@@ -29,6 +31,35 @@ public class GlobalExceptionHandler {
             .toList();
     return ResponseEntity.badRequest()
         .body(new ApiError(HttpStatus.BAD_REQUEST.value(), INVALID_INPUT, errors));
+  }
+
+  /** URL のパラメータ（{@code @Min} など）の入力チェックのエラー。例：page に負の数を指定した */
+  @ExceptionHandler(HandlerMethodValidationException.class)
+  ResponseEntity<ApiError> handleParameterValidation(HandlerMethodValidationException e) {
+    List<ApiError.FieldError> errors =
+        e.getParameterValidationResults().stream()
+            .flatMap(
+                result ->
+                    result.getResolvableErrors().stream()
+                        .map(
+                            error ->
+                                new ApiError.FieldError(
+                                    result.getMethodParameter().getParameterName(),
+                                    error.getDefaultMessage())))
+            .toList();
+    return ResponseEntity.badRequest()
+        .body(new ApiError(HttpStatus.BAD_REQUEST.value(), INVALID_INPUT, errors));
+  }
+
+  /** URL のパラメータの型が違うとき。例：投稿 ID に数字以外を指定した */
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+    return ResponseEntity.badRequest()
+        .body(
+            new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                INVALID_INPUT,
+                List.of(new ApiError.FieldError(e.getName(), "値の形式が正しくありません"))));
   }
 
   /** JSON の形が壊れているなど、リクエストを読めないとき。 */

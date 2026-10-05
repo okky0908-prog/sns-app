@@ -1,4 +1,4 @@
-import type { ApiErrorBody, AuthResponse, FieldErrorBody, LoginInput, SignupInput, UserSummary } from './types'
+import type { ApiErrorBody, AuthResponse, FieldErrorBody, LoginInput, Page, Post, SignupInput, UserSummary } from './types'
 
 /*
  * 認証の方式（docs/feature-specs/01_auth.md）
@@ -141,4 +141,34 @@ export async function logout(): Promise<void> {
   } finally {
     accessToken = null
   }
+}
+
+// ===== 投稿・タイムライン API（docs/api.md の A-10〜A-15）。すべてアクセストークンが必要 =====
+
+export type TimelineTab = 'following' | 'all'
+
+/** A-10 フォロー中タイムライン / A-15 全体タイムライン（20件ずつ） */
+export function fetchTimeline(tab: TimelineTab, page: number): Promise<Page<Post>> {
+  const path = tab === 'all' ? '/api/timeline/all' : '/api/timeline'
+  return apiFetch(`${path}?page=${page}`, { auth: true })
+}
+
+/** A-11 投稿作成（今はテキストのみ） */
+export function createPost(content: string): Promise<Post> {
+  return apiFetch('/api/posts', { method: 'POST', body: { content }, auth: true })
+}
+
+/** A-12 投稿詳細 */
+export function fetchPost(postId: number): Promise<Post> {
+  return apiFetch(`/api/posts/${postId}`, { auth: true })
+}
+
+/** A-13 投稿編集（本文のみ。本人だけ） */
+export function updatePost(postId: number, content: string): Promise<Post> {
+  return apiFetch(`/api/posts/${postId}`, { method: 'PUT', body: { content }, auth: true })
+}
+
+/** A-14 投稿削除（本人だけ） */
+export function deletePost(postId: number): Promise<void> {
+  return apiFetch(`/api/posts/${postId}`, { method: 'DELETE', auth: true })
 }

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.okimoto.sns.backend.post.PostMapper">
+
+  <!-- 投稿と投稿者を1回の SQL で取る（投稿ごとにユーザーを取りに行かない＝N+1 にしない） -->
+  <sql id="selectWithAuthor">
+    SELECT p.id, p.user_id, p.content, p.created_at, p.updated_at, p.edited_at,
+           u.username     AS author_username,
+           u.display_name AS author_display_name,
+           u.icon_key     AS author_icon_key
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+  </sql>
+
+  <select id="findById" resultType="com.okimoto.sns.backend.post.Post">
+    <include refid="selectWithAuthor"/>
+    WHERE p.id = #{id}
+  </select>
+
+  <!-- フォロー中タイムライン：自分の投稿と、自分がフォローしている人の投稿 -->
+  <select id="findFollowingTimeline" resultType="com.okimoto.sns.backend.post.Post">
+    <include refid="selectWithAuthor"/>
+    WHERE p.user_id = #{me}
+       OR p.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = #{me})
+    ORDER BY p.created_at DESC, p.id DESC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <!-- 全体タイムライン：全ユーザーの投稿 -->
+  <select id="findAll" resultType="com.okimoto.sns.backend.post.Post">
+    <include refid="selectWithAuthor"/>
+    ORDER BY p.created_at DESC, p.id DESC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO posts (user_id, content, created_at, updated_at)
+    VALUES (#{userId}, #{content}, #{createdAt}, #{updatedAt})
+  </insert>
+
+  <!-- 本文の編集。編集済みの表示に使う edited_at も更新する -->
+  <update id="updateContent">
+    UPDATE posts
+    SET content = #{content}, edited_at = #{now}, updated_at = #{now}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM posts WHERE id = #{id}
+  </delete>
+
+</mapper>

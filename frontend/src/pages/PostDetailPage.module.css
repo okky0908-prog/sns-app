@@ -1,0 +1,40 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.back {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.back:hover {
+  background: var(--color-hover);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.message {
+  padding: 40px 24px;
+  color: var(--color-sub);
+  text-align: center;
+}
+
+.note {
+  margin: 0;
+  padding: 16px;
+  color: var(--color-sub);
+  font-size: 13px;
+  text-align: center;
+}

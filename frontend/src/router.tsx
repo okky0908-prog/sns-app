@@ -1,8 +1,10 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { PublicOnly, RequireAuth } from './auth/RouteGuards'
-import { HomePage } from './pages/HomePage'
+import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/LoginPage'
+import { PostDetailPage } from './pages/PostDetailPage'
 import { SignupPage } from './pages/SignupPage'
+import { TimelinePage } from './pages/TimelinePage'
 
 // 画面の URL は docs/screens.md の画面一覧に合わせる
 export const router = createBrowserRouter([
@@ -15,9 +17,19 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // ログインが必要な画面
+    // ログインが必要な画面（共通ヘッダー付き）
     element: <RequireAuth />,
-    children: [{ path: '/', element: <HomePage /> }],
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          // タブを切り替えたら画面ごと作り直して1ページ目から読み込む（key がないと前のタブの状態が残る）
+          { path: '/', element: <TimelinePage key="following" tab="following" /> },
+          { path: '/all', element: <TimelinePage key="all" tab="all" /> },
+          { path: '/posts/:postId', element: <PostDetailPage /> },
+        ],
+      },
+    ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ])

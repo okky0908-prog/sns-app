@@ -1,0 +1,30 @@
+package com.okimoto.sns.backend.post;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+/** posts テーブルへのアクセス。SQL は resources/mapper/PostMapper.xml に書く。 */
+@Mapper
+public interface PostMapper {
+
+  /** 投稿者の情報も一緒に取る。 */
+  Optional<Post> findById(long id);
+
+  /** フォロー中タイムライン（自分＋フォロー中の人の投稿）。新しい順。 */
+  List<Post> findFollowingTimeline(
+      @Param("me") long me, @Param("limit") int limit, @Param("offset") int offset);
+
+  /** 全体タイムライン（全ユーザーの投稿）。新しい順。 */
+  List<Post> findAll(@Param("limit") int limit, @Param("offset") int offset);
+
+  /** 登録後、採番された ID を post に入れる。 */
+  void insert(Post post);
+
+  int updateContent(
+      @Param("id") long id, @Param("content") String content, @Param("now") OffsetDateTime now);
+
+  int delete(long id);
+}
