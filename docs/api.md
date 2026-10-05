@@ -45,7 +45,7 @@
 | A-05 | POST | `/api/auth/logout` | リフレッシュトークン（Cookie） | ログアウト。リフレッシュトークンを無効にする | F-03 |
 | A-10 | GET | `/api/timeline?page=0` | 必要 | フォロー中タイムライン（自分 + フォロー中の投稿） | F-20, F-21 |
 | A-15 | GET | `/api/timeline/all?page=0` | 必要 | 全体タイムライン（全ユーザーの投稿） | F-22, F-21 |
-| A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart） | F-10 |
+| A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart）。**現在はテキストのみのため JSON `{ content }`**。画像投稿の実装時に multipart に変える | F-10 |
 | A-12 | GET | `/api/posts/{postId}` | 必要 | 投稿詳細 | F-13 |
 | A-13 | PUT | `/api/posts/{postId}` | 必要（本人のみ） | 投稿の本文を編集 | F-11 |
 | A-14 | DELETE | `/api/posts/{postId}` | 必要（本人のみ） | 投稿削除 | F-12 |
@@ -121,6 +121,8 @@ type Page<T> = {
 ### Post（投稿）
 
 A-10, A-11, A-12, A-13, A-15, A-61 で返す。
+
+> **現在の実装：** `likeCount`・`commentCount`・`likedByMe` は、いいね・コメント機能の実装時に追加する（今は返さない）。`images` は画像投稿の実装までは常に空の配列。
 
 ```json
 {
@@ -235,6 +237,8 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 ### A-11 投稿作成
 
 `POST /api/posts`（`multipart/form-data`）
+
+> **現在の実装（テキストのみ）：** 画像投稿を実装するまでは、JSON `{ "content": "本文" }` で受け取る。本文は前後の空白・改行を除いて1〜280文字（必須）。
 
 | パート名 | 型 | 必須 | 説明 |
 |---|---|---|---|

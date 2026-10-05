@@ -321,9 +321,11 @@ LIMIT 20 OFFSET :offset;
 |---|---|---|
 | `V1__create_users.sql` | users テーブルの作成（ユーザー名の大文字小文字を区別しない一意インデックス、ユーザー名の形式・メールの小文字の CHECK 制約、登録日時のインデックス） | 作成済み（ユーザー登録・ログイン） |
 | `V2__create_refresh_tokens.sql` | refresh_tokens テーブルの作成（トークンのハッシュの一意制約、user_id のインデックス） | 作成済み（アクセストークン＋リフレッシュトークン方式） |
-| `V3__`〜 | posts・post_images・comments・likes・follows テーブル | 各機能の実装時に追加 |
+| `V3__create_posts.sql` | posts テーブルの作成（ユーザー別・全体のタイムライン用のインデックス） | 作成済み（投稿・タイムライン） |
+| `V4__create_follows.sql` | follows テーブルの作成（一意制約・自分自身をフォローできない CHECK 制約、followee_id のインデックス）。フォロー中タイムラインで使うため、フォローの画面より先に作成 | 作成済み（投稿・タイムライン） |
+| `V5__`〜 | post_images・comments・likes テーブル | 各機能の実装時に追加 |
 | （未定） | ローカル動作確認用のサンプルデータ（複数ユーザー、投稿、コメント、いいね、フォロー関係） | 投稿・タイムラインの実装時に追加 |
 
-- pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V3__add_user_search_index.sql` として追加する
+- pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V<次の番号>__add_user_search_index.sql` として追加する
 - `bootRun` 起動時に Flyway が未適用のマイグレーションを自動実行する（[技術スタック](./tech-stack.md)参照）
 - 一度適用したマイグレーションファイルは書き換えず、変更は新しい番号のファイルで行う
