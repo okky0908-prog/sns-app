@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>トークンは推測できないランダムな文字列（256ビット）。DB には SHA-256 のハッシュだけを保存する
  *   <li>使うたびに古いものを無効にして新しいものを発行する（ローテーション）
  *   <li>無効になったトークンがもう一度使われたら、盗まれて使い回された可能性があるので、そのユーザーのリフレッシュトークンをすべて無効にする
+ *   <li>ただし、再発行で交換してから猶予時間（10秒）以内の再利用は、2つのタブが同時に再発行した・再発行の最中にリロードした などの
+ *       「同時のリクエスト」とみなして、新しいトークンを発行する（全無効化しない）
  * </ul>
  */
 @Service
@@ -64,19 +66,39 @@ public class RefreshTokenService {
     RefreshToken current = found.get();
     OffsetDateTime now = OffsetDateTime.now(clock);
     if (current.getRevokedAt() != null) {
-      // 使用済み（またはログアウト済み）のトークンが再び使われた
-      refreshTokenMapper.revokeAllByUserId(current.getUserId(), now);
-      return Optional.empty();
+      return reuseOfRevoked(current, now);
     }
     if (!current.getExpiresAt().isAfter(now)) {
       return Optional.empty();
     }
-    if (refreshTokenMapper.revoke(current.getId(), now) == 0) {
-      // ほぼ同時に同じトークンが使われ、先に無効にされていた
-      refreshTokenMapper.revokeAllByUserId(current.getUserId(), now);
-      return Optional.empty();
+    if (refreshTokenMapper.rotate(current.getId(), now) == 0) {
+      // 読んでから無効にするまでの間に、ほかのリクエストが先に交換した（ほぼ同時の再発行）
+      return refreshTokenMapper
+          .findByTokenHash(current.getTokenHash())
+          .flatMap(latest -> reuseOfRevoked(latest, now));
     }
     return Optional.of(new Rotation(current.getUserId(), issue(current.getUserId())));
+  }
+
+  /**
+   * すでに無効になっているトークンが使われたとき。
+   *
+   * <ul>
+   *   <li>再発行で交換してから猶予時間以内なら、同時のリクエストとみなして新しいトークンを発行する
+   *   <li>それ以外（ログアウト済み、使い回し検知で無効化済み、猶予時間を過ぎた）は盗難の可能性があるので、そのユーザーのトークンをすべて無効にする
+   * </ul>
+   */
+  private Optional<Rotation> reuseOfRevoked(RefreshToken token, OffsetDateTime now) {
+    OffsetDateTime rotatedAt = token.getRotatedAt();
+    boolean concurrentRequest =
+        rotatedAt != null
+            && !now.isAfter(rotatedAt.plus(properties.reuseGrace()))
+            && token.getExpiresAt().isAfter(now);
+    if (concurrentRequest) {
+      return Optional.of(new Rotation(token.getUserId(), issue(token.getUserId())));
+    }
+    refreshTokenMapper.revokeAllByUserId(token.getUserId(), now);
+    return Optional.empty();
   }
 
   /** ログアウト。トークンが見つからなくても何もしない。 */

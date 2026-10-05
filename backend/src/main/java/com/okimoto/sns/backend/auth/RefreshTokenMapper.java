@@ -14,11 +14,18 @@ public interface RefreshTokenMapper {
   void insert(RefreshToken token);
 
   /**
-   * 無効にする。
+   * ログアウトで無効にする。
    *
    * @return 無効にした件数。0 ならすでに無効だった
    */
   int revoke(@Param("id") long id, @Param("now") OffsetDateTime now);
+
+  /**
+   * 再発行で新しいトークンに交換して無効にする（revoked_at と rotated_at を入れる）。
+   *
+   * @return 無効にした件数。0 ならすでに無効だった（同時に使われた）
+   */
+  int rotate(@Param("id") long id, @Param("now") OffsetDateTime now);
 
   /** ユーザーの有効なリフレッシュトークンをすべて無効にする。 */
   int revokeAllByUserId(@Param("userId") long userId, @Param("now") OffsetDateTime now);
