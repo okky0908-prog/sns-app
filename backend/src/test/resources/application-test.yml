@@ -6,3 +6,4 @@ app:
   refresh-token:
     expiration: 14d
     cookie-secure: false
+    reuse-grace: 10s

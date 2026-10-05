@@ -76,6 +76,7 @@ erDiagram
         CHAR token_hash UK "SHA-256 のハッシュ"
         TIMESTAMPTZ expires_at
         TIMESTAMPTZ revoked_at "無効にした日時 有効ならNULL"
+        TIMESTAMPTZ rotated_at "再発行で交換した日時"
         TIMESTAMPTZ created_at
     }
 ```
@@ -197,6 +198,7 @@ ON CONFLICT (post_id, user_id) DO NOTHING;
 | token_hash | CHAR(64) | × | UNIQUE | トークンの SHA-256 ハッシュ（16進数64文字）。トークンそのものは保存しない |
 | expires_at | TIMESTAMPTZ | × | | 有効期限（発行から14日） |
 | revoked_at | TIMESTAMPTZ | ○ | | 無効にした日時（再発行で使用済みになった、ログアウトした、使い回しを検知した）。NULL なら有効 |
+| rotated_at | TIMESTAMPTZ | ○ | | 再発行で新しいトークンに交換した日時。ログアウト・使い回し検知で無効になったときは NULL。交換から10秒以内の再利用を「同時のリクエスト」として許す判定に使う（V5 で追加） |
 | created_at | TIMESTAMPTZ | × | | 発行日時 |
 
 - トークンそのものではなくハッシュを保存するのは、DB の中身が漏れてもトークンとして使えないようにするため（パスワードを BCrypt で保存するのと同じ考え方。トークンは十分に長いランダムな値なので、高速な SHA-256 でよい）
@@ -323,7 +325,8 @@ LIMIT 20 OFFSET :offset;
 | `V2__create_refresh_tokens.sql` | refresh_tokens テーブルの作成（トークンのハッシュの一意制約、user_id のインデックス） | 作成済み（アクセストークン＋リフレッシュトークン方式） |
 | `V3__create_posts.sql` | posts テーブルの作成（ユーザー別・全体のタイムライン用のインデックス） | 作成済み（投稿・タイムライン） |
 | `V4__create_follows.sql` | follows テーブルの作成（一意制約・自分自身をフォローできない CHECK 制約、followee_id のインデックス）。フォロー中タイムラインで使うため、フォローの画面より先に作成 | 作成済み（投稿・タイムライン） |
-| `V5__`〜 | post_images・comments・likes テーブル | 各機能の実装時に追加 |
+| `V5__add_rotated_at_to_refresh_tokens.sql` | refresh_tokens に rotated_at 列を追加（同時の再発行でログアウトされないようにするため） | 作成済み（Issue #12） |
+| `V6__`〜 | post_images・comments・likes テーブル | 各機能の実装時に追加 |
 | （未定） | ローカル動作確認用のサンプルデータ（複数ユーザー、投稿、コメント、いいね、フォロー関係） | 投稿・タイムラインの実装時に追加 |
 
 - pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V<次の番号>__add_user_search_index.sql` として追加する

@@ -27,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -49,6 +50,7 @@ class AuthControllerTest {
   @Autowired private PasswordEncoder passwordEncoder;
   @Autowired private JwtProperties jwtProperties;
   @Autowired private RefreshTokenMapper refreshTokenMapper;
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   // ===== 道具 =====
 
@@ -343,18 +345,75 @@ class AuthControllerTest {
     postRefresh(newRefresh).andExpect(status().isOk());
   }
 
+  /** 再発行で交換した日時を、猶予時間（10秒）より前にずらす */
+  private void rotatedLongAgo(String refreshToken) {
+    jdbcTemplate.update(
+        "UPDATE refresh_tokens SET rotated_at = rotated_at - interval '1 minute' WHERE token_hash = ?",
+        RefreshTokenService.hash(refreshToken));
+  }
+
   @Test
-  void refresh_使用済みのトークンが再び使われたら401_そのユーザーのトークンをすべて無効にする() throws Exception {
+  void refresh_交換から猶予時間以内の再利用は同時のリクエストとみなして再発行する() throws Exception {
+    String oldRefresh = signupAndGetRefreshToken("graceuser", "grace@example.com");
+    String first = refreshTokenOf(postRefresh(oldRefresh).andExpect(status().isOk()).andReturn());
+    // 2つのタブが同時に再発行した・再発行の最中にリロードした、など
+    String second =
+        refreshTokenOf(
+            postRefresh(oldRefresh)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value(notNullValue()))
+                .andReturn());
+    assertThat(second).isNotEqualTo(first);
+    // どちらのタブのトークンも使える（ログアウトされない）
+    postRefresh(first).andExpect(status().isOk());
+    postRefresh(second).andExpect(status().isOk());
+  }
+
+  @Test
+  void refresh_猶予時間を過ぎた再利用は401_そのユーザーのトークンをすべて無効にする() throws Exception {
     String oldRefresh = signupAndGetRefreshToken("reuseuser", "reuse@example.com");
     String newRefresh =
         refreshTokenOf(postRefresh(oldRefresh).andExpect(status().isOk()).andReturn());
+    rotatedLongAgo(oldRefresh);
 
-    // 盗まれた古いトークンが使われた
+    // 盗まれた古いトークンが、しばらくしてから使われた
     postRefresh(oldRefresh)
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.message").value(AuthService.SESSION_EXPIRED));
     // 正規の利用者が持つ新しいトークンも無効になっている（もう一度ログインが必要）
     postRefresh(newRefresh).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void refresh_ログアウト済みのトークンの再利用は猶予時間内でも401_すべて無効にする() throws Exception {
+    String loggedOut = signupAndGetRefreshToken("reuselogout", "reuselogout@example.com");
+    String otherDevice =
+        refreshTokenOf(
+            postJson(
+                    "/api/auth/login",
+                    Map.of("email", "reuselogout@example.com", "password", "password123"))
+                .andExpect(status().isOk())
+                .andReturn());
+    mockMvc
+        .perform(
+            post("/api/auth/logout")
+                .cookie(new Cookie(AuthController.REFRESH_TOKEN_COOKIE, loggedOut)))
+        .andExpect(status().isNoContent());
+
+    postRefresh(loggedOut).andExpect(status().isUnauthorized());
+    postRefresh(otherDevice).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void refresh_使い回しを検知した後は猶予時間内のトークンでも再発行できない() throws Exception {
+    String t1 = signupAndGetRefreshToken("afterdetect", "afterdetect@example.com");
+    String t2 = refreshTokenOf(postRefresh(t1).andExpect(status().isOk()).andReturn());
+    String t3 = refreshTokenOf(postRefresh(t2).andExpect(status().isOk()).andReturn());
+    rotatedLongAgo(t1);
+
+    postRefresh(t1).andExpect(status().isUnauthorized()); // 使い回しを検知
+    postRefresh(t2).andExpect(status().isUnauthorized()); // 交換されたばかりだが、もう使えない
+    postRefresh(t3).andExpect(status().isUnauthorized());
   }
 
   @Test

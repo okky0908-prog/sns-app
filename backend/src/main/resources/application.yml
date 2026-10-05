@@ -37,3 +37,5 @@ app:
     expiration: 14d
     # Cookie の Secure 属性。HTTPS の本番では true にする（ローカル開発は HTTP なので false）
     cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
+    # 2つのタブが同時に再発行したときなどに、使い回しと誤判定してログアウトさせないための猶予時間
+    reuse-grace: 10s

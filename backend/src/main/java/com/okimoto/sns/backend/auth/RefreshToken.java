@@ -10,6 +10,7 @@ public class RefreshToken {
   private String tokenHash;
   private OffsetDateTime expiresAt;
   private OffsetDateTime revokedAt;
+  private OffsetDateTime rotatedAt;
   private OffsetDateTime createdAt;
 
   public RefreshToken() {}
@@ -60,6 +61,15 @@ public class RefreshToken {
 
   public void setRevokedAt(OffsetDateTime revokedAt) {
     this.revokedAt = revokedAt;
+  }
+
+  /** 再発行で新しいトークンに交換した日時。ログアウトや使い回し検知で無効になったときは null */
+  public OffsetDateTime getRotatedAt() {
+    return rotatedAt;
+  }
+
+  public void setRotatedAt(OffsetDateTime rotatedAt) {
+    this.rotatedAt = rotatedAt;
   }
 
   public OffsetDateTime getCreatedAt() {
