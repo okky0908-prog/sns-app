@@ -12,7 +12,6 @@
 | 日時 | ISO 8601 形式（例: `2026-09-30T10:15:00+09:00`） |
 | JSON のキー | キャメルケース（例: `likeCount`） |
 | ページング | カーソル方式。1回20件。最初は `cursor` を付けずに呼び、続きはレスポンスの `nextCursor` をそのまま `?cursor=` に渡す（[ページングのレスポンス](#ページングのレスポンス)） |
-| リアルタイム通知 | タイムラインの新しい投稿・編集・削除は SSE（Server-Sent Events）で届く（[A-16](#a-16-タイムラインの通知sse)） |
 
 ### エラーレスポンス
 
@@ -46,7 +45,8 @@
 | A-05 | POST | `/api/auth/logout` | リフレッシュトークン（Cookie） | ログアウト。リフレッシュトークンを無効にする | F-03 |
 | A-10 | GET | `/api/timeline?cursor=` | 必要 | フォロー中タイムライン（自分 + フォロー中の投稿） | F-20, F-21 |
 | A-15 | GET | `/api/timeline/all?cursor=` | 必要 | 全体タイムライン（全ユーザーの投稿） | F-22, F-21 |
-| A-16 | GET | `/api/timeline/stream` | 必要 | タイムラインの通知（SSE）。新しい投稿・編集・削除を届ける | F-24 |
+| A-16 | GET | `/api/timeline/new-count?since=` | 必要 | フォロー中タイムラインの新しい投稿の件数 | F-24 |
+| A-17 | GET | `/api/timeline/all/new-count?since=` | 必要 | 全体タイムラインの新しい投稿の件数 | F-24 |
 | A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart）。**現在はテキストのみのため JSON `{ content }`**。画像投稿の実装時に multipart に変える | F-10 |
 | A-12 | GET | `/api/posts/{postId}` | 必要 | 投稿詳細 | F-13 |
 | A-13 | PUT | `/api/posts/{postId}` | 必要（本人のみ） | 投稿の本文を編集 | F-11 |
@@ -277,32 +277,24 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 - レスポンス 204 No Content
 - 画像ファイルも S3 から削除する（DB のコミット後に行う。詳しくは [データ構造・ER図「参照整合性・カスケード削除について」](database.md#参照整合性カスケード削除について)）
 
-### A-16 タイムラインの通知（SSE）
+### A-16 / A-17 新しい投稿の件数
 
-`GET /api/timeline/stream`（`Accept: text/event-stream`）
+`GET /api/timeline/new-count?since=123`（フォロー中）／`GET /api/timeline/all/new-count?since=123`（全体）
 
-- ログイン後の画面が、アプリ全体で1本だけ開いておく。アクセストークンは他の API と同じく `Authorization` ヘッダーで送る（ブラウザ標準の `EventSource` はヘッダーを付けられないので、画面側は `fetch` で読む）
-- 接続したまま、次のイベントが届く。`data` は JSON
-
-| event | いつ | data |
+| パラメータ | 必須 | 説明 |
 |---|---|---|
-| `connected` | つないだ直後 | `{}` |
-| `post-created` | だれかが投稿したとき | `{ "post": Post, "inFollowing": true }` |
-| `post-updated` | だれかが投稿を編集したとき | `{ "post": Post, "inFollowing": true }` |
-| `post-deleted` | だれかが投稿を削除したとき | `{ "postId": 101 }` |
+| since | ○ | 画面が最後に A-10 / A-15 の1ページ目で取った、一番新しい投稿の ID。0件だったときは 0 |
 
-```text
-event: post-created
-data: {"post":{"id":102,"content":"こんにちは",...,"mine":false},"inFollowing":false}
-
+```json
+// レスポンス 200 OK
+{ "count": 3 }
 ```
 
-- `post` は、受け取る人から見た形（`mine` などは受け取る人ごとに変わる）
-- `inFollowing` は、受け取る人のフォロー中タイムラインに出す投稿か（自分の投稿、またはフォロー中の人の投稿なら `true`）
-- 通知は DB への保存が確定してから送る
-- 25秒ごとに「接続中」の合図としてコメント行（`:ping`）を送る（途中の機器に、通信がないとみなされて切られないため）
-- 画面側は、60秒なにも届かなければ切れたとみなしてつなぎ直す。つなぎ直したら、切れていた間の投稿を取りこぼさないよう A-10 / A-15 で最新を取り直す
-- アクセストークンがないか期限切れなら 401（画面側は再発行してつなぎ直す）
+- `since` より ID が大きい（＝後から投稿された）投稿の件数を返す。投稿 ID は登録順に振られる
+- 自分の投稿は数えない（投稿した時点で画面に出ているため）。フォロー中（A-16）は、フォロー中の人の投稿だけを数える
+- 100件で数えるのをやめる（画面では99件を超えたら「99+」と出すので、全部は数えない）
+- 画面は60秒ごとに呼ぶ。編集・削除は数えない（取り直したときに反映される）
+- `since` がない・数字でなければ 400
 
 ### A-31 コメント投稿
 

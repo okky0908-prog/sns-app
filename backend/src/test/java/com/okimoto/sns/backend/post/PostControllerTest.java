@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
-/** 投稿（A-11〜A-14）とタイムライン（A-10・A-15）のテスト。テストごとにロールバックするので、DB にデータは残らない。 */
+/** 投稿（A-11〜A-14）とタイムライン（A-10・A-15〜A-17）のテスト。テストごとにロールバックするので、DB にデータは残らない。 */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -337,6 +337,61 @@ class PostControllerTest {
           .andExpect(jsonPath("$.errors[0].field").value("cursor"))
           .andExpect(jsonPath("$.errors[0].message").value("カーソルの形式が正しくありません"));
     }
+  }
+
+  // ===== A-16・A-17 新しい投稿の件数 =====
+
+  private ResultActions newCount(long userId, String path, Object since) throws Exception {
+    return mockMvc.perform(as(userId, get(path)).param("since", String.valueOf(since)));
+  }
+
+  @Test
+  void 新しい投稿の件数_sinceより後の他人の投稿を数え_自分の投稿は数えない() throws Exception {
+    long since = createPostAndGetId(bobId, "見えている一番新しい投稿");
+    createPostAndGetId(bobId, "新しい投稿1");
+    createPostAndGetId(carolId, "新しい投稿2");
+    createPostAndGetId(aliceId, "自分の投稿");
+
+    newCount(aliceId, "/api/timeline/all/new-count", since)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.count").value(2));
+    newCount(aliceId, "/api/timeline/all/new-count", 0).andExpect(jsonPath("$.count").value(3));
+  }
+
+  @Test
+  void 新しい投稿の件数_フォロー中はフォロー中の人の投稿だけ数える() throws Exception {
+    follow(aliceId, bobId);
+    createPostAndGetId(bobId, "フォロー中の人の投稿");
+    createPostAndGetId(carolId, "フォローしていない人の投稿");
+    createPostAndGetId(aliceId, "自分の投稿");
+
+    newCount(aliceId, "/api/timeline/new-count", 0).andExpect(jsonPath("$.count").value(1));
+  }
+
+  @Test
+  void 新しい投稿の件数_上限で数えるのをやめる() throws Exception {
+    for (int i = 0; i < PostService.NEW_COUNT_LIMIT + 5; i++) {
+      jdbcTemplate.update(
+          "INSERT INTO posts (user_id, content, created_at, updated_at) VALUES (?, ?, now(), now())",
+          bobId,
+          "投稿" + i);
+    }
+    newCount(aliceId, "/api/timeline/all/new-count", 0)
+        .andExpect(jsonPath("$.count").value(PostService.NEW_COUNT_LIMIT));
+  }
+
+  @Test
+  void 新しい投稿の件数_sinceがないか数字でなければ400_未ログインは401() throws Exception {
+    mockMvc
+        .perform(as(aliceId, get("/api/timeline/new-count")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("since"));
+    newCount(aliceId, "/api/timeline/all/new-count", "abc")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("since"));
+    mockMvc
+        .perform(get("/api/timeline/new-count").param("since", "0"))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

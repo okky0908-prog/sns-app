@@ -43,6 +43,28 @@
     LIMIT #{limit}
   </select>
 
+  <!--
+    新しい投稿の件数（「↑ N件の新しい投稿」）。投稿 ID は登録順に振られるので、since より大きい ID を「新しい」とする。
+    全部は数えず limit 件で打ち切る（画面では 99 件を超えたら「99+」と出す）。自分の投稿は数えない
+  -->
+  <select id="countNewInFollowingTimeline" resultType="int">
+    SELECT count(*) FROM (
+      SELECT 1 FROM posts p
+      WHERE p.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = #{me})
+        AND p.id &gt; #{since}
+      LIMIT #{limit}
+    ) AS new_posts
+  </select>
+
+  <select id="countNewInAll" resultType="int">
+    SELECT count(*) FROM (
+      SELECT 1 FROM posts p
+      WHERE p.user_id &lt;&gt; #{me}
+        AND p.id &gt; #{since}
+      LIMIT #{limit}
+    ) AS new_posts
+  </select>
+
   <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
     INSERT INTO posts (user_id, content, created_at, updated_at)
     VALUES (#{userId}, #{content}, #{createdAt}, #{updatedAt})

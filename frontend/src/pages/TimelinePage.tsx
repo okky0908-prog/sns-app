@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
-import { createPost, fetchTimeline, type TimelineTab } from '../api/client'
+import { createPost, fetchNewPostCount, fetchTimeline, type TimelineTab } from '../api/client'
 import type { Post } from '../api/types'
 import { PostCard } from '../components/PostCard'
 import { PostComposer } from '../components/PostComposer'
 import { usePostActions } from '../posts/usePostActions'
-import { useTimelineEvents } from '../timeline/timelineStreamContext'
 import styles from './TimelinePage.module.css'
 
-/** この位置より上を見ているときは、新しい投稿をすぐ先頭に入れる（それより下を読んでいるときは「新しい投稿」のボタンにためる） */
-const NEAR_TOP_PX = 80
+/** 新しい投稿があるかを確認する間隔（docs/feature-specs/03_timeline.md） */
+const NEW_POSTS_CHECK_INTERVAL_MS = 60_000
 /** 一番下の目印がここまで近づいたら続きを読み込む（下まで行き着く前に読み込み始める） */
 const PRELOAD_MARGIN = '400px'
 
@@ -24,8 +23,8 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [posts, setPosts] = useState<Post[]>([])
-  /** 下の方を読んでいる間に届いた新しい投稿（「↑ N件の新しい投稿」を押すと先頭に入る） */
-  const [pending, setPending] = useState<Post[]>([])
+  /** 前回取り直してから増えた、他人の投稿の件数（「↑ N件の新しい投稿」） */
+  const [newCount, setNewCount] = useState(0)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasNext, setHasNext] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -33,11 +32,10 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
   const [moreFailed, setMoreFailed] = useState(false)
   const [composing, setComposing] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
-  // 通知を受けたときに「すでに表示している投稿」を読むため（状態の書き換えの中で別の状態を書き換えないように）
-  const postsRef = useRef(posts)
-  useEffect(() => {
-    postsRef.current = posts
-  }, [posts])
+  /** 最後にサーバーから取った一番新しい投稿の ID。新しい投稿の件数はこれより後を数える（自分の投稿は数えない） */
+  const newestIdRef = useRef(0)
+  /** 1ページ目を取り直すたびに増やす。取り直す前に始めた「続きの読み込み」「件数の確認」の結果は捨てる */
+  const generationRef = useRef(0)
 
   const actions = usePostActions({
     onUpdated: (updated) => setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p))),
@@ -54,15 +52,19 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
     }
   }, [location, navigate, notify])
 
-  // 1ページ目を読み込む（タブを切り替えると router の key で画面ごと作り直されるので、ここは最初の1回だけ）
+  // 1ページ目を読み込む（タブを切り替えると router の key で画面ごと作り直される。同じタブでは「最新を取り直す」ときにも使う）
   const loadFirstPage = useCallback(
     (isCancelled: () => boolean = () => false) =>
       fetchTimeline(tab)
         .then((res) => {
           if (isCancelled()) return
+          generationRef.current += 1
           setPosts(res.items)
+          newestIdRef.current = res.items[0]?.id ?? 0
+          setNewCount(0)
           setNextCursor(res.nextCursor)
           setHasNext(res.hasNext)
+          setMoreFailed(false)
           setStatus('ready')
         })
         .catch(() => {
@@ -87,15 +89,17 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
   // ===== 無限スクロール：一番下の目印が近づいたら続きを読み込む =====
   const loadMore = useCallback(async () => {
     if (!nextCursor) return
+    const generation = generationRef.current
     setLoadingMore(true)
     setMoreFailed(false)
     try {
       const res = await fetchTimeline(tab, nextCursor)
+      if (generation !== generationRef.current) return
       setPosts((prev) => [...prev, ...withoutDuplicates(res.items, prev)])
       setNextCursor(res.nextCursor)
       setHasNext(res.hasNext)
     } catch {
-      setMoreFailed(true)
+      if (generation === generationRef.current) setMoreFailed(true)
     } finally {
       setLoadingMore(false)
     }
@@ -115,59 +119,56 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
     return () => observer.disconnect()
   }, [canLoadMore, loadMore])
 
-  // ===== リアルタイム反映 =====
+  // ===== 新しい投稿のお知らせ：一定時間ごとに件数だけ確認し、押されたときだけ最新を取り直す =====
 
-  /** 届いた新しい投稿を、一番上を見ていればすぐ先頭に、下の方を読んでいれば「新しい投稿」にためる */
-  const receiveNewPosts = useCallback((incoming: Post[]) => {
-    if (incoming.length === 0) return
-    if (window.scrollY <= NEAR_TOP_PX) {
-      setPosts((prev) => [...withoutDuplicates(incoming, prev), ...prev])
-    } else {
-      setPending((queued) => [...withoutDuplicates(incoming, [...postsRef.current, ...queued]), ...queued])
+  useEffect(() => {
+    if (status !== 'ready') return
+    let cancelled = false
+    const check = () => {
+      // 裏に回っているブラウザのタブでは確認しない（表に戻ったときにすぐ確認する）
+      if (document.visibilityState !== 'visible') return
+      const generation = generationRef.current
+      fetchNewPostCount(tab, newestIdRef.current)
+        .then((count) => {
+          if (!cancelled && generation === generationRef.current) setNewCount(count)
+        })
+        .catch(() => {}) // 確認に失敗しても画面には出さない（次の確認でまた試す）
     }
-  }, [])
-
-  useTimelineEvents((event) => {
-    switch (event.type) {
-      case 'post-created':
-        // フォロー中タブには、自分とフォロー中の人の投稿だけを出す
-        if (tab === 'all' || event.inFollowing) receiveNewPosts([event.post])
-        break
-      case 'post-updated': {
-        const replace = (list: Post[]) => list.map((p) => (p.id === event.post.id ? event.post : p))
-        setPosts(replace)
-        setPending(replace)
-        break
-      }
-      case 'post-deleted': {
-        const remove = (list: Post[]) => list.filter((p) => p.id !== event.postId)
-        setPosts(remove)
-        setPending(remove)
-        break
-      }
-      case 'reconnected':
-        // 接続が切れていた間に増えた投稿を取りこぼさないよう、最新の1ページを取り直す
-        if (status === 'ready') {
-          fetchTimeline(tab)
-            .then((res) => receiveNewPosts(res.items))
-            .catch(() => {})
-        }
-        break
+    const timer = setInterval(check, NEW_POSTS_CHECK_INTERVAL_MS)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', check)
     }
-  })
+  }, [status, tab])
 
-  function showPending() {
-    setPosts((prev) => [...withoutDuplicates(pending, prev), ...prev])
-    setPending([])
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  /** 最新の20件を取り直して一番上へ（「↑ N件の新しい投稿」・表示中のタブ・ヘッダーの「ホーム」を押したとき） */
+  const refresh = useCallback(() => {
+    window.scrollTo(0, 0)
+    void loadFirstPage()
+  }, [loadFirstPage])
+
+  // ヘッダーの「ホーム」を、ホームを表示中にもう一度押したとき（AppLayout が state に refresh を付けて遷移してくる）
+  useEffect(() => {
+    if ((location.state as { refresh?: boolean } | null)?.refresh) {
+      navigate(location.pathname, { replace: true, state: null })
+      if (status === 'ready') refresh()
+    }
+  }, [location, navigate, refresh, status])
+
+  /** 表示中のタブをもう一度押したら、URL は変えずに最新を取り直す */
+  function handleTabClick(event: MouseEvent, target: TimelineTab) {
+    if (target !== tab) return
+    event.preventDefault()
+    refresh()
   }
 
   async function handleCreate(content: string) {
     const created = await createPost(content)
     setComposing(false)
-    // 自分の投稿はどちらのタブにも出るので、先頭に足す（通知でも届くが、同じ ID は二重に入れない）
-    setPending((queued) => queued.filter((p) => p.id !== created.id))
-    setPosts((prev) => [created, ...prev.filter((p) => p.id !== created.id)])
+    // 自分の投稿はどちらのタブにも出るので、先頭に足す（新しい投稿の件数には自分の投稿は含まれない）
+    setPosts((prev) => [created, ...prev])
     window.scrollTo(0, 0)
     notify('投稿しました')
   }
@@ -181,18 +182,27 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
         </button>
       </div>
       <nav className={styles.tabs} aria-label="タイムラインの切り替え">
-        <NavLink to="/" end className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}
+          onClick={(e) => handleTabClick(e, 'following')}
+        >
           フォロー中
         </NavLink>
-        <NavLink to="/all" className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
+        <NavLink
+          to="/all"
+          className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}
+          onClick={(e) => handleTabClick(e, 'all')}
+        >
           全体
         </NavLink>
       </nav>
 
-      {pending.length > 0 && (
+      {newCount > 0 && (
         <div className={styles.newPostsArea}>
-          <button type="button" className={styles.newPosts} onClick={showPending}>
-            ↑ {pending.length}件の新しい投稿
+          <button type="button" className={styles.newPosts} onClick={refresh}>
+            ↑ {newCount > 99 ? '99+' : newCount}件の新しい投稿
           </button>
         </div>
       )}
