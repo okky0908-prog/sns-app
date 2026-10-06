@@ -6,10 +6,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 // ログインは JWT で独自に行うため、Spring Security が用意するお試し用のユーザー（起動ログに出る自動生成パスワード）は使わない
 @SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
 @ConfigurationPropertiesScan
+@EnableScheduling // タイムラインの通知（SSE）の「接続中」の合図に使う
 public class BackendApplication {
 
   public static void main(String[] args) {

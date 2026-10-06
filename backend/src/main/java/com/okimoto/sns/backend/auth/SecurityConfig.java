@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.auth;
 
 import com.okimoto.sns.backend.web.ApiError;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.context.annotation.Bean;
@@ -50,6 +51,9 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/health")
                     .permitAll()
                     .requestMatchers("/error")
+                    .permitAll()
+                    // SSE（タイムラインの通知）の非同期の続き。ログインは最初の接続のときに確認済み
+                    .dispatcherTypeMatchers(DispatcherType.ASYNC)
                     .permitAll()
                     .anyRequest()
                     .authenticated())

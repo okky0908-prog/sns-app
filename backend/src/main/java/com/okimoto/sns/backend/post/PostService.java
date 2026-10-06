@@ -1,10 +1,11 @@
 package com.okimoto.sns.backend.post;
 
 import com.okimoto.sns.backend.web.ApiException;
-import com.okimoto.sns.backend.web.PageResponse;
+import com.okimoto.sns.backend.web.CursorPageResponse;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,12 @@ public class PostService {
   static final String FORBIDDEN = "この操作は実行できません";
 
   private final PostMapper postMapper;
+  private final ApplicationEventPublisher events;
   private final Clock clock;
 
-  public PostService(PostMapper postMapper, Clock clock) {
+  public PostService(PostMapper postMapper, ApplicationEventPublisher events, Clock clock) {
     this.postMapper = postMapper;
+    this.events = events;
     this.clock = clock;
   }
 
@@ -29,6 +32,7 @@ public class PostService {
   public PostResponse create(long me, String content) {
     Post post = new Post(me, content.strip(), OffsetDateTime.now(clock));
     postMapper.insert(post);
+    events.publishEvent(new PostEvent.Created(post.getId())); // 画面への通知はコミット後
     return get(me, post.getId());
   }
 
@@ -44,6 +48,7 @@ public class PostService {
     String newContent = content.strip();
     if (!newContent.equals(post.getContent())) {
       postMapper.updateContent(postId, newContent, OffsetDateTime.now(clock));
+      events.publishEvent(new PostEvent.Updated(postId));
     }
     return get(me, postId);
   }
@@ -52,24 +57,28 @@ public class PostService {
   public void delete(long me, long postId) {
     findOwnPostOrThrow(me, postId);
     postMapper.delete(postId);
+    events.publishEvent(new PostEvent.Deleted(postId));
   }
 
   /**
-   * タイムライン。21件取って、21件目があれば「次のページあり」とする（件数を数える SQL を別に発行しないため）。
+   * タイムライン（カーソル方式）。21件取って、21件目があれば「続きあり」とする（件数を数える SQL を別に発行しないため）。
    *
+   * @param cursor 前回のレスポンスの nextCursor。null なら先頭（最新）から
    * @param following true ならフォロー中タイムライン、false なら全体タイムライン
    */
   @Transactional(readOnly = true)
-  public PageResponse<PostResponse> timeline(long me, int page, boolean following) {
-    int offset = page * PAGE_SIZE;
+  public CursorPageResponse<PostResponse> timeline(long me, String cursor, boolean following) {
+    TimelineCursor after =
+        cursor == null || cursor.isBlank() ? null : TimelineCursor.decode(cursor);
     List<Post> posts =
         following
-            ? postMapper.findFollowingTimeline(me, PAGE_SIZE + 1, offset)
-            : postMapper.findAll(PAGE_SIZE + 1, offset);
+            ? postMapper.findFollowingTimeline(me, after, PAGE_SIZE + 1)
+            : postMapper.findAll(after, PAGE_SIZE + 1);
     boolean hasNext = posts.size() > PAGE_SIZE;
-    List<PostResponse> items =
-        posts.stream().limit(PAGE_SIZE).map(post -> PostResponse.from(post, me)).toList();
-    return new PageResponse<>(items, page, hasNext);
+    List<Post> page = posts.subList(0, Math.min(PAGE_SIZE, posts.size()));
+    String nextCursor = hasNext ? TimelineCursor.of(page.getLast()).encode() : null;
+    List<PostResponse> items = page.stream().map(post -> PostResponse.from(post, me)).toList();
+    return new CursorPageResponse<>(items, nextCursor, hasNext);
   }
 
   private Post findOrThrow(long postId) {

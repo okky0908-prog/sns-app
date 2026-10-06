@@ -23,7 +23,7 @@ public record PostResponse(
 
   public record PostImageResponse(String url, int sortOrder) {}
 
-  static PostResponse from(Post post, long me) {
+  public static PostResponse from(Post post, long me) {
     // アイコン画像（S3）はプロフィール編集の実装時に対応する。それまでは常に null
     UserResponse author =
         new UserResponse(

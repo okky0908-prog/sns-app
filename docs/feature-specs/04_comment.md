@@ -79,7 +79,7 @@ sequenceDiagram
 
 | ID | メソッド | パス | 備考 |
 |---|---|---|---|
-| A-30 | GET | `/api/posts/{postId}/comments?page=0` | 古い順。`items` の各要素は `{ id, content, author, createdAt, mine }` |
+| A-30 | GET | `/api/posts/{postId}/comments?cursor=` | 古い順。`items` の各要素は `{ id, content, author, createdAt, mine }` |
 | A-31 | POST | `/api/posts/{postId}/comments` | 201。投稿後のコメント数 `commentCount` も返す |
 | A-32 | DELETE | `/api/comments/{commentId}` | 200 で `{ commentCount }`（削除後のコメント数）を返す |
 

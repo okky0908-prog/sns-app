@@ -17,20 +17,30 @@
     WHERE p.id = #{id}
   </select>
 
+  <!-- カーソルより古いものだけにする（投稿日時が同じなら ID で比べる）。カーソルがなければ先頭から -->
+  <sql id="olderThanCursor">
+    <if test="cursor != null">
+      AND (p.created_at, p.id) &lt; (#{cursor.createdAt}, #{cursor.id})
+    </if>
+  </sql>
+
   <!-- フォロー中タイムライン：自分の投稿と、自分がフォローしている人の投稿 -->
   <select id="findFollowingTimeline" resultType="com.okimoto.sns.backend.post.Post">
     <include refid="selectWithAuthor"/>
-    WHERE p.user_id = #{me}
-       OR p.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = #{me})
+    WHERE (p.user_id = #{me}
+       OR p.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = #{me}))
+    <include refid="olderThanCursor"/>
     ORDER BY p.created_at DESC, p.id DESC
-    LIMIT #{limit} OFFSET #{offset}
+    LIMIT #{limit}
   </select>
 
   <!-- 全体タイムライン：全ユーザーの投稿 -->
   <select id="findAll" resultType="com.okimoto.sns.backend.post.Post">
     <include refid="selectWithAuthor"/>
+    WHERE TRUE
+    <include refid="olderThanCursor"/>
     ORDER BY p.created_at DESC, p.id DESC
-    LIMIT #{limit} OFFSET #{offset}
+    LIMIT #{limit}
   </select>
 
   <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">

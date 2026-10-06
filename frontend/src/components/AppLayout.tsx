@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/authContext'
+import { TimelineStreamProvider } from '../timeline/TimelineStreamProvider'
 import styles from './AppLayout.module.css'
 
 /** ログイン後の画面の共通レイアウト（共通ヘッダー＋中央の1カラム）。検索・プロフィールへのリンクは各機能の実装時に追加する */
@@ -13,7 +14,7 @@ export function AppLayout() {
   }
 
   return (
-    <>
+    <TimelineStreamProvider>
       <header className={styles.header}>
         <div className={styles.inner}>
           <Link to="/" className={styles.logo}>
@@ -37,6 +38,6 @@ export function AppLayout() {
       <main className={styles.main}>
         <Outlet />
       </main>
-    </>
+    </TimelineStreamProvider>
   )
 }

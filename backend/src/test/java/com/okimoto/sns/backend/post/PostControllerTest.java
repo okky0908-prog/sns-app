@@ -239,7 +239,6 @@ class PostControllerTest {
     mockMvc
         .perform(as(aliceId, get("/api/timeline")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.page").value(0))
         .andExpect(jsonPath("$.items[?(@.content == 'アリスの投稿')]").exists())
         .andExpect(jsonPath("$.items[?(@.content == 'ボブの投稿')]").exists())
         .andExpect(jsonPath("$.items[?(@.content == 'キャロルの投稿')]").doesNotExist());
@@ -255,8 +254,25 @@ class PostControllerTest {
         .andExpect(jsonPath("$.items[?(@.content == 'アリスの投稿')]").doesNotExist());
   }
 
+  /** タイムラインを1回取り、レスポンスの JSON を返す */
+  private tools.jackson.databind.JsonNode timeline(long userId, String path, String cursor)
+      throws Exception {
+    var request = as(userId, get(path));
+    if (cursor != null) {
+      request.param("cursor", cursor);
+    }
+    String json =
+        mockMvc
+            .perform(request)
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return objectMapper.readTree(json);
+  }
+
   @Test
-  void タイムラインは新しい順に20件ずつ_次があればhasNext() throws Exception {
+  void タイムラインは新しい順に20件ずつ_続きはnextCursorで取る() throws Exception {
     for (int i = 1; i <= 21; i++) {
       createPostAndGetId(aliceId, "投稿" + i);
     }
@@ -266,24 +282,61 @@ class PostControllerTest {
         .andExpect(jsonPath("$.items", hasSize(20)))
         .andExpect(jsonPath("$.items[0].content").value("投稿21"))
         .andExpect(jsonPath("$.items[19].content").value("投稿2"))
-        .andExpect(jsonPath("$.hasNext").value(true));
+        .andExpect(jsonPath("$.hasNext").value(true))
+        .andExpect(jsonPath("$.nextCursor").value(notNullValue()));
+
+    String cursor = timeline(aliceId, "/api/timeline", null).get("nextCursor").asString();
     mockMvc
-        .perform(as(aliceId, get("/api/timeline").param("page", "1")))
-        .andExpect(jsonPath("$.page").value(1))
+        .perform(as(aliceId, get("/api/timeline").param("cursor", cursor)))
         .andExpect(jsonPath("$.items", hasSize(1)))
         .andExpect(jsonPath("$.items[0].content").value("投稿1"))
-        .andExpect(jsonPath("$.hasNext").value(false));
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.nextCursor").value(nullValue()));
   }
 
   @Test
-  void タイムラインのpageが負の数や数字以外なら400() throws Exception {
-    mockMvc
-        .perform(as(aliceId, get("/api/timeline").param("page", "-1")))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].field").value("page"));
-    mockMvc
-        .perform(as(aliceId, get("/api/timeline/all").param("page", "x")))
-        .andExpect(status().isBadRequest());
+  void 続きを読む前に新しい投稿が増えても_重複も抜けもない() throws Exception {
+    for (int i = 1; i <= 25; i++) {
+      createPostAndGetId(aliceId, "投稿" + i);
+    }
+    var first = timeline(aliceId, "/api/timeline", null);
+    // 1ページ目を見ている間に、新しい投稿が3件増えた（ページ番号の方式だと、2ページ目の先頭に1ページ目の投稿がずれて入ってくる）
+    for (int i = 1; i <= 3; i++) {
+      createPostAndGetId(aliceId, "途中で増えた投稿" + i);
+    }
+    var second = timeline(aliceId, "/api/timeline", first.get("nextCursor").asString());
+
+    java.util.List<String> contents = new java.util.ArrayList<>();
+    first.get("items").forEach(item -> contents.add(item.get("content").asString()));
+    second.get("items").forEach(item -> contents.add(item.get("content").asString()));
+    java.util.List<String> expected = new java.util.ArrayList<>();
+    for (int i = 25; i >= 1; i--) {
+      expected.add("投稿" + i);
+    }
+    assertThat(contents).containsExactlyElementsOf(expected);
+  }
+
+  @Test
+  void 全体タイムラインもカーソルで続きを取れる() throws Exception {
+    for (int i = 1; i <= 21; i++) {
+      createPostAndGetId(i % 2 == 0 ? aliceId : bobId, "全体" + i);
+    }
+    var first = timeline(carolId, "/api/timeline/all", null);
+    assertThat(first.get("items").get(0).get("content").asString()).isEqualTo("全体21");
+    assertThat(first.get("hasNext").asBoolean()).isTrue();
+    var second = timeline(carolId, "/api/timeline/all", first.get("nextCursor").asString());
+    assertThat(second.get("items").get(0).get("content").asString()).isEqualTo("全体1");
+  }
+
+  @Test
+  void カーソルの形式が違えば400() throws Exception {
+    for (String cursor : new String[] {"not-a-cursor", "abc", "MTox"}) {
+      mockMvc
+          .perform(as(aliceId, get("/api/timeline").param("cursor", cursor)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].field").value("cursor"))
+          .andExpect(jsonPath("$.errors[0].message").value("カーソルの形式が正しくありません"));
+    }
   }
 
   @Test

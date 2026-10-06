@@ -1,9 +1,8 @@
 package com.okimoto.sns.backend.post;
 
 import com.okimoto.sns.backend.auth.AuthenticatedUser;
-import com.okimoto.sns.backend.web.PageResponse;
+import com.okimoto.sns.backend.web.CursorPageResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,20 +25,20 @@ public class PostController {
     this.postService = postService;
   }
 
-  /** A-10 フォロー中タイムライン（自分＋フォロー中の人の投稿）。 */
+  /** A-10 フォロー中タイムライン（自分＋フォロー中の人の投稿）。続きは前回の nextCursor を cursor に渡す。 */
   @GetMapping("/api/timeline")
-  public PageResponse<PostResponse> followingTimeline(
+  public CursorPageResponse<PostResponse> followingTimeline(
       @AuthenticationPrincipal AuthenticatedUser user,
-      @RequestParam(defaultValue = "0") @Min(value = 0, message = "page は0以上で指定してください") int page) {
-    return postService.timeline(user.id(), page, true);
+      @RequestParam(required = false) String cursor) {
+    return postService.timeline(user.id(), cursor, true);
   }
 
-  /** A-15 全体タイムライン（全ユーザーの投稿）。 */
+  /** A-15 全体タイムライン（全ユーザーの投稿）。続きは前回の nextCursor を cursor に渡す。 */
   @GetMapping("/api/timeline/all")
-  public PageResponse<PostResponse> allTimeline(
+  public CursorPageResponse<PostResponse> allTimeline(
       @AuthenticationPrincipal AuthenticatedUser user,
-      @RequestParam(defaultValue = "0") @Min(value = 0, message = "page は0以上で指定してください") int page) {
-    return postService.timeline(user.id(), page, false);
+      @RequestParam(required = false) String cursor) {
+    return postService.timeline(user.id(), cursor, false);
   }
 
   /** A-11 投稿作成（今回はテキストのみ。画像対応時に multipart に変える）。 */

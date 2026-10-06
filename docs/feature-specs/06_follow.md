@@ -51,7 +51,7 @@
 | タブ | 「フォロー中」「フォロワー」で切り替え。URL も変わる |
 | 並び順 | フォローした日時の新しい順 |
 | 各行 | アイコン、表示名、`@ユーザー名`、自己紹介（1行まで）、フォローボタン。S-10 と同じ部品 |
-| 件数 | 20件ずつ。「もっと見る」で追加 |
+| 件数 | 20件ずつ。下までスクロールすると自動で追加（無限スクロール） |
 | 0件 | フォロー中: 「まだ誰もフォローしていません」／フォロワー: 「まだフォロワーはいません」 |
 
 - フォローボタンの状態は、**一覧を見ているユーザーではなく、ログイン中の自分**がその人をフォローしているかで決まる
@@ -108,8 +108,8 @@ sequenceDiagram
 |---|---|---|---|
 | A-50 | POST | `/api/users/{username}/follow` | 200 `{ following: true, followerCount }` |
 | A-51 | DELETE | `/api/users/{username}/follow` | 200 `{ following: false, followerCount }` |
-| A-52 | GET | `/api/users/{username}/following?page=0` | フォロー中一覧 |
-| A-53 | GET | `/api/users/{username}/followers?page=0` | フォロワー一覧 |
+| A-52 | GET | `/api/users/{username}/following?cursor=` | フォロー中一覧 |
+| A-53 | GET | `/api/users/{username}/followers?cursor=` | フォロワー一覧 |
 
 A-52 / A-53 の `items` の形は、[ユーザー検索](08_user_search.md) の A-70 と同じ。
 
