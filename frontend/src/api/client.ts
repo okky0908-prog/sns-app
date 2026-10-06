@@ -1,4 +1,14 @@
-import type { ApiErrorBody, AuthResponse, FieldErrorBody, LoginInput, Page, Post, SignupInput, UserSummary } from './types'
+import type {
+  ApiErrorBody,
+  AuthResponse,
+  CursorPage,
+  FieldErrorBody,
+  LoginInput,
+  Post,
+  SignupInput,
+  TimelineEvent,
+  UserSummary,
+} from './types'
 
 /*
  * 認証の方式（docs/feature-specs/01_auth.md）
@@ -147,10 +157,10 @@ export async function logout(): Promise<void> {
 
 export type TimelineTab = 'following' | 'all'
 
-/** A-10 フォロー中タイムライン / A-15 全体タイムライン（20件ずつ） */
-export function fetchTimeline(tab: TimelineTab, page: number): Promise<Page<Post>> {
+/** A-10 フォロー中タイムライン / A-15 全体タイムライン（20件ずつ）。続きは前回の nextCursor を渡す */
+export function fetchTimeline(tab: TimelineTab, cursor: string | null = null): Promise<CursorPage<Post>> {
   const path = tab === 'all' ? '/api/timeline/all' : '/api/timeline'
-  return apiFetch(`${path}?page=${page}`, { auth: true })
+  return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
 }
 
 /** A-11 投稿作成（今はテキストのみ） */
@@ -172,3 +182,104 @@ export function updatePost(postId: number, content: string): Promise<Post> {
 export function deletePost(postId: number): Promise<void> {
   return apiFetch(`/api/posts/${postId}`, { method: 'DELETE', auth: true })
 }
+
+// ===== A-16 タイムラインの通知（SSE） =====
+
+/**
+ * これだけの間なにも届かなければ、接続が切れているとみなす。サーバーは25秒ごとに「接続中」の合図を送るので、
+ * 2回以上届かなかったら切れている。途中のプロキシやネットワークが接続を黙って切ったときに、画面側が気づけないのを防ぐ
+ */
+const STREAM_IDLE_TIMEOUT_MS = 60_000
+
+/**
+ * タイムラインの通知の接続を開き、届いたイベントを onEvent に渡す。接続が終わるまで返らない（終わったら呼び出し側がつなぎ直す）。
+ *
+ * ブラウザ標準の EventSource は Authorization ヘッダーを付けられないので、fetch で受け取って SSE の形式を自分で読む。
+ * アクセストークンの期限切れ（401）なら再発行して1回だけやり直し、それでも 401 ならログアウトにする。
+ */
+export async function streamTimeline(
+  onEvent: (event: TimelineEvent) => void,
+  onOpen: () => void,
+  signal: AbortSignal,
+): Promise<void> {
+  // 呼び出し元の中断（ログアウトなど）に加えて、なにも届かない時間が続いたときもこの接続を中断する
+  const connection = new AbortController()
+  const abortConnection = () => connection.abort()
+  signal.addEventListener('abort', abortConnection)
+  let idleTimer: ReturnType<typeof setTimeout> | undefined
+  const resetIdleTimer = () => {
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(abortConnection, STREAM_IDLE_TIMEOUT_MS)
+  }
+  try {
+    await readStream(onEvent, onOpen, connection.signal, resetIdleTimer)
+  } finally {
+    clearTimeout(idleTimer)
+    signal.removeEventListener('abort', abortConnection)
+  }
+}
+
+async function readStream(
+  onEvent: (event: TimelineEvent) => void,
+  onOpen: () => void,
+  signal: AbortSignal,
+  onActivity: () => void,
+): Promise<void> {
+  const open = () =>
+    fetch('/api/timeline/stream', {
+      headers: { Accept: 'text/event-stream', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+      signal,
+    })
+
+  let res = await open()
+  if (res.status === 401) {
+    try {
+      await refresh()
+    } catch (refreshError) {
+      accessToken = null
+      unauthorizedHandler?.()
+      throw refreshError
+    }
+    res = await open()
+  }
+  if (!res.ok || !res.body) {
+    if (res.status === 401) {
+      accessToken = null
+      unauthorizedHandler?.()
+    }
+    throw new ApiError(res.status, NETWORK_ERROR_MESSAGE)
+  }
+  onOpen()
+  onActivity()
+
+  // SSE の形式：「event: 名前」「data: JSON」の行が続き、空行で1件の区切り。「:」で始まる行は接続を保つための合図
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  let name = ''
+  let data = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) return
+    onActivity()
+    buffer += value
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        name = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        data += line.slice(5).trim()
+      } else if (line === '') {
+        if (name === 'post-created' || name === 'post-updated') {
+          const parsed = JSON.parse(data) as { post: Post; inFollowing: boolean }
+          onEvent({ type: name, post: parsed.post, inFollowing: parsed.inFollowing })
+        } else if (name === 'post-deleted') {
+          onEvent({ type: name, postId: (JSON.parse(data) as { postId: number }).postId })
+        }
+        name = ''
+        data = ''
+      }
+    }
+  }
+}
+

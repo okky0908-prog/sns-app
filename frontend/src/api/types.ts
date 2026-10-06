@@ -55,9 +55,15 @@ export interface Post {
   mine: boolean
 }
 
-/** 一覧 API のレスポンス（docs/api.md「ページングのレスポンス」） */
-export interface Page<T> {
+/** カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」） */
+export interface CursorPage<T> {
   items: T[]
-  page: number
+  /** 続きを取るときに cursor に渡す値。続きがなければ null */
+  nextCursor: string | null
   hasNext: boolean
 }
+
+/** タイムラインの通知（docs/api.md「A-16 タイムラインの通知」） */
+export type TimelineEvent =
+  | { type: 'post-created' | 'post-updated'; post: Post; inFollowing: boolean }
+  | { type: 'post-deleted'; postId: number }

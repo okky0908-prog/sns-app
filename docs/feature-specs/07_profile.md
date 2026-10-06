@@ -25,7 +25,7 @@
 | 上部 | アイコン（大）、表示名、`@ユーザー名`、自己紹介（改行をそのまま表示）、「◯ フォロー中」「◯ フォロワー」 |
 | ボタン | 自分のとき: 「プロフィールを編集」（S-08 へ）／他人のとき: フォローボタン（[フォロー](06_follow.md)） |
 | 「◯ フォロー中」「◯ フォロワー」 | クリックで S-09 へ |
-| 下部 | そのユーザーの投稿一覧（新しい順に20件、「もっと見る」で追加）。投稿カードは S-03 と同じ部品 |
+| 下部 | そのユーザーの投稿一覧（新しい順に20件、下までスクロールすると自動で追加）。投稿カードは S-03 と同じ部品 |
 | 投稿が0件 | 自分: 「まだ投稿がありません。最初の投稿をしてみましょう」／他人: 「まだ投稿がありません」 |
 | ユーザーが存在しない | 「このアカウントは存在しません」 |
 
@@ -64,9 +64,9 @@ sequenceDiagram
     R->>S: GET /api/users/{username}
     S->>DB: ユーザー、フォロー数・フォロワー数、自分がフォロー中かを取得
     S-->>R: 200 プロフィール
-    R->>S: GET /api/users/{username}/posts?page=0
+    R->>S: GET /api/users/{username}/posts（続きは ?cursor=）
     S->>DB: そのユーザーの投稿20件（いいね数・コメント数つき）
-    S-->>R: 200 { items, page, hasNext }
+    S-->>R: 200 { items, nextCursor, hasNext }
 ```
 
 2つの API は同時に呼んでよい（プロフィールの取得を待たずに投稿一覧を取りに行く）。
@@ -113,7 +113,7 @@ sequenceDiagram
 | ID | メソッド | パス | 備考 |
 |---|---|---|---|
 | A-60 | GET | `/api/users/{username}` | `followingCount`・`followerCount`・`followedByMe`・`me` を含む |
-| A-61 | GET | `/api/users/{username}/posts?page=0` | ページング。中身は Post |
+| A-61 | GET | `/api/users/{username}/posts?cursor=` | カーソル方式のページング。中身は Post |
 | A-62 | PUT | `/api/users/me` | multipart。`displayName`・`bio`・`icon`（任意） |
 
 ## 8. 使うテーブル

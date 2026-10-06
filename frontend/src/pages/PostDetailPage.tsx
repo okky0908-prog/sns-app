@@ -4,6 +4,7 @@ import { ApiError, fetchPost } from '../api/client'
 import type { Post } from '../api/types'
 import { PostCard } from '../components/PostCard'
 import { usePostActions } from '../posts/usePostActions'
+import { useTimelineEvents } from '../timeline/timelineStreamContext'
 import styles from './PostDetailPage.module.css'
 
 /** S-06 投稿詳細（docs/screens.md）。コメント（F-30〜F-32）は、コメント機能の実装時に追加する */
@@ -16,6 +17,7 @@ export function PostDetailPage() {
   const [result, setResult] = useState<{ id: number; post: Post | null; status: 'ready' | 'notFound' | 'error' } | null>(
     null,
   )
+  const [deletedByOther, setDeletedByOther] = useState(false)
   const status = !validId ? 'notFound' : result?.id === id ? result.status : 'loading'
   const post = result?.id === id ? result.post : null
 
@@ -41,6 +43,16 @@ export function PostDetailPage() {
     }
   }, [id, validId])
 
+  // 開いている投稿が、ほかの画面・ほかの人によって編集・削除されたらすぐ反映する
+  useTimelineEvents((event) => {
+    if (event.type === 'post-updated' && event.post.id === id) {
+      setResult({ id, post: event.post, status: 'ready' })
+    } else if (event.type === 'post-deleted' && event.postId === id) {
+      setResult({ id, post: null, status: 'notFound' })
+      setDeletedByOther(true)
+    }
+  })
+
   function goBack() {
     // アプリ内から来たときは前の画面へ、URL を直接開いたときはタイムラインへ
     if (window.history.state?.idx > 0) navigate(-1)
@@ -56,7 +68,9 @@ export function PostDetailPage() {
         <h1 className={styles.title}>投稿</h1>
       </div>
       {status === 'loading' && <p className={styles.message}>読み込み中…</p>}
-      {status === 'notFound' && <p className={styles.message}>この投稿は見つかりません</p>}
+      {status === 'notFound' && (
+        <p className={styles.message}>{deletedByOther ? 'この投稿は削除されました' : 'この投稿は見つかりません'}</p>
+      )}
       {status === 'error' && <p className={styles.message}>投稿を読み込めませんでした。時間をおいてもう一度お試しください</p>}
       {status === 'ready' && post && (
         <>

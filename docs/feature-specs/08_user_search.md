@@ -53,7 +53,7 @@
 | 見出し | キーワードあり: 「『◯◯』の検索結果」／キーワードなし: 「最近参加したユーザー」 |
 | 結果の各行 | アイコン、表示名、`@ユーザー名`、自己紹介（1行まで、長ければ「…」）、フォローボタン（S-09 と同じ部品） |
 | 行のクリック | そのユーザーの S-07 へ |
-| もっと見る | 20件ずつ追加。次がなければ消す |
+| 追加読み込み | 下までスクロールすると次の20件を自動で追加（無限スクロール） |
 | 検索中 | 結果欄にローディング表示 |
 | 0件 | 「『◯◯』に一致するユーザーは見つかりませんでした」 |
 
@@ -81,7 +81,7 @@ sequenceDiagram
     U->>R: キーワードを入力
     R->>R: 0.3秒待つ（その間に入力があれば待ち直す）
     R->>R: URL を /search?q=... に書き換え
-    R->>S: GET /api/users/search?q=yama&page=0
+    R->>S: GET /api/users/search?q=yama（続きは &cursor=）
     S->>S: 空白・先頭の@を取り除き、% _ \ をエスケープ
     alt キーワードが空
         S->>DB: 登録日時の新しい順に20件
@@ -89,7 +89,7 @@ sequenceDiagram
         S->>DB: username / display_name を ILIKE で部分一致、並び順を付けて20件
     end
     S->>DB: （同じ SQL で）自分がフォロー中かを判定
-    S-->>R: 200 { items, page, hasNext }
+    S-->>R: 200 { items, nextCursor, hasNext }
     R->>R: 今の入力と同じキーワードの結果かを確認
     R-->>U: 結果を表示
 ```
@@ -119,7 +119,7 @@ sequenceDiagram
 
 | ID | メソッド | パス | 備考 |
 |---|---|---|---|
-| A-70 | GET | `/api/users/search?q=yama&page=0` | 200 `{ items, page, hasNext }`。0件でも 200 |
+| A-70 | GET | `/api/users/search?q=yama&cursor=` | 200 `{ items, nextCursor, hasNext }`。0件でも 200 |
 
 `items` の各要素:
 

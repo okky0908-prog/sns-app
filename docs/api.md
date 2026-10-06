@@ -11,7 +11,8 @@
 | 認証 | ログイン・新規登録・再発行で受け取ったアクセストークン（JWT、15分）を `Authorization: Bearer <token>` ヘッダーで送る。リフレッシュトークン（14日）は HttpOnly Cookie で届き、ブラウザが `/api/auth` の下にだけ自動で送る（[機能定義書：認証](feature-specs/01_auth.md)） |
 | 日時 | ISO 8601 形式（例: `2026-09-30T10:15:00+09:00`） |
 | JSON のキー | キャメルケース（例: `likeCount`） |
-| ページング | `?page=0` から始まる。1ページ20件。レスポンスに `hasNext` を含める |
+| ページング | カーソル方式。1回20件。最初は `cursor` を付けずに呼び、続きはレスポンスの `nextCursor` をそのまま `?cursor=` に渡す（[ページングのレスポンス](#ページングのレスポンス)） |
+| リアルタイム通知 | タイムラインの新しい投稿・編集・削除は SSE（Server-Sent Events）で届く（[A-16](#a-16-タイムラインの通知sse)） |
 
 ### エラーレスポンス
 
@@ -43,25 +44,26 @@
 | A-03 | GET | `/api/auth/me` | 必要 | ログイン中のユーザー情報 | F-04 |
 | A-04 | POST | `/api/auth/refresh` | リフレッシュトークン（Cookie） | アクセストークンの再発行。リフレッシュトークンも新しいものに交換する | F-04 |
 | A-05 | POST | `/api/auth/logout` | リフレッシュトークン（Cookie） | ログアウト。リフレッシュトークンを無効にする | F-03 |
-| A-10 | GET | `/api/timeline?page=0` | 必要 | フォロー中タイムライン（自分 + フォロー中の投稿） | F-20, F-21 |
-| A-15 | GET | `/api/timeline/all?page=0` | 必要 | 全体タイムライン（全ユーザーの投稿） | F-22, F-21 |
+| A-10 | GET | `/api/timeline?cursor=` | 必要 | フォロー中タイムライン（自分 + フォロー中の投稿） | F-20, F-21 |
+| A-15 | GET | `/api/timeline/all?cursor=` | 必要 | 全体タイムライン（全ユーザーの投稿） | F-22, F-21 |
+| A-16 | GET | `/api/timeline/stream` | 必要 | タイムラインの通知（SSE）。新しい投稿・編集・削除を届ける | F-24 |
 | A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart）。**現在はテキストのみのため JSON `{ content }`**。画像投稿の実装時に multipart に変える | F-10 |
 | A-12 | GET | `/api/posts/{postId}` | 必要 | 投稿詳細 | F-13 |
 | A-13 | PUT | `/api/posts/{postId}` | 必要（本人のみ） | 投稿の本文を編集 | F-11 |
 | A-14 | DELETE | `/api/posts/{postId}` | 必要（本人のみ） | 投稿削除 | F-12 |
-| A-30 | GET | `/api/posts/{postId}/comments?page=0` | 必要 | コメント一覧（古い順） | F-31 |
+| A-30 | GET | `/api/posts/{postId}/comments?cursor=` | 必要 | コメント一覧（古い順） | F-31 |
 | A-31 | POST | `/api/posts/{postId}/comments` | 必要 | コメント投稿 | F-30 |
 | A-32 | DELETE | `/api/comments/{commentId}` | 必要（本人のみ） | コメント削除。200 で削除後のコメント数 `{ commentCount }` を返す | F-32 |
 | A-40 | POST | `/api/posts/{postId}/likes` | 必要 | いいねする | F-40 |
 | A-41 | DELETE | `/api/posts/{postId}/likes` | 必要 | いいねを取り消す | F-41 |
 | A-50 | POST | `/api/users/{username}/follow` | 必要 | フォローする | F-50 |
 | A-51 | DELETE | `/api/users/{username}/follow` | 必要 | フォロー解除 | F-51 |
-| A-52 | GET | `/api/users/{username}/following?page=0` | 必要 | フォロー中一覧 | F-52 |
-| A-53 | GET | `/api/users/{username}/followers?page=0` | 必要 | フォロワー一覧 | F-52 |
+| A-52 | GET | `/api/users/{username}/following?cursor=` | 必要 | フォロー中一覧 | F-52 |
+| A-53 | GET | `/api/users/{username}/followers?cursor=` | 必要 | フォロワー一覧 | F-52 |
 | A-60 | GET | `/api/users/{username}` | 必要 | プロフィール | F-60 |
-| A-61 | GET | `/api/users/{username}/posts?page=0` | 必要 | そのユーザーの投稿一覧 | F-60, F-21 |
+| A-61 | GET | `/api/users/{username}/posts?cursor=` | 必要 | そのユーザーの投稿一覧 | F-60, F-21 |
 | A-62 | PUT | `/api/users/me` | 必要 | 自分のプロフィール編集（multipart） | F-61 |
-| A-70 | GET | `/api/users/search?q=yama&page=0` | 必要 | ユーザー検索。`q` が空なら最近参加したユーザー | F-70, F-71 |
+| A-70 | GET | `/api/users/search?q=yama&cursor=` | 必要 | ユーザー検索。`q` が空なら最近参加したユーザー | F-70, F-71 |
 
 - 「認証：必要」はアクセストークンが必要という意味。期限切れなどで 401 が返ったら、画面側は A-04 で再発行して1回だけやり直す
 - ALB のヘルスチェック用に `GET /api/health`（認証不要、200 を返すだけ）を用意する（[インフラ構成](infrastructure.md)）
@@ -111,9 +113,9 @@ type UserListItem = UserSummary & {
   me: boolean;             // 自分自身か
 };
 
-type Page<T> = {
+type CursorPage<T> = {
   items: T[];
-  page: number;
+  nextCursor: string | null; // 続きを読むときに ?cursor= に渡す。続きがなければ null
   hasNext: boolean;
 };
 ```
@@ -163,10 +165,15 @@ A-10, A-11, A-12, A-13, A-15, A-61 で返す。
 ```json
 {
   "items": [ /* Post などの配列 */ ],
-  "page": 0,
+  "nextCursor": "MTc1OTE5NDkwMDoxMjM0NTY3ODk6MTAx",
   "hasNext": true
 }
 ```
+
+- 続きは `nextCursor` をそのまま `?cursor=` に付けて呼ぶ。中身は画面側で解釈しない（サーバーが「どこまで返したか」を入れた文字列）
+- ページ番号（OFFSET）方式と違い、読んでいる途中で新しい投稿が増えても、同じものが2回返ったり抜けたりしない
+- `cursor` の形式が違えば 400
+- タイムライン（A-10・A-15）のカーソルには、最後に返した投稿の投稿日時と ID が入っている（「それより古いもの」を次に返す）
 
 ## 各 API の詳細
 
@@ -270,6 +277,33 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 - レスポンス 204 No Content
 - 画像ファイルも S3 から削除する（DB のコミット後に行う。詳しくは [データ構造・ER図「参照整合性・カスケード削除について」](database.md#参照整合性カスケード削除について)）
 
+### A-16 タイムラインの通知（SSE）
+
+`GET /api/timeline/stream`（`Accept: text/event-stream`）
+
+- ログイン後の画面が、アプリ全体で1本だけ開いておく。アクセストークンは他の API と同じく `Authorization` ヘッダーで送る（ブラウザ標準の `EventSource` はヘッダーを付けられないので、画面側は `fetch` で読む）
+- 接続したまま、次のイベントが届く。`data` は JSON
+
+| event | いつ | data |
+|---|---|---|
+| `connected` | つないだ直後 | `{}` |
+| `post-created` | だれかが投稿したとき | `{ "post": Post, "inFollowing": true }` |
+| `post-updated` | だれかが投稿を編集したとき | `{ "post": Post, "inFollowing": true }` |
+| `post-deleted` | だれかが投稿を削除したとき | `{ "postId": 101 }` |
+
+```text
+event: post-created
+data: {"post":{"id":102,"content":"こんにちは",...,"mine":false},"inFollowing":false}
+
+```
+
+- `post` は、受け取る人から見た形（`mine` などは受け取る人ごとに変わる）
+- `inFollowing` は、受け取る人のフォロー中タイムラインに出す投稿か（自分の投稿、またはフォロー中の人の投稿なら `true`）
+- 通知は DB への保存が確定してから送る
+- 25秒ごとに「接続中」の合図としてコメント行（`:ping`）を送る（途中の機器に、通信がないとみなされて切られないため）
+- 画面側は、60秒なにも届かなければ切れたとみなしてつなぎ直す。つなぎ直したら、切れていた間の投稿を取りこぼさないよう A-10 / A-15 で最新を取り直す
+- アクセストークンがないか期限切れなら 401（画面側は再発行してつなぎ直す）
+
 ### A-31 コメント投稿
 
 `POST /api/posts/{postId}/comments`
@@ -370,12 +404,12 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 
 ### A-70 ユーザー検索
 
-`GET /api/users/search?q=yama&page=0`
+`GET /api/users/search?q=yama&cursor=`
 
 | パラメータ | 必須 | 説明 |
 |---|---|---|
 | q | | 検索キーワード。最大50文字。前後の空白と先頭の `@` はサーバー側で取り除く。空または省略なら「最近参加したユーザー」を返す |
-| page | | ページ番号（0 から）。省略時は 0 |
+| cursor | | 前回のレスポンスの `nextCursor`。省略すると先頭から |
 
 ```json
 // レスポンス 200 OK
@@ -391,7 +425,7 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
       "me": false
     }
   ],
-  "page": 0,
+  "nextCursor": null,
   "hasNext": false
 }
 ```

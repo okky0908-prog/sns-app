@@ -13,12 +13,12 @@ public interface PostMapper {
   /** 投稿者の情報も一緒に取る。 */
   Optional<Post> findById(long id);
 
-  /** フォロー中タイムライン（自分＋フォロー中の人の投稿）。新しい順。 */
+  /** フォロー中タイムライン（自分＋フォロー中の人の投稿）。新しい順。cursor が null なら先頭から。 */
   List<Post> findFollowingTimeline(
-      @Param("me") long me, @Param("limit") int limit, @Param("offset") int offset);
+      @Param("me") long me, @Param("cursor") TimelineCursor cursor, @Param("limit") int limit);
 
-  /** 全体タイムライン（全ユーザーの投稿）。新しい順。 */
-  List<Post> findAll(@Param("limit") int limit, @Param("offset") int offset);
+  /** 全体タイムライン（全ユーザーの投稿）。新しい順。cursor が null なら先頭から。 */
+  List<Post> findAll(@Param("cursor") TimelineCursor cursor, @Param("limit") int limit);
 
   /** 登録後、採番された ID を post に入れる。 */
   void insert(Post post);
