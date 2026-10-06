@@ -5,7 +5,6 @@ import com.okimoto.sns.backend.web.CursorPageResponse;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,16 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostService {
 
   static final int PAGE_SIZE = 20;
+
+  /** 新しい投稿の件数はここまで数える（それ以上は画面で「99+」と出すので、全部は数えない） */
+  static final int NEW_COUNT_LIMIT = 100;
+
   static final String NOT_FOUND = "この投稿は見つかりません";
   static final String FORBIDDEN = "この操作は実行できません";
 
   private final PostMapper postMapper;
-  private final ApplicationEventPublisher events;
   private final Clock clock;
 
-  public PostService(PostMapper postMapper, ApplicationEventPublisher events, Clock clock) {
+  public PostService(PostMapper postMapper, Clock clock) {
     this.postMapper = postMapper;
-    this.events = events;
     this.clock = clock;
   }
 
@@ -32,7 +33,6 @@ public class PostService {
   public PostResponse create(long me, String content) {
     Post post = new Post(me, content.strip(), OffsetDateTime.now(clock));
     postMapper.insert(post);
-    events.publishEvent(new PostEvent.Created(post.getId())); // 画面への通知はコミット後
     return get(me, post.getId());
   }
 
@@ -48,7 +48,6 @@ public class PostService {
     String newContent = content.strip();
     if (!newContent.equals(post.getContent())) {
       postMapper.updateContent(postId, newContent, OffsetDateTime.now(clock));
-      events.publishEvent(new PostEvent.Updated(postId));
     }
     return get(me, postId);
   }
@@ -57,7 +56,6 @@ public class PostService {
   public void delete(long me, long postId) {
     findOwnPostOrThrow(me, postId);
     postMapper.delete(postId);
-    events.publishEvent(new PostEvent.Deleted(postId));
   }
 
   /**
@@ -79,6 +77,20 @@ public class PostService {
     String nextCursor = hasNext ? TimelineCursor.of(page.getLast()).encode() : null;
     List<PostResponse> items = page.stream().map(post -> PostResponse.from(post, me)).toList();
     return new CursorPageResponse<>(items, nextCursor, hasNext);
+  }
+
+  /**
+   * 画面が最後に取った一番新しい投稿（since）より後に増えた投稿の件数。「↑ N件の新しい投稿」に使う。
+   *
+   * <p>自分の投稿は投稿した時点で画面に出ているので数えない。NEW_COUNT_LIMIT 件で数えるのをやめる。
+   */
+  @Transactional(readOnly = true)
+  public NewPostCountResponse countNewPosts(long me, long since, boolean following) {
+    int count =
+        following
+            ? postMapper.countNewInFollowingTimeline(me, since, NEW_COUNT_LIMIT)
+            : postMapper.countNewInAll(me, since, NEW_COUNT_LIMIT);
+    return new NewPostCountResponse(count);
   }
 
   private Post findOrThrow(long postId) {

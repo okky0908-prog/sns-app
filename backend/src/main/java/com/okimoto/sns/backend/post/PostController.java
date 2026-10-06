@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 投稿とタイムラインの API（docs/api.md の A-10〜A-15）。すべてログイン（アクセストークン）が必要。 */
+/** 投稿とタイムラインの API（docs/api.md の A-10〜A-17）。すべてログイン（アクセストークン）が必要。 */
 @RestController
 public class PostController {
 
@@ -39,6 +39,20 @@ public class PostController {
       @AuthenticationPrincipal AuthenticatedUser user,
       @RequestParam(required = false) String cursor) {
     return postService.timeline(user.id(), cursor, false);
+  }
+
+  /** A-16 フォロー中タイムラインの新しい投稿の件数。since は画面が最後に取った一番新しい投稿の ID。 */
+  @GetMapping("/api/timeline/new-count")
+  public NewPostCountResponse followingNewCount(
+      @AuthenticationPrincipal AuthenticatedUser user, @RequestParam long since) {
+    return postService.countNewPosts(user.id(), since, true);
+  }
+
+  /** A-17 全体タイムラインの新しい投稿の件数。 */
+  @GetMapping("/api/timeline/all/new-count")
+  public NewPostCountResponse allNewCount(
+      @AuthenticationPrincipal AuthenticatedUser user, @RequestParam long since) {
+    return postService.countNewPosts(user.id(), since, false);
   }
 
   /** A-11 投稿作成（今回はテキストのみ。画像対応時に multipart に変える）。 */

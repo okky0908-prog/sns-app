@@ -20,6 +20,13 @@ public interface PostMapper {
   /** 全体タイムライン（全ユーザーの投稿）。新しい順。cursor が null なら先頭から。 */
   List<Post> findAll(@Param("cursor") TimelineCursor cursor, @Param("limit") int limit);
 
+  /** フォロー中タイムラインで、since より新しい他人の投稿の件数（limit 件まで）。 */
+  int countNewInFollowingTimeline(
+      @Param("me") long me, @Param("since") long since, @Param("limit") int limit);
+
+  /** 全体タイムラインで、since より新しい他人の投稿の件数（limit 件まで）。 */
+  int countNewInAll(@Param("me") long me, @Param("since") long since, @Param("limit") int limit);
+
   /** 登録後、採番された ID を post に入れる。 */
   void insert(Post post);
 
