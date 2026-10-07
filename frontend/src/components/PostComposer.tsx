@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ApiError, NETWORK_ERROR_MESSAGE } from '../api/client'
+import { ApiError, errorMessage } from '../api/client'
 import { countChars } from '../lib/format'
 import { ConfirmDialog } from './ConfirmDialog'
 import modalStyles from './Modal.module.css'
@@ -50,7 +50,7 @@ export function PostComposer({ mode, initialContent = '', onSubmit, onClose }: P
       await onSubmit(content)
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors.length > 0) setError(err.fieldErrors[0].message)
-      else setError(err instanceof ApiError && err.status !== 0 ? err.message : NETWORK_ERROR_MESSAGE)
+      else setError(errorMessage(err))
       setSubmitting(false)
     }
   }

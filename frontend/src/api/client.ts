@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  ApiErrorCode,
   AuthResponse,
   CursorPage,
   FieldErrorBody,
@@ -23,20 +24,40 @@ localStorage.removeItem('sns-app.token')
 
 // ===== エラー =====
 
-/** API がエラーを返したとき、または通信に失敗したときに投げる */
+/**
+ * エラーの種類。API が返す code に加えて、画面側だけで使うもの
+ * - NETWORK_ERROR：通信そのものに失敗した（オフライン・サーバーが止まっている など）
+ * - UNKNOWN：API の形式でないエラーが返った（途中のプロキシのエラーページ など）
+ */
+export type ErrorCode = ApiErrorCode | 'NETWORK_ERROR' | 'UNKNOWN'
+
+/** API がエラーを返したとき、または通信に失敗したときに投げる。分岐は status ではなく code で行う */
 export class ApiError extends Error {
+  /** HTTP ステータス。通信に失敗したときは 0 */
   readonly status: number
+  readonly code: ErrorCode
   readonly fieldErrors: FieldErrorBody[]
 
-  constructor(status: number, message: string, fieldErrors: FieldErrorBody[] = []) {
+  constructor(status: number, code: ErrorCode, message: string, fieldErrors: FieldErrorBody[] = []) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
     this.fieldErrors = fieldErrors
   }
 }
 
 export const NETWORK_ERROR_MESSAGE = '通信に失敗しました。時間をおいてもう一度お試しください'
+
+/** 利用者に見せるエラーの文言。API の文言があればそれを、なければ（想定外の例外など）通信エラーの文言を返す */
+export function errorMessage(err: unknown): string {
+  return err instanceof ApiError ? err.message : NETWORK_ERROR_MESSAGE
+}
+
+/** 指定した種類のエラーか */
+export function isApiError(err: unknown, code: ErrorCode): err is ApiError {
+  return err instanceof ApiError && err.code === code
+}
 
 // ログインが必要な API で、再発行もできずに 401 になったときに呼ぶ処理（AuthProvider がログアウト処理を登録する）
 let unauthorizedHandler: (() => void) | null = null
@@ -72,12 +93,15 @@ async function send<T>(path: string, { method = 'GET', body, auth = false }: Req
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
-    throw new ApiError(0, NETWORK_ERROR_MESSAGE)
+    throw new ApiError(0, 'NETWORK_ERROR', NETWORK_ERROR_MESSAGE)
   }
 
   if (!res.ok) {
-    const errorBody = (await res.json().catch(() => null)) as ApiErrorBody | null
-    throw new ApiError(res.status, errorBody?.message ?? NETWORK_ERROR_MESSAGE, errorBody?.errors ?? [])
+    const errorBody = (await res.json().catch(() => null)) as Partial<ApiErrorBody> | null
+    if (!errorBody?.code || !errorBody.message) {
+      throw new ApiError(res.status, 'UNKNOWN', NETWORK_ERROR_MESSAGE)
+    }
+    throw new ApiError(res.status, errorBody.code, errorBody.message, errorBody.errors ?? [])
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T)
 }
@@ -86,7 +110,7 @@ async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<
   try {
     return await send<T>(path, options)
   } catch (err) {
-    if (!options.auth || !(err instanceof ApiError) || err.status !== 401) {
+    if (!options.auth || !isApiError(err, 'UNAUTHENTICATED')) {
       throw err
     }
   }
@@ -101,7 +125,7 @@ async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<
   try {
     return await send<T>(path, options)
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
+    if (isApiError(err, 'UNAUTHENTICATED')) {
       accessToken = null
       unauthorizedHandler?.()
     }

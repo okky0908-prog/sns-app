@@ -1,12 +1,12 @@
 package com.okimoto.sns.backend.auth;
 
 import com.okimoto.sns.backend.web.ApiError;
+import com.okimoto.sns.backend.web.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -58,12 +58,10 @@ public class SecurityConfig {
                 handling
                     .authenticationEntryPoint(
                         (request, response, e) ->
-                            writeError(
-                                response, objectMapper, HttpStatus.UNAUTHORIZED, "ログインが必要です"))
+                            writeError(response, objectMapper, ErrorCode.UNAUTHENTICATED))
                     .accessDeniedHandler(
                         (request, response, e) ->
-                            writeError(
-                                response, objectMapper, HttpStatus.FORBIDDEN, "この操作は実行できません")))
+                            writeError(response, objectMapper, ErrorCode.FORBIDDEN)))
         .addFilterBefore(
             new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
     return http.build();
@@ -75,13 +73,10 @@ public class SecurityConfig {
   }
 
   private static void writeError(
-      HttpServletResponse response, ObjectMapper objectMapper, HttpStatus status, String message)
-      throws IOException {
-    response.setStatus(status.value());
+      HttpServletResponse response, ObjectMapper objectMapper, ErrorCode code) throws IOException {
+    response.setStatus(code.status().value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
-    response
-        .getWriter()
-        .write(objectMapper.writeValueAsString(ApiError.of(status.value(), message)));
+    response.getWriter().write(objectMapper.writeValueAsString(ApiError.of(code)));
   }
 }

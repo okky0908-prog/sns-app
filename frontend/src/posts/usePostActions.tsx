@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ApiError, deletePost, NETWORK_ERROR_MESSAGE, updatePost } from '../api/client'
+import { deletePost, errorMessage, isApiError, updatePost } from '../api/client'
 import type { Post } from '../api/types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { PostComposer } from '../components/PostComposer'
@@ -35,7 +35,7 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
       onUpdated(updated)
       notify('投稿を更新しました')
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
+      if (isApiError(err, 'POST_NOT_FOUND')) {
         // 編集中に削除されていた
         setEditing(null)
         onDeleted(editing)
@@ -55,11 +55,11 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
       onDeleted(post)
       notify('投稿を削除しました')
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
+      if (isApiError(err, 'POST_NOT_FOUND')) {
         onDeleted(post)
         notify('この投稿はすでに削除されています', true)
       } else {
-        notify(err instanceof ApiError && err.status !== 0 ? err.message : NETWORK_ERROR_MESSAGE, true)
+        notify(errorMessage(err), true)
       }
     }
   }

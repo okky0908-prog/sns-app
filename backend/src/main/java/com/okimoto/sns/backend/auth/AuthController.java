@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.auth;
 
 import com.okimoto.sns.backend.web.ApiException;
+import com.okimoto.sns.backend.web.ErrorCode;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import org.springframework.http.HttpHeaders;
@@ -58,7 +59,7 @@ public class AuthController {
   public ResponseEntity<AuthResponse> refresh(
       @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
     if (refreshToken == null || refreshToken.isBlank()) {
-      throw new ApiException(HttpStatus.UNAUTHORIZED, AuthService.SESSION_EXPIRED);
+      throw new ApiException(ErrorCode.SESSION_EXPIRED);
     }
     return withRefreshToken(HttpStatus.OK, authService.refresh(refreshToken));
   }
