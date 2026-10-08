@@ -63,19 +63,25 @@ export interface PostImage {
   sortOrder: number
 }
 
-/** 投稿（docs/api.md「Post（投稿）」）。いいね数・コメント数は、それぞれの機能の実装時に追加する */
+/** 投稿（docs/api.md「Post（投稿）」）。コメント数は、コメント機能の実装時に追加する */
 export interface Post {
   id: number
   content: string
   /** 画像投稿の実装までは常に空 */
   images: PostImage[]
   author: UserSummary
+  likeCount: number
+  /** ログイン中のユーザーがいいね済みか（ハートの色） */
+  likedByMe: boolean
   /** 本文を編集した日時。null なら未編集 */
   editedAt: string | null
   createdAt: string
   /** ログイン中のユーザーの投稿か（「…」メニューを出すかどうか） */
   mine: boolean
 }
+
+/** いいね・取り消し（A-40・A-41）の結果。投稿の likeCount・likedByMe をこの値で上書きする */
+export type LikeState = Pick<Post, 'likeCount' | 'likedByMe'>
 
 /** カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」） */
 export interface CursorPage<T> {

@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 /**
  * posts テーブルの1行。
  *
- * <p>一覧・詳細を取るときは users を JOIN するので、投稿者の情報（author〜）も一緒に入る。INSERT のときは使わない。
+ * <p>一覧・詳細を取るときは users を JOIN し、いいねも集計するので、投稿者の情報（author〜）・いいね数・いいね済みかも一緒に入る。 INSERT のときは使わない。
  */
 public class Post {
 
@@ -18,6 +18,8 @@ public class Post {
   private String authorUsername;
   private String authorDisplayName;
   private String authorIconKey;
+  private long likeCount;
+  private boolean likedByMe;
 
   public Post() {}
 
@@ -98,5 +100,21 @@ public class Post {
 
   public void setAuthorIconKey(String authorIconKey) {
     this.authorIconKey = authorIconKey;
+  }
+
+  public long getLikeCount() {
+    return likeCount;
+  }
+
+  public void setLikeCount(long likeCount) {
+    this.likeCount = likeCount;
+  }
+
+  public boolean isLikedByMe() {
+    return likedByMe;
+  }
+
+  public void setLikedByMe(boolean likedByMe) {
+    this.likedByMe = likedByMe;
   }
 }

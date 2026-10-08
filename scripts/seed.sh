@@ -13,12 +13,14 @@
 #   scripts/seed.sh posts [件数] [ユーザー名]     投稿する（既定は 65 件。ユーザー名を省くと3人が順番に投稿する）
 #   scripts/seed.sh follow <ユーザー名> <ユーザー名>...
 #                                                 1人目が2人目以降をフォローする（seed_ 以外の自分のユーザーも指定できる）
+#   scripts/seed.sh likes <投稿ID> [人数]         テスト用ユーザーがいいねする（既定は3人全員。1〜3）
 #
 # 例:
 #   scripts/seed.sh posts 65                  # 無限スクロール（20件ずつ）を4ページ分確認する
 #   scripts/seed.sh follow myname seed_alice  # 自分の「フォロー中」タブに seed_alice の投稿が出るようにする
 #   scripts/seed.sh posts 3 seed_alice        # 画面を開いたまま実行し、「↑ 3件の新しい投稿」を確認する
 #   scripts/seed.sh posts 101                 # 「99+件の新しい投稿」を確認する
+#   scripts/seed.sh likes 123 2               # 投稿 123 に2人がいいねする（ほかの人のいいねが数に入るかを確認する）
 #
 # 接続先は環境変数 API_BASE で変えられる（既定は http://localhost:8080）。
 
@@ -119,12 +121,25 @@ cmd_follow() {
   echo "$follower が $* をフォローしました（存在しないユーザー名は無視されます）"
 }
 
+cmd_likes() {
+  local post_id=${1:-} count=${2:-${#SEED_USERS[@]}}
+  [[ $post_id =~ ^[0-9]+$ ]] || die "使い方: scripts/seed.sh likes <投稿ID> [人数]"
+  [[ $count =~ ^[1-3]$ ]] || die "人数は1〜3で指定してください: $count"
+  local i response
+  for ((i = 0; i < count; i++)); do
+    response=$(api POST "/api/posts/${post_id}/likes" '{}' "$(token_of "${SEED_USERS[$i]}")") ||
+      die "${SEED_USERS[$i]} のいいねに失敗しました（上のエラーを確認してください）"
+  done
+  echo "投稿 ${post_id} に ${count} 人がいいねしました（いいね数: $(jq -r .likeCount <<<"$response")）"
+}
+
 command -v jq >/dev/null || die "jq が必要です（brew install jq）"
 
 case ${1:-} in
   users) cmd_users ;;
   posts) shift && cmd_posts "$@" ;;
   follow) shift && cmd_follow "$@" ;;
+  likes) shift && cmd_likes "$@" ;;
   *)
     sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
     exit 1

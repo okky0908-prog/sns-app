@@ -68,15 +68,22 @@ class PostQueryCountTest {
     return user.getId();
   }
 
-  /** 別々の投稿者による投稿を count 件作り、閲覧者がその全員をフォローする */
+  /** 別々の投稿者による投稿を count 件作り、閲覧者がその全員をフォローする。いいね数・いいね済みかの集計も確かめるため、 投稿者と閲覧者が各投稿にいいねしておく */
   private void createPostsByDifferentAuthors(int count) {
     for (int i = 0; i < count; i++) {
       long authorId = createUser();
-      postMapper.insert(new Post(authorId, "投稿" + i, OffsetDateTime.now().plusNanos(i * 1000L)));
+      Post post = new Post(authorId, "投稿" + i, OffsetDateTime.now().plusNanos(i * 1000L));
+      postMapper.insert(post);
       jdbcTemplate.update(
           "INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, now())",
           viewerId,
           authorId);
+      for (long likerId : new long[] {authorId, viewerId}) {
+        jdbcTemplate.update(
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, now())",
+            post.getId(),
+            likerId);
+      }
     }
   }
 
@@ -105,6 +112,8 @@ class PostQueryCountTest {
     createPostsByDifferentAuthors(PostService.PAGE_SIZE + 5);
     Result many = fetch(path);
     assertThat(many.body().get("items")).hasSize(PostService.PAGE_SIZE);
+    assertThat(many.body().get("items").get(0).get("likeCount").asLong()).isEqualTo(2);
+    assertThat(many.body().get("items").get(0).get("likedByMe").asBoolean()).isTrue();
 
     assertThat(many.sqlCount())
         .as(
@@ -129,7 +138,7 @@ class PostQueryCountTest {
   }
 
   @Test
-  void 今のタイムラインは投稿と投稿者を1回のSQLで取っている() throws Exception {
+  void 今のタイムラインは投稿と投稿者といいねを1回のSQLで取っている() throws Exception {
     createPostsByDifferentAuthors(PostService.PAGE_SIZE);
     // 今は1回（いいね・画像などの実装で増えたら、この数を見直す。件数で変わらないことは上のテストで確かめる）
     assertThat(fetch("/api/timeline/all").sqlCount()).isEqualTo(1);

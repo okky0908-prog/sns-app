@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.okimoto.sns.backend.like.LikeMapper">
+
+  <!-- 連打・同時のリクエストで同じいいねが2回来ても、一意制約にぶつかったものは何もしない（docs/database.md「likes」） -->
+  <insert id="insert">
+    INSERT INTO likes (post_id, user_id, created_at)
+    VALUES (#{postId}, #{userId}, #{now})
+    ON CONFLICT (post_id, user_id) DO NOTHING
+  </insert>
+
+  <delete id="delete">
+    DELETE FROM likes WHERE post_id = #{postId} AND user_id = #{userId}
+  </delete>
+
+  <!-- LikeResponse は record なのでコンストラクタで作る。_long・_boolean はプリミティブ型（long・boolean だと Long・Boolean になる） -->
+  <resultMap id="likeStatus" type="com.okimoto.sns.backend.like.LikeResponse">
+    <constructor>
+      <arg column="like_count" javaType="_long"/>
+      <arg column="liked_by_me" javaType="_boolean"/>
+    </constructor>
+  </resultMap>
+
+  <select id="findStatus" resultMap="likeStatus">
+    SELECT count(*) AS like_count,
+           coalesce(bool_or(user_id = #{me}), false) AS liked_by_me
+    FROM likes
+    WHERE post_id = #{postId}
+  </select>
+
+</mapper>

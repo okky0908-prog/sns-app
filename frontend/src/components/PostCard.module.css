@@ -63,6 +63,12 @@
   word-break: break-word;
 }
 
+.actions {
+  display: flex;
+  gap: 24px;
+  margin-left: -8px; /* ボタンの余白の分だけ左に寄せ、本文と頭をそろえる */
+}
+
 .menuWrapper {
   position: relative;
   margin-left: auto;

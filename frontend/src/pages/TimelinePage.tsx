@@ -1,7 +1,7 @@
 import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { createPost, fetchNewPostCount, fetchTimeline, type TimelineTab } from '../api/client'
-import type { Post } from '../api/types'
+import type { LikeState, Post } from '../api/types'
 import { NewPostsDialog } from '../components/NewPostsDialog'
 import { PostCard } from '../components/PostCard'
 import { PostComposer } from '../components/PostComposer'
@@ -45,6 +45,13 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
     onDeleted: (deleted) => setPosts((prev) => prev.filter((p) => p.id !== deleted.id)),
   })
   const { notify } = actions
+
+  // いいね：押した直後・API の結果・失敗して戻すときに、一覧の中のその投稿だけを書き換える
+  const handleLikeChange = useCallback(
+    (postId: number, state: LikeState) => setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...state } : p))),
+    [],
+  )
+  const handleLikeError = useCallback((message: string) => notify(message, true), [notify])
 
   // 投稿詳細で削除して戻ってきたときのお知らせ
   useEffect(() => {
@@ -244,7 +251,14 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
           </p>
         )}
         {posts.map((post) => (
-          <PostCard key={post.id} post={post} onEdit={actions.startEdit} onDelete={actions.startDelete} />
+          <PostCard
+            key={post.id}
+            post={post}
+            onEdit={actions.startEdit}
+            onDelete={actions.startDelete}
+            onLikeChange={handleLikeChange}
+            onLikeError={handleLikeError}
+          />
         ))}
 
         {status === 'ready' && hasNext && (
