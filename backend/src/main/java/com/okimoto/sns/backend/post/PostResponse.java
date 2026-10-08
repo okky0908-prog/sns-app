@@ -7,10 +7,11 @@ import java.util.List;
 /**
  * 投稿のレスポンス（docs/api.md「Post（投稿）」）。
  *
- * <p>画像（images）は画像投稿の実装までは常に空。コメント数は、コメント機能の実装時に追加する。
+ * <p>画像（images）は画像投稿の実装までは常に空。
  *
  * @param likeCount いいね数
  * @param likedByMe ログイン中のユーザーがいいね済みか（ハートの色）
+ * @param commentCount コメント数
  * @param editedAt 本文を編集した日時。null なら未編集（画面に「編集済み」を出すかどうか）
  * @param mine ログイン中のユーザーの投稿か（画面に「…」メニューを出すかどうか）
  */
@@ -21,6 +22,7 @@ public record PostResponse(
     UserResponse author,
     long likeCount,
     boolean likedByMe,
+    long commentCount,
     OffsetDateTime editedAt,
     OffsetDateTime createdAt,
     boolean mine) {
@@ -39,6 +41,7 @@ public record PostResponse(
         author,
         post.getLikeCount(),
         post.isLikedByMe(),
+        post.getCommentCount(),
         post.getEditedAt(),
         post.getCreatedAt(),
         post.getUserId() == me);

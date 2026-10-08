@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.okimoto.sns.backend.comment.CommentMapper">
+
+  <!-- コメントと書いた人を1回の SQL で取る（コメントごとにユーザーを取りに行かない＝N+1 にしない） -->
+  <sql id="selectWithAuthor">
+    SELECT c.id, c.post_id, c.user_id, c.content, c.created_at,
+           u.username     AS author_username,
+           u.display_name AS author_display_name,
+           u.icon_key     AS author_icon_key
+    FROM comments c
+    JOIN users u ON u.id = c.user_id
+  </sql>
+
+  <select id="findById" resultType="com.okimoto.sns.backend.comment.Comment">
+    <include refid="selectWithAuthor"/>
+    WHERE c.id = #{id}
+  </select>
+
+  <!-- 古い順（会話の流れが追いやすいため）。続きはカーソルより新しいもの（日時が同じなら ID で比べる） -->
+  <select id="findByPostId" resultType="com.okimoto.sns.backend.comment.Comment">
+    <include refid="selectWithAuthor"/>
+    WHERE c.post_id = #{postId}
+    <if test="cursor != null">
+      AND (c.created_at, c.id) &gt; (#{cursor.createdAt}, #{cursor.id})
+    </if>
+    ORDER BY c.created_at, c.id
+    LIMIT #{limit}
+  </select>
+
+  <select id="countByPostId" resultType="long">
+    SELECT count(*) FROM comments WHERE post_id = #{postId}
+  </select>
+
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO comments (post_id, user_id, content, created_at)
+    VALUES (#{postId}, #{userId}, #{content}, #{createdAt})
+  </insert>
+
+  <delete id="delete">
+    DELETE FROM comments WHERE id = #{id}
+  </delete>
+
+</mapper>

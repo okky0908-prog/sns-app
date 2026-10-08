@@ -30,11 +30,3 @@
   color: var(--color-sub);
   text-align: center;
 }
-
-.note {
-  margin: 0;
-  padding: 16px;
-  color: var(--color-sub);
-  font-size: 13px;
-  text-align: center;
-}

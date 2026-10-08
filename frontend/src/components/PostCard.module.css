@@ -69,6 +69,28 @@
   margin-left: -8px; /* ボタンの余白の分だけ左に寄せ、本文と頭をそろえる */
 }
 
+.commentLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 56px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--color-sub);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.commentLink:hover {
+  background: #e8f5fd;
+  color: var(--color-primary);
+}
+
+.commentIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
 .menuWrapper {
   position: relative;
   margin-left: auto;

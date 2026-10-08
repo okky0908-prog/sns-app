@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.post;
 
+import com.okimoto.sns.backend.web.CreatedAtCursor;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -15,11 +16,11 @@ public interface PostMapper {
 
   /** フォロー中タイムライン（自分＋フォロー中の人の投稿）。新しい順。cursor が null なら先頭から。 */
   List<Post> findFollowingTimeline(
-      @Param("me") long me, @Param("cursor") TimelineCursor cursor, @Param("limit") int limit);
+      @Param("me") long me, @Param("cursor") CreatedAtCursor cursor, @Param("limit") int limit);
 
   /** 全体タイムライン（全ユーザーの投稿）。新しい順。cursor が null なら先頭から。 */
   List<Post> findAll(
-      @Param("me") long me, @Param("cursor") TimelineCursor cursor, @Param("limit") int limit);
+      @Param("me") long me, @Param("cursor") CreatedAtCursor cursor, @Param("limit") int limit);
 
   /** フォロー中タイムラインで、since より新しい他人の投稿の件数（limit 件まで）。 */
   int countNewInFollowingTimeline(

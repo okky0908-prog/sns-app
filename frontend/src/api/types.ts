@@ -30,6 +30,7 @@ export type ApiErrorCode =
   | 'SESSION_EXPIRED'
   | 'FORBIDDEN'
   | 'POST_NOT_FOUND'
+  | 'COMMENT_NOT_FOUND'
   | 'RESOURCE_NOT_FOUND'
   | 'METHOD_NOT_ALLOWED'
   | 'ALREADY_REGISTERED'
@@ -63,7 +64,7 @@ export interface PostImage {
   sortOrder: number
 }
 
-/** 投稿（docs/api.md「Post（投稿）」）。コメント数は、コメント機能の実装時に追加する */
+/** 投稿（docs/api.md「Post（投稿）」） */
 export interface Post {
   id: number
   content: string
@@ -73,6 +74,7 @@ export interface Post {
   likeCount: number
   /** ログイン中のユーザーがいいね済みか（ハートの色） */
   likedByMe: boolean
+  commentCount: number
   /** 本文を編集した日時。null なら未編集 */
   editedAt: string | null
   createdAt: string
@@ -82,6 +84,19 @@ export interface Post {
 
 /** いいね・取り消し（A-40・A-41）の結果。投稿の likeCount・likedByMe をこの値で上書きする */
 export type LikeState = Pick<Post, 'likeCount' | 'likedByMe'>
+
+/** コメント（A-30 の items の各要素） */
+export interface Comment {
+  id: number
+  content: string
+  author: UserSummary
+  createdAt: string
+  /** ログイン中のユーザーのコメントか（「削除」を出すかどうか） */
+  mine: boolean
+}
+
+/** コメント投稿（A-31）の結果。投稿後のコメント数も付く */
+export type CreatedComment = Comment & { commentCount: number }
 
 /** カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」） */
 export interface CursorPage<T> {

@@ -14,6 +14,7 @@
 #   scripts/seed.sh follow <ユーザー名> <ユーザー名>...
 #                                                 1人目が2人目以降をフォローする（seed_ 以外の自分のユーザーも指定できる）
 #   scripts/seed.sh likes <投稿ID> [人数]         テスト用ユーザーがいいねする（既定は3人全員。1〜3）
+#   scripts/seed.sh comments <投稿ID> [件数]      テスト用ユーザーが順番にコメントする（既定は 25 件）
 #
 # 例:
 #   scripts/seed.sh posts 65                  # 無限スクロール（20件ずつ）を4ページ分確認する
@@ -21,6 +22,7 @@
 #   scripts/seed.sh posts 3 seed_alice        # 画面を開いたまま実行し、「↑ 3件の新しい投稿」を確認する
 #   scripts/seed.sh posts 101                 # 「99+件の新しい投稿」を確認する
 #   scripts/seed.sh likes 123 2               # 投稿 123 に2人がいいねする（ほかの人のいいねが数に入るかを確認する）
+#   scripts/seed.sh comments 123 25           # 投稿 123 に25件コメントする（20件ずつの「さらに表示」を確認する）
 #
 # 接続先は環境変数 API_BASE で変えられる（既定は http://localhost:8080）。
 
@@ -133,6 +135,25 @@ cmd_likes() {
   echo "投稿 ${post_id} に ${count} 人がいいねしました（いいね数: $(jq -r .likeCount <<<"$response")）"
 }
 
+cmd_comments() {
+  local post_id=${1:-} count=${2:-25}
+  [[ $post_id =~ ^[0-9]+$ ]] || die "使い方: scripts/seed.sh comments <投稿ID> [件数]"
+  [[ $count =~ ^[0-9]+$ ]] || die "件数は数字で指定してください: $count"
+  local tokens=() username
+  for username in "${SEED_USERS[@]}"; do
+    tokens+=("$(token_of "$username")")
+  done
+  local i index response stamp
+  stamp=$(date '+%H:%M:%S')
+  for ((i = 1; i <= count; i++)); do
+    index=$(((i - 1) % ${#SEED_USERS[@]}))
+    response=$(api POST "/api/posts/${post_id}/comments" \
+      "$(jq -n --arg c "テストコメント ${i}/${count}（${SEED_USERS[$index]}、${stamp} に投入）" '{content: $c}')" \
+      "${tokens[$index]}") || die "${i} 件目のコメントに失敗しました（上のエラーを確認してください）"
+  done
+  echo "投稿 ${post_id} に ${count} 件コメントしました（コメント数: $(jq -r .commentCount <<<"$response")）"
+}
+
 command -v jq >/dev/null || die "jq が必要です（brew install jq）"
 
 case ${1:-} in
@@ -140,6 +161,7 @@ case ${1:-} in
   posts) shift && cmd_posts "$@" ;;
   follow) shift && cmd_follow "$@" ;;
   likes) shift && cmd_likes "$@" ;;
+  comments) shift && cmd_comments "$@" ;;
   *)
     sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
