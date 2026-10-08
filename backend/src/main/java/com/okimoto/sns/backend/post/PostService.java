@@ -35,7 +35,7 @@ public class PostService {
 
   @Transactional(readOnly = true)
   public PostResponse get(long me, long postId) {
-    return PostResponse.from(findOrThrow(postId), me);
+    return PostResponse.from(findOrThrow(postId, me), me);
   }
 
   /** 本文の編集。本文が変わらなければ何もしない（「編集済み」を付けない）。 */
@@ -68,7 +68,7 @@ public class PostService {
     List<Post> posts =
         following
             ? postMapper.findFollowingTimeline(me, after, PAGE_SIZE + 1)
-            : postMapper.findAll(after, PAGE_SIZE + 1);
+            : postMapper.findAll(me, after, PAGE_SIZE + 1);
     boolean hasNext = posts.size() > PAGE_SIZE;
     List<Post> page = posts.subList(0, Math.min(PAGE_SIZE, posts.size()));
     String nextCursor = hasNext ? TimelineCursor.of(page.getLast()).encode() : null;
@@ -90,15 +90,15 @@ public class PostService {
     return new NewPostCountResponse(count);
   }
 
-  private Post findOrThrow(long postId) {
+  private Post findOrThrow(long postId, long me) {
     return postMapper
-        .findById(postId)
+        .findById(postId, me)
         .orElseThrow(() -> new ApiException(ErrorCode.POST_NOT_FOUND));
   }
 
   /** 投稿が存在し、自分の投稿であることを確かめる（他人の投稿の編集・削除は 403） */
   private Post findOwnPostOrThrow(long me, long postId) {
-    Post post = findOrThrow(postId);
+    Post post = findOrThrow(postId, me);
     if (post.getUserId() != me) {
       throw new ApiException(ErrorCode.FORBIDDEN);
     }

@@ -47,6 +47,7 @@ scripts/seed.sh posts 65                      # 3人が順番に65件投稿す�
 scripts/seed.sh follow <自分のユーザー名> seed_alice seed_bob   # フォロー中タブに出るようにする（API がないので DB に直接登録）
 scripts/seed.sh posts 3 seed_carol            # 画面を開いたまま実行 →「↑ 3件の新しい投稿」（最大60秒後。ブラウザのタブを切り替えて戻ると即時）
 scripts/seed.sh posts 101 seed_bob            # 「↑ 99+件の新しい投稿」
+scripts/seed.sh likes <投稿ID> 2              # テスト用ユーザー2人がいいねする（ほかの人のいいねが数に入るかの確認）
 ```
 
 - ユーザー・投稿は API 経由で作るので、画面から操作したときと同じ処理（パスワードのハッシュ化など）になる

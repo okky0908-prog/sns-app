@@ -1,0 +1,31 @@
+/* 投稿カードの ♥ ボタン（docs/screens.md「投稿カード」） */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 56px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-sub);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #fde8ef;
+  color: #f91880;
+}
+
+.heart {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.liked {
+  color: #f91880;
+}
+
+.count {
+  font-size: 14px;
+}

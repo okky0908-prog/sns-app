@@ -2,12 +2,17 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.okimoto.sns.backend.post.PostMapper">
 
-  <!-- 投稿と投稿者を1回の SQL で取る（投稿ごとにユーザーを取りに行かない＝N+1 にしない） -->
+  <!--
+    投稿と投稿者・いいね数・自分がいいね済みかを1回の SQL で取る（投稿ごとに取りに行かない＝N+1 にしない。docs/database.md「N+1 問題を防ぐ」）。
+    #{me} はログイン中のユーザーの ID
+  -->
   <sql id="selectWithAuthor">
     SELECT p.id, p.user_id, p.content, p.created_at, p.updated_at, p.edited_at,
            u.username     AS author_username,
            u.display_name AS author_display_name,
-           u.icon_key     AS author_icon_key
+           u.icon_key     AS author_icon_key,
+           (SELECT count(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+           EXISTS (SELECT 1 FROM likes l WHERE l.post_id = p.id AND l.user_id = #{me}) AS liked_by_me
     FROM posts p
     JOIN users u ON u.id = p.user_id
   </sql>
@@ -63,6 +68,10 @@
         AND p.id &gt; #{since}
       LIMIT #{limit}
     ) AS new_posts
+  </select>
+
+  <select id="existsById" resultType="boolean">
+    SELECT EXISTS (SELECT 1 FROM posts WHERE id = #{id})
   </select>
 
   <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">

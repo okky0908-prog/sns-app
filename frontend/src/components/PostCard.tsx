@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import type { Post } from '../api/types'
+import type { LikeState, Post } from '../api/types'
 import { formatRelativeTime } from '../lib/format'
+import { LikeButton } from './LikeButton'
 import styles from './PostCard.module.css'
 
 interface PostCardProps {
@@ -10,13 +11,17 @@ interface PostCardProps {
   detail?: boolean
   onEdit: (post: Post) => void
   onDelete: (post: Post) => void
+  /** いいねの状態が変わった（押した直後・API の結果・失敗して元に戻すとき）。画面が持っている投稿を差し替える */
+  onLikeChange: (postId: number, state: LikeState) => void
+  /** いいねに失敗したときのお知らせ */
+  onLikeError: (message: string) => void
 }
 
 /**
  * 投稿カード（docs/screens.md「投稿カード」）。タイムラインと投稿詳細で共通。
- * いいね・コメントのボタンは、それぞれの機能の実装時に追加する。インプレッション数・リツイートは置かない（差別化）
+ * コメントのボタンは、コメント機能の実装時に追加する。インプレッション数・リツイートは置かない（差別化）
  */
-export function PostCard({ post, detail = false, onEdit, onDelete }: PostCardProps) {
+export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange, onLikeError }: PostCardProps) {
   const navigate = useNavigate()
   const path = `/posts/${post.id}`
 
@@ -44,6 +49,15 @@ export function PostCard({ post, detail = false, onEdit, onDelete }: PostCardPro
           {post.mine && <PostMenu onEdit={() => onEdit(post)} onDelete={() => onDelete(post)} />}
         </div>
         <p className={styles.content}>{post.content}</p>
+        <div className={styles.actions}>
+          <LikeButton
+            postId={post.id}
+            likeCount={post.likeCount}
+            likedByMe={post.likedByMe}
+            onChange={onLikeChange}
+            onError={onLikeError}
+          />
+        </div>
       </div>
     </article>
   )

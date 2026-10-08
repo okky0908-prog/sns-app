@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { fetchPost, isApiError } from '../api/client'
-import type { Post } from '../api/types'
+import type { LikeState, Post } from '../api/types'
 import { PostCard } from '../components/PostCard'
 import { usePostActions } from '../posts/usePostActions'
 import styles from './PostDetailPage.module.css'
@@ -24,6 +24,10 @@ export function PostDetailPage() {
     // 削除したらタイムラインに戻る（お知らせはタイムライン側で出す）
     onDeleted: () => navigate('/', { replace: true, state: { notice: '投稿を削除しました' } }),
   })
+
+  function handleLikeChange(likedPostId: number, state: LikeState) {
+    setResult((prev) => (prev?.post?.id === likedPostId ? { ...prev, post: { ...prev.post, ...state } } : prev))
+  }
 
   useEffect(() => {
     if (!validId) return
@@ -60,7 +64,14 @@ export function PostDetailPage() {
       {status === 'error' && <p className={styles.message}>投稿を読み込めませんでした。時間をおいてもう一度お試しください</p>}
       {status === 'ready' && post && (
         <>
-          <PostCard post={post} detail onEdit={actions.startEdit} onDelete={actions.startDelete} />
+          <PostCard
+            post={post}
+            detail
+            onEdit={actions.startEdit}
+            onDelete={actions.startDelete}
+            onLikeChange={handleLikeChange}
+            onLikeError={(message) => actions.notify(message, true)}
+          />
           <p className={styles.note}>コメント機能は今後追加します</p>
         </>
       )}

@@ -147,7 +147,7 @@ type CursorPage<T> = {
 
 A-10, A-11, A-12, A-13, A-15, A-61 で返す。
 
-> **現在の実装：** `likeCount`・`commentCount`・`likedByMe` は、いいね・コメント機能の実装時に追加する（今は返さない）。`images` は画像投稿の実装までは常に空の配列。
+> **現在の実装：** `likeCount`・`likedByMe` は返す。`commentCount` は、コメント機能の実装時に追加する（今は返さない）。`images` は画像投稿の実装までは常に空の配列。
 
 ```json
 {

@@ -4,6 +4,7 @@ import type {
   AuthResponse,
   CursorPage,
   FieldErrorBody,
+  LikeState,
   LoginInput,
   Post,
   SignupInput,
@@ -211,4 +212,16 @@ export async function fetchNewPostCount(tab: TimelineTab, sinceId: number): Prom
   const path = tab === 'all' ? '/api/timeline/all/new-count' : '/api/timeline/new-count'
   const res = await apiFetch<{ count: number }>(`${path}?since=${sinceId}`, { auth: true })
   return res.count
+}
+
+// ===== いいね API（docs/api.md の A-40・A-41）。何度呼んでも同じ結果になる =====
+
+/** A-40 いいねする */
+export function likePost(postId: number): Promise<LikeState> {
+  return apiFetch(`/api/posts/${postId}/likes`, { method: 'POST', auth: true })
+}
+
+/** A-41 いいねを取り消す */
+export function unlikePost(postId: number): Promise<LikeState> {
+  return apiFetch(`/api/posts/${postId}/likes`, { method: 'DELETE', auth: true })
 }
