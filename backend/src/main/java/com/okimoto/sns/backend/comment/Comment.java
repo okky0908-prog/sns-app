@@ -1,35 +1,30 @@
-package com.okimoto.sns.backend.post;
+package com.okimoto.sns.backend.comment;
 
 import java.time.OffsetDateTime;
 
 /**
- * posts テーブルの1行。
+ * comments テーブルの1行。
  *
- * <p>一覧・詳細を取るときは users を JOIN し、いいねも集計するので、投稿者の情報（author〜）・いいね数・いいね済みか・コメント数も一緒に入る。 INSERT
- * のときは使わない。
+ * <p>一覧・1件を取るときは users を JOIN するので、書いた人の情報（author〜）も一緒に入る。INSERT のときは使わない。
  */
-public class Post {
+public class Comment {
 
   private Long id;
+  private Long postId;
   private Long userId;
   private String content;
   private OffsetDateTime createdAt;
-  private OffsetDateTime updatedAt;
-  private OffsetDateTime editedAt;
   private String authorUsername;
   private String authorDisplayName;
   private String authorIconKey;
-  private long likeCount;
-  private boolean likedByMe;
-  private long commentCount;
 
-  public Post() {}
+  public Comment() {}
 
-  public Post(long userId, String content, OffsetDateTime now) {
+  public Comment(long postId, long userId, String content, OffsetDateTime now) {
+    this.postId = postId;
     this.userId = userId;
     this.content = content;
     this.createdAt = now;
-    this.updatedAt = now;
   }
 
   public Long getId() {
@@ -38,6 +33,14 @@ public class Post {
 
   public void setId(Long id) {
     this.id = id;
+  }
+
+  public Long getPostId() {
+    return postId;
+  }
+
+  public void setPostId(Long postId) {
+    this.postId = postId;
   }
 
   public Long getUserId() {
@@ -64,22 +67,6 @@ public class Post {
     this.createdAt = createdAt;
   }
 
-  public OffsetDateTime getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(OffsetDateTime updatedAt) {
-    this.updatedAt = updatedAt;
-  }
-
-  public OffsetDateTime getEditedAt() {
-    return editedAt;
-  }
-
-  public void setEditedAt(OffsetDateTime editedAt) {
-    this.editedAt = editedAt;
-  }
-
   public String getAuthorUsername() {
     return authorUsername;
   }
@@ -102,29 +89,5 @@ public class Post {
 
   public void setAuthorIconKey(String authorIconKey) {
     this.authorIconKey = authorIconKey;
-  }
-
-  public long getLikeCount() {
-    return likeCount;
-  }
-
-  public void setLikeCount(long likeCount) {
-    this.likeCount = likeCount;
-  }
-
-  public boolean isLikedByMe() {
-    return likedByMe;
-  }
-
-  public void setLikedByMe(boolean likedByMe) {
-    this.likedByMe = likedByMe;
-  }
-
-  public long getCommentCount() {
-    return commentCount;
-  }
-
-  public void setCommentCount(long commentCount) {
-    this.commentCount = commentCount;
   }
 }

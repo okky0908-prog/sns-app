@@ -31,6 +31,7 @@ public enum ErrorCode {
 
   // ===== 404 =====
   POST_NOT_FOUND(HttpStatus.NOT_FOUND, "この投稿は見つかりません"),
+  COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "このコメントは見つかりません"),
   /** 存在しない URL（API） */
   RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "指定された URL は存在しません"),
 

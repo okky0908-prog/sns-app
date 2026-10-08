@@ -19,7 +19,7 @@ interface PostCardProps {
 
 /**
  * 投稿カード（docs/screens.md「投稿カード」）。タイムラインと投稿詳細で共通。
- * コメントのボタンは、コメント機能の実装時に追加する。インプレッション数・リツイートは置かない（差別化）
+ * インプレッション数・リツイートは置かない（差別化）
  */
 export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange, onLikeError }: PostCardProps) {
   const navigate = useNavigate()
@@ -50,6 +50,20 @@ export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange,
         </div>
         <p className={styles.content}>{post.content}</p>
         <div className={styles.actions}>
+          {/* 投稿詳細を開いてコメント入力欄にカーソルを合わせる。詳細の中で押したときは履歴を増やさない */}
+          <Link
+            to={path}
+            state={{ focusComment: true }}
+            replace={detail}
+            className={styles.commentLink}
+            aria-label={`コメント（${post.commentCount}件）`}
+          >
+            <span className={styles.commentIcon} aria-hidden="true">
+              💬
+            </span>
+            {/* コメント数が0のときは数字を出さない */}
+            {post.commentCount > 0 && <span>{post.commentCount}</span>}
+          </Link>
           <LikeButton
             postId={post.id}
             likeCount={post.likeCount}

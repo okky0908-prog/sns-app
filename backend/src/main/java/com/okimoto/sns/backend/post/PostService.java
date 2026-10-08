@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.post;
 
 import com.okimoto.sns.backend.web.ApiException;
+import com.okimoto.sns.backend.web.CreatedAtCursor;
 import com.okimoto.sns.backend.web.CursorPageResponse;
 import com.okimoto.sns.backend.web.ErrorCode;
 import java.time.Clock;
@@ -63,15 +64,17 @@ public class PostService {
    */
   @Transactional(readOnly = true)
   public CursorPageResponse<PostResponse> timeline(long me, String cursor, boolean following) {
-    TimelineCursor after =
-        cursor == null || cursor.isBlank() ? null : TimelineCursor.decode(cursor);
+    CreatedAtCursor after = CreatedAtCursor.decodeOrNull(cursor);
     List<Post> posts =
         following
             ? postMapper.findFollowingTimeline(me, after, PAGE_SIZE + 1)
             : postMapper.findAll(me, after, PAGE_SIZE + 1);
     boolean hasNext = posts.size() > PAGE_SIZE;
     List<Post> page = posts.subList(0, Math.min(PAGE_SIZE, posts.size()));
-    String nextCursor = hasNext ? TimelineCursor.of(page.getLast()).encode() : null;
+    String nextCursor =
+        hasNext
+            ? CreatedAtCursor.of(page.getLast().getCreatedAt(), page.getLast().getId()).encode()
+            : null;
     List<PostResponse> items = page.stream().map(post -> PostResponse.from(post, me)).toList();
     return new CursorPageResponse<>(items, nextCursor, hasNext);
   }

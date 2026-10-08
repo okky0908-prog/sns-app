@@ -68,7 +68,9 @@ class PostQueryCountTest {
     return user.getId();
   }
 
-  /** 別々の投稿者による投稿を count 件作り、閲覧者がその全員をフォローする。いいね数・いいね済みかの集計も確かめるため、 投稿者と閲覧者が各投稿にいいねしておく */
+  /**
+   * 別々の投稿者による投稿を count 件作り、閲覧者がその全員をフォローする。いいね数・いいね済みか・コメント数の集計も確かめるため、 投稿者と閲覧者が各投稿にいいね・コメントしておく
+   */
   private void createPostsByDifferentAuthors(int count) {
     for (int i = 0; i < count; i++) {
       long authorId = createUser();
@@ -78,11 +80,16 @@ class PostQueryCountTest {
           "INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, now())",
           viewerId,
           authorId);
-      for (long likerId : new long[] {authorId, viewerId}) {
+      for (long userId : new long[] {authorId, viewerId}) {
         jdbcTemplate.update(
             "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, now())",
             post.getId(),
-            likerId);
+            userId);
+        jdbcTemplate.update(
+            "INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, now())",
+            post.getId(),
+            userId,
+            "コメント");
       }
     }
   }
@@ -114,6 +121,7 @@ class PostQueryCountTest {
     assertThat(many.body().get("items")).hasSize(PostService.PAGE_SIZE);
     assertThat(many.body().get("items").get(0).get("likeCount").asLong()).isEqualTo(2);
     assertThat(many.body().get("items").get(0).get("likedByMe").asBoolean()).isTrue();
+    assertThat(many.body().get("items").get(0).get("commentCount").asLong()).isEqualTo(2);
 
     assertThat(many.sqlCount())
         .as(
@@ -138,7 +146,7 @@ class PostQueryCountTest {
   }
 
   @Test
-  void 今のタイムラインは投稿と投稿者といいねを1回のSQLで取っている() throws Exception {
+  void 今のタイムラインは投稿と投稿者といいねとコメント数を1回のSQLで取っている() throws Exception {
     createPostsByDifferentAuthors(PostService.PAGE_SIZE);
     // 今は1回（いいね・画像などの実装で増えたら、この数を見直す。件数で変わらないことは上のテストで確かめる）
     assertThat(fetch("/api/timeline/all").sqlCount()).isEqualTo(1);
@@ -161,5 +169,27 @@ class PostQueryCountTest {
       counts.add(sqlCounter.count());
     }
     assertThat(counts).containsOnly(1);
+  }
+
+  @Test
+  void コメント一覧は書いた人が全員違っても件数によらずSQLの数が同じ() throws Exception {
+    Post post = new Post(viewerId, "コメントされる投稿", OffsetDateTime.now());
+    postMapper.insert(post);
+    String path = "/api/posts/" + post.getId() + "/comments";
+    List<Integer> counts = new ArrayList<>();
+    for (int n : new int[] {2, 23}) {
+      for (int i = 0; i < n; i++) {
+        jdbcTemplate.update(
+            "INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, now())",
+            post.getId(),
+            createUser(),
+            "コメント" + i);
+      }
+      Result result = fetch(path);
+      assertThat(result.body().get("items").size()).isPositive();
+      counts.add(result.sqlCount());
+    }
+    // 投稿があるかの確認 + コメントと書いた人をまとめて取る SQL の2回
+    assertThat(counts).containsOnly(2);
   }
 }

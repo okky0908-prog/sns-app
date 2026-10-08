@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { fetchPost, isApiError } from '../api/client'
 import type { LikeState, Post } from '../api/types'
+import { CommentSection } from '../components/CommentSection'
 import { PostCard } from '../components/PostCard'
 import { usePostActions } from '../posts/usePostActions'
 import styles from './PostDetailPage.module.css'
 
-/** S-06 投稿詳細（docs/screens.md）。コメント（F-30〜F-32）は、コメント機能の実装時に追加する */
+/** S-06 投稿詳細（docs/screens.md）。投稿カードの下にコメント欄（F-30〜F-32） */
 export function PostDetailPage() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  /**
+   * 投稿カードの 💬 から来たときは、コメント入力欄にカーソルを合わせる。location.key は画面遷移のたびに変わるので、
+   * 投稿詳細の中で 💬 をもう一度押したときも合わせ直せる
+   */
+  const focusRequest = (location.state as { focusComment?: boolean } | null)?.focusComment ? location.key : null
   const id = Number(postId)
   const validId = Number.isInteger(id) && id > 0
   // 読み込んだ結果を、どの投稿 ID の結果かと一緒に持つ（URL が変わったら「読み込み中」に戻る）
@@ -27,6 +34,10 @@ export function PostDetailPage() {
 
   function handleLikeChange(likedPostId: number, state: LikeState) {
     setResult((prev) => (prev?.post?.id === likedPostId ? { ...prev, post: { ...prev.post, ...state } } : prev))
+  }
+
+  function handleCommentCountChange(commentCount: number) {
+    setResult((prev) => (prev?.post?.id === id ? { ...prev, post: { ...prev.post, commentCount } } : prev))
   }
 
   useEffect(() => {
@@ -72,7 +83,13 @@ export function PostDetailPage() {
             onLikeChange={handleLikeChange}
             onLikeError={(message) => actions.notify(message, true)}
           />
-          <p className={styles.note}>コメント機能は今後追加します</p>
+          <CommentSection
+            key={post.id}
+            postId={post.id}
+            focusRequest={focusRequest}
+            onCountChange={handleCommentCountChange}
+            notify={actions.notify}
+          />
         </>
       )}
       {actions.elements}

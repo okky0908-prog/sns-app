@@ -44,6 +44,7 @@
 | 401 | `SESSION_EXPIRED` | リフレッシュトークンがない・無効・期限切れ（再発行できない。もう一度ログイン） |
 | 403 | `FORBIDDEN` | 他人の投稿・コメントを編集・削除しようとした |
 | 404 | `POST_NOT_FOUND` | 投稿が存在しない（削除された） |
+| 404 | `COMMENT_NOT_FOUND` | コメントが存在しない（削除された） |
 | 404 | `RESOURCE_NOT_FOUND` | 存在しない URL |
 | 405 | `METHOD_NOT_ALLOWED` | その URL で使えないメソッド |
 | 409 | `ALREADY_REGISTERED` | ユーザー名・メールアドレスが登録済み（どの項目かは `errors` に入る） |
@@ -147,7 +148,7 @@ type CursorPage<T> = {
 
 A-10, A-11, A-12, A-13, A-15, A-61 で返す。
 
-> **現在の実装：** `likeCount`・`likedByMe` は返す。`commentCount` は、コメント機能の実装時に追加する（今は返さない）。`images` は画像投稿の実装までは常に空の配列。
+> **現在の実装：** `images` は画像投稿の実装までは常に空の配列。
 
 ```json
 {
@@ -319,6 +320,31 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 - 画面は60秒ごとに呼ぶ。編集・削除は数えない（取り直したときに反映される）
 - `since` がない・数字でなければ 400
 
+### A-30 コメント一覧
+
+`GET /api/posts/{postId}/comments?cursor=`
+
+```json
+// レスポンス 200 OK（ページングのレスポンス）
+{
+  "items": [
+    {
+      "id": 55,
+      "content": "わかりやすいです！",
+      "author": { "id": 2, "username": "sato", "displayName": "佐藤花子", "iconUrl": null },
+      "createdAt": "2026-09-30T10:30:00+09:00",
+      "mine": false
+    }
+  ],
+  "nextCursor": null,
+  "hasNext": false
+}
+```
+
+- 古い順に20件。続きは `nextCursor` を `?cursor=` に渡す（カーソルには最後に返したコメントの日時と ID が入っていて、それより新しいものを返す）
+- `mine` は自分のコメントか（「削除」を出すかどうか）
+- 投稿が存在しなければ 404（`POST_NOT_FOUND`）
+
 ### A-31 コメント投稿
 
 `POST /api/posts/{postId}/comments`
@@ -339,6 +365,20 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 ```
 
 - 画面でコメント数をすぐ更新できるように、投稿後のコメント数（`commentCount`）も返す
+- 本文は前後の空白・改行を除いて1〜280文字（数え方は投稿と同じ）。違反は 400（`VALIDATION_FAILED`）。投稿が存在しなければ 404（`POST_NOT_FOUND`）
+
+### A-32 コメント削除
+
+`DELETE /api/comments/{commentId}`
+
+```json
+// レスポンス 200 OK
+{ "commentCount": 3 }
+```
+
+- 削除できるのはコメントした本人だけ。他人のコメントは 403（`FORBIDDEN`。投稿者でも消せない）
+- コメントがなければ 404（`COMMENT_NOT_FOUND`）
+- 画面でコメント数をすぐ更新できるように、削除後のコメント数を返す
 
 ### A-40 / A-41 いいね・いいね取り消し
 

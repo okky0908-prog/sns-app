@@ -213,7 +213,7 @@ PostgreSQL では、UNIQUE 制約には自動でインデックスが作られ�
 |---|---|---|
 | posts | (user_id, created_at DESC) | フォロー中タイムライン・プロフィールの投稿一覧（ユーザーで絞って新しい順） |
 | posts | (created_at DESC, id DESC) | 全体タイムライン（絞り込みなしで新しい順） |
-| comments | (post_id, created_at) | 投稿詳細のコメント一覧、コメント数の集計 |
+| comments | (post_id, created_at, id) | 投稿詳細のコメント一覧（古い順・カーソルで続きを取る）、コメント数の集計 |
 | comments | (user_id) | ユーザー削除時の CASCADE |
 | likes | UNIQUE(post_id, user_id) | いいね数の集計、自分がいいね済みかの判定（先頭の post_id で集計にも使える） |
 | likes | (user_id) | ユーザー削除時の CASCADE |

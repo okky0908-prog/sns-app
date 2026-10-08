@@ -2,6 +2,8 @@ import type {
   ApiErrorBody,
   ApiErrorCode,
   AuthResponse,
+  Comment,
+  CreatedComment,
   CursorPage,
   FieldErrorBody,
   LikeState,
@@ -224,4 +226,22 @@ export function likePost(postId: number): Promise<LikeState> {
 /** A-41 いいねを取り消す */
 export function unlikePost(postId: number): Promise<LikeState> {
   return apiFetch(`/api/posts/${postId}/likes`, { method: 'DELETE', auth: true })
+}
+
+// ===== コメント API（docs/api.md の A-30〜A-32） =====
+
+/** A-30 コメント一覧（古い順に20件ずつ）。続きは前回の nextCursor を渡す */
+export function fetchComments(postId: number, cursor: string | null = null): Promise<CursorPage<Comment>> {
+  const path = `/api/posts/${postId}/comments`
+  return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
+}
+
+/** A-31 コメント投稿。投稿後のコメント数も返る */
+export function createComment(postId: number, content: string): Promise<CreatedComment> {
+  return apiFetch(`/api/posts/${postId}/comments`, { method: 'POST', body: { content }, auth: true })
+}
+
+/** A-32 コメント削除（本人だけ）。削除後のコメント数が返る */
+export function deleteComment(commentId: number): Promise<{ commentCount: number }> {
+  return apiFetch(`/api/comments/${commentId}`, { method: 'DELETE', auth: true })
 }
