@@ -259,15 +259,17 @@ SELECT
     EXISTS (SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = :me) AS liked_by_me
 FROM posts p
 JOIN users u ON u.id = p.user_id
-WHERE p.user_id = :me
-   OR p.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = :me)
+WHERE (p.user_id = :me
+   OR p.user_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = :me))
+  -- 続きを取るとき：カーソル（前回の一番下の投稿の日時と ID）より古いものだけ
+  AND (p.created_at, p.id) < (:cursor_created_at, :cursor_id)
 ORDER BY p.created_at DESC, p.id DESC
-LIMIT 20 OFFSET :offset;
+LIMIT 21;  -- 20件 + 続きがあるかの確認用に1件
 ```
 
-全体タイムラインは、上の SQL から `WHERE` 句を外すだけで取得できる（いいね数・コメント数・`liked_by_me` の出し方は同じ）。
+全体タイムラインは、上の SQL から「自分とフォロー中の人」の条件を外すだけで取得できる（いいね数・コメント数・`liked_by_me` の出し方は同じ）。最初のページはカーソルの条件を付けない（[API設計：カーソル方式のページング](api.md)）。
 
-- 投稿1件ごとに別の SQL を発行する書き方（N+1問題）にならないよう、1回の SQL でまとめて取る
+- 投稿1件ごとに別の SQL を発行する書き方（N+1問題）にならないよう、1回の SQL でまとめて取る（[N+1 問題を防ぐ](#n1-問題を防ぐ)）
 - 画像は、取得した20件の投稿 ID でまとめて `post_images` を1回だけ取得する
 - `ORDER BY` に `p.id` も入れるのは、同じ日時の投稿があっても順番が毎回同じになるようにするため
 - PostgreSQL では `EXISTS (...)` の結果が `boolean` 型で返るので、`liked_by_me` をそのまま Java の `boolean` に入れられる。`COUNT(*)` は `bigint` 型なので、Java では `long` で受け取る
@@ -291,16 +293,33 @@ ORDER BY
         ELSE 2                                              -- それ以外
     END,
     u.username
-LIMIT 20 OFFSET :offset;
+LIMIT 21;  -- 20件 + 続きがあるかの確認用に1件
 ```
 
 - `ILIKE` は PostgreSQL の、大文字・小文字を区別しない `LIKE`
 - キーワードが空のときは `WHERE` を外し、`ORDER BY u.created_at DESC, u.id DESC` にする（最近参加したユーザー）
+- 続きはカーソル方式で取る（並び順に使う値〈一致の度合い・ユーザー名、または登録日時・ID〉をカーソルに入れ、それより後のものを取る）。カーソルの中身はユーザー検索の実装時に決める
 
 ### 将来の改善案: カウンタ列を持つ
 
 投稿やいいねが大量になったら、`posts` に `like_count` / `comment_count` 列を追加し、いいね・コメントの追加/削除と同じトランザクションで `+1` / `-1` する方法に切り替える。
 読み込みは速くなるが、更新漏れで数がずれないように気をつける必要がある。今回は採用しない。
+
+## N+1 問題を防ぐ
+
+一覧を取るときに「一覧を取る SQL 1回 + 1件ごとの SQL N回」を発行してしまう書き方（N+1 問題）をしない。1回の SQL は速くても、件数と利用者が増えると DB との往復の回数だけ遅くなる。開発中はデータが少なく気づきにくいので、書き方のルールとテストで防ぐ。
+
+| 取りたいもの | 取り方 | 例 |
+|---|---|---|
+| 1件に対して1件（投稿 → 投稿者、コメント → 書いた人） | `JOIN` で同じ SQL に入れる | タイムライン・投稿詳細の投稿者（実装済み）、コメント一覧の書いた人 |
+| 件数・有無（いいね数、いいね済みか、フォロー済みか） | 同じ SQL の中のサブクエリ（`COUNT(*)`・`EXISTS`） | タイムラインのいいね数・コメント数・`liked_by_me`、ユーザー一覧の `followed_by_me` |
+| 1件に対して複数件（投稿 → 画像） | 一覧を取ったあと、その ID でまとめて1回だけ取り（`WHERE post_id IN (...)`）、Java で投稿ごとに振り分ける | タイムライン・投稿詳細・プロフィールの投稿一覧の画像 |
+
+- `JOIN` で「1対多」をまとめないのは、行が画像の枚数分に増えて `LIMIT 20` が「20件の投稿」ではなくなるため
+- MyBatis の `<collection select="...">` / `<association select="...">` は使わない。親の1行ごとに子の SQL を発行する仕組みなので、そのまま N+1 になる
+- Service でループを回しながら Mapper を呼ばない（`for` や `stream().map()` の中で `xxxMapper.find...` を呼んでいたら N+1）
+- 画像・アイコンの URL は「配信元の URL + キー」を文字列としてつなぐだけにする。1件ずつ S3 に問い合わせない（DB ではなく S3 に対する N+1 になる）
+- テスト：一覧 API を追加したら、`PostQueryCountTest` と同じように「件数が少ないときと多いときで、DB に送る SQL の数が同じ」ことを確かめるテストを書く（テスト用の `SqlCounter` で数える）
 
 ## 参照整合性・カスケード削除について
 
