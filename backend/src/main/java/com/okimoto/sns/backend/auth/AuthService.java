@@ -4,6 +4,7 @@ import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
 import com.okimoto.sns.backend.web.ApiError;
 import com.okimoto.sns.backend.web.ApiException;
+import com.okimoto.sns.backend.web.ErrorCode;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -12,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +23,6 @@ public class AuthService {
 
   static final String USERNAME_TAKEN = "このユーザー名はすでに使われています";
   static final String EMAIL_TAKEN = "このメールアドレスはすでに登録されています";
-  static final String INVALID_LOGIN = "メールアドレスまたはパスワードが正しくありません";
-  static final String SESSION_EXPIRED = "ログインの有効期限が切れました。もう一度ログインしてください";
   static final String PASSWORD_TOO_LONG = "パスワードが長すぎます（全角文字は1文字を3バイトとして、72バイトまで）";
 
   /** BCrypt が扱えるのは72バイトまで */
@@ -103,7 +101,7 @@ public class AuthService {
         fitsBcrypt(request.password()) && passwordEncoder.matches(request.password(), hash);
     if (user.isEmpty() || !matches) {
       // どちらが違うかは教えない
-      throw new ApiException(HttpStatus.UNAUTHORIZED, INVALID_LOGIN);
+      throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
     }
     return issueTokens(user.get());
   }
@@ -117,11 +115,11 @@ public class AuthService {
     RefreshTokenService.Rotation rotation =
         refreshTokenService
             .rotate(refreshToken)
-            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, SESSION_EXPIRED));
+            .orElseThrow(() -> new ApiException(ErrorCode.SESSION_EXPIRED));
     User user =
         userMapper
             .findById(rotation.userId())
-            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, SESSION_EXPIRED));
+            .orElseThrow(() -> new ApiException(ErrorCode.SESSION_EXPIRED));
     return new AuthResult(
         jwtService.issue(user.getId()), rotation.refreshToken(), UserResponse.from(user));
   }
@@ -138,7 +136,7 @@ public class AuthService {
         .findById(userId)
         .map(UserResponse::from)
         // トークンは正しいが、ユーザーが存在しない（削除された）場合
-        .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ログインが必要です"));
+        .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
   }
 
   private AuthResult issueTokens(User user) {

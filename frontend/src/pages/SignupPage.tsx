@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ApiError, NETWORK_ERROR_MESSAGE } from '../api/client'
+import { ApiError, errorMessage } from '../api/client'
 import { useAuth } from '../auth/authContext'
 import { validateSignup, type SignupErrors, type SignupForm } from '../auth/validation'
 import { FormField } from '../components/FormField'
@@ -46,7 +46,7 @@ export function SignupPage() {
         }
         setErrors(serverErrors)
       } else {
-        setAlert(err instanceof ApiError && err.status !== 0 ? err.message : NETWORK_ERROR_MESSAGE)
+        setAlert(errorMessage(err))
       }
     } finally {
       setSubmitting(false)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { ApiError, fetchPost } from '../api/client'
+import { fetchPost, isApiError } from '../api/client'
 import type { Post } from '../api/types'
 import { PostCard } from '../components/PostCard'
 import { usePostActions } from '../posts/usePostActions'
@@ -34,7 +34,7 @@ export function PostDetailPage() {
       })
       .catch((err) => {
         if (!cancelled)
-          setResult({ id, post: null, status: err instanceof ApiError && err.status === 404 ? 'notFound' : 'error' })
+          setResult({ id, post: null, status: isApiError(err, 'POST_NOT_FOUND') ? 'notFound' : 'error' })
       })
     return () => {
       cancelled = true

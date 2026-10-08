@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
+import com.okimoto.sns.backend.web.ErrorCode;
 import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Duration;
@@ -138,6 +139,7 @@ class AuthControllerTest {
     postJson("/api/auth/signup", Map.of())
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
         .andExpect(jsonPath("$.message").value("入力内容に誤りがあります"))
         .andExpect(jsonPath("$.errors[?(@.field == 'username')]").exists())
         .andExpect(jsonPath("$.errors[?(@.field == 'displayName')]").exists())
@@ -198,6 +200,7 @@ class AuthControllerTest {
     postJson("/api/auth/signup", signupBody("DupUser", "名前", "dup2@example.com", "password123"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.status").value(409))
+        .andExpect(jsonPath("$.code").value("ALREADY_REGISTERED"))
         .andExpect(jsonPath("$.errors", hasSize(1)))
         .andExpect(jsonPath("$.errors[0].field").value("username"))
         .andExpect(jsonPath("$.errors[0].message").value("このユーザー名はすでに使われています"));
@@ -246,6 +249,7 @@ class AuthControllerTest {
     postJson("/api/auth/login", Map.of("email", "wrongpw@example.com", "password", "different1"))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.status").value(401))
+        .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
         .andExpect(jsonPath("$.message").value(message));
     postJson("/api/auth/login", Map.of("email", "nobody@example.com", "password", "password123"))
         .andExpect(status().isUnauthorized())
@@ -294,6 +298,7 @@ class AuthControllerTest {
       getMe(authorization)
           .andExpect(status().isUnauthorized())
           .andExpect(jsonPath("$.status").value(401))
+          .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
           .andExpect(jsonPath("$.message").value("ログインが必要です"));
     }
   }
@@ -379,7 +384,8 @@ class AuthControllerTest {
     // 盗まれた古いトークンが、しばらくしてから使われた
     postRefresh(oldRefresh)
         .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.message").value(AuthService.SESSION_EXPIRED));
+        .andExpect(jsonPath("$.code").value("SESSION_EXPIRED"))
+        .andExpect(jsonPath("$.message").value(ErrorCode.SESSION_EXPIRED.message()));
     // 正規の利用者が持つ新しいトークンも無効になっている（もう一度ログインが必要）
     postRefresh(newRefresh).andExpect(status().isUnauthorized());
   }
@@ -421,7 +427,8 @@ class AuthControllerTest {
     postRefresh(null)
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.status").value(401))
-        .andExpect(jsonPath("$.message").value(AuthService.SESSION_EXPIRED));
+        .andExpect(jsonPath("$.code").value("SESSION_EXPIRED"))
+        .andExpect(jsonPath("$.message").value(ErrorCode.SESSION_EXPIRED.message()));
     postRefresh("unknown-token").andExpect(status().isUnauthorized());
 
     signupAndGetRefreshToken("expireduser", "expired@example.com");

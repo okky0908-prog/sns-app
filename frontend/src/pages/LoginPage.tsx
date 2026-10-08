@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ApiError, NETWORK_ERROR_MESSAGE } from '../api/client'
+import { errorMessage, isApiError } from '../api/client'
 import { useAuth } from '../auth/authContext'
 import { FormField } from '../components/FormField'
 import styles from './AuthPage.module.css'
@@ -35,13 +35,13 @@ export function LoginPage() {
       await login({ email: email.trim(), password })
       navigate('/', { replace: true })
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
+      if (isApiError(err, 'INVALID_CREDENTIALS')) {
         // どちらが違うかは教えない。パスワード欄だけ空にする
         setAlert(err.message)
         setPassword('')
         passwordRef.current?.focus()
       } else {
-        setAlert(err instanceof ApiError && err.status !== 0 ? err.message : NETWORK_ERROR_MESSAGE)
+        setAlert(errorMessage(err))
       }
     } finally {
       setSubmitting(false)

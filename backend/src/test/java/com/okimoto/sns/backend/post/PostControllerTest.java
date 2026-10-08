@@ -166,6 +166,7 @@ class PostControllerTest {
         .perform(as(aliceId, get("/api/posts/{id}", 999_999_999L)))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"))
         .andExpect(jsonPath("$.message").value("この投稿は見つかりません"));
     mockMvc
         .perform(as(aliceId, get("/api/posts/abc")))
@@ -197,6 +198,7 @@ class PostControllerTest {
     long postId = createPostAndGetId(aliceId, "アリスの投稿");
     updatePost(bobId, postId, "書き換え")
         .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("FORBIDDEN"))
         .andExpect(jsonPath("$.message").value("この操作は実行できません"));
     updatePost(aliceId, 999_999_999L, "書き換え").andExpect(status().isNotFound());
     updatePost(aliceId, postId, "").andExpect(status().isBadRequest());

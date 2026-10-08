@@ -2,10 +2,10 @@ package com.okimoto.sns.backend.post;
 
 import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.CursorPageResponse;
+import com.okimoto.sns.backend.web.ErrorCode;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +17,6 @@ public class PostService {
 
   /** 新しい投稿の件数はここまで数える（それ以上は画面で「99+」と出すので、全部は数えない） */
   static final int NEW_COUNT_LIMIT = 100;
-
-  static final String NOT_FOUND = "この投稿は見つかりません";
-  static final String FORBIDDEN = "この操作は実行できません";
 
   private final PostMapper postMapper;
   private final Clock clock;
@@ -96,14 +93,14 @@ public class PostService {
   private Post findOrThrow(long postId) {
     return postMapper
         .findById(postId)
-        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, NOT_FOUND));
+        .orElseThrow(() -> new ApiException(ErrorCode.POST_NOT_FOUND));
   }
 
   /** 投稿が存在し、自分の投稿であることを確かめる（他人の投稿の編集・削除は 403） */
   private Post findOwnPostOrThrow(long me, long postId) {
     Post post = findOrThrow(postId);
     if (post.getUserId() != me) {
-      throw new ApiException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      throw new ApiException(ErrorCode.FORBIDDEN);
     }
     return post;
   }

@@ -18,8 +18,30 @@ export interface FieldErrorBody {
   message: string
 }
 
+/**
+ * エラーの種類（docs/api.md「エラーレスポンス」・バックエンドの ErrorCode と同じ名前）。
+ * 画面の分岐はステータスや文言ではなく、この code で行う
+ */
+export type ApiErrorCode =
+  | 'VALIDATION_FAILED'
+  | 'MALFORMED_REQUEST'
+  | 'UNAUTHENTICATED'
+  | 'INVALID_CREDENTIALS'
+  | 'SESSION_EXPIRED'
+  | 'FORBIDDEN'
+  | 'POST_NOT_FOUND'
+  | 'RESOURCE_NOT_FOUND'
+  | 'METHOD_NOT_ALLOWED'
+  | 'ALREADY_REGISTERED'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'UNSUPPORTED_MEDIA_TYPE'
+  | 'INTERNAL_ERROR'
+  | 'SERVICE_UNAVAILABLE'
+
 export interface ApiErrorBody {
   status: number
+  code: ApiErrorCode
+  /** 利用者にそのまま見せてよい文言 */
   message: string
   errors: FieldErrorBody[]
 }
