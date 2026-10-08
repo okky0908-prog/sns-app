@@ -357,7 +357,9 @@ class PostControllerTest {
     newCount(aliceId, "/api/timeline/all/new-count", since)
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.count").value(2));
-    newCount(aliceId, "/api/timeline/all/new-count", 0).andExpect(jsonPath("$.count").value(3));
+    // since 自身も「より後」に入らないことの確認。0 にすると DB に残っている動作確認用の投稿まで数えてしまうので、直前の ID にする
+    newCount(aliceId, "/api/timeline/all/new-count", since - 1)
+        .andExpect(jsonPath("$.count").value(3));
   }
 
   @Test
