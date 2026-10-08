@@ -79,5 +79,12 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
     </>
   )
 
-  return { startEdit: setEditing, startDelete: setDeleting, notify, elements }
+  return {
+    startEdit: setEditing,
+    startDelete: setDeleting,
+    notify,
+    elements,
+    /** 編集モーダル・削除の確認ダイアログを開いているか（ほかのモーダルを重ねて出さないため） */
+    dialogOpen: editing !== null || deleting !== null,
+  }
 }

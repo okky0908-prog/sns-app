@@ -2,6 +2,7 @@ import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { createPost, fetchNewPostCount, fetchTimeline, type TimelineTab } from '../api/client'
 import type { Post } from '../api/types'
+import { NewPostsDialog } from '../components/NewPostsDialog'
 import { PostCard } from '../components/PostCard'
 import { PostComposer } from '../components/PostComposer'
 import { usePostActions } from '../posts/usePostActions'
@@ -25,6 +26,8 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
   const [posts, setPosts] = useState<Post[]>([])
   /** 前回取り直してから増えた、他人の投稿の件数（「↑ N件の新しい投稿」） */
   const [newCount, setNewCount] = useState(0)
+  /** モーダルを「あとで」で閉じたときの件数。これより増えたら、またモーダルで知らせる */
+  const [dismissedCount, setDismissedCount] = useState(0)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasNext, setHasNext] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -62,6 +65,7 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
           setPosts(res.items)
           newestIdRef.current = res.items[0]?.id ?? 0
           setNewCount(0)
+          setDismissedCount(0)
           setNextCursor(res.nextCursor)
           setHasNext(res.hasNext)
           setMoreFailed(false)
@@ -148,6 +152,21 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
     window.scrollTo(0, 0)
     void loadFirstPage()
   }, [loadFirstPage])
+
+  /**
+   * モーダルの「最新の投稿を見る」。取り直しが終わるのを待たずに、お知らせ（モーダル・ボタン）を消す。
+   * 途中の件数の確認の結果でお知らせがまた出ないよう、その結果も捨てる
+   */
+  function showNewPosts() {
+    generationRef.current += 1
+    setNewCount(0)
+    refresh()
+  }
+
+  const dismissNewPosts = useCallback(() => setDismissedCount(newCount), [newCount])
+
+  // 投稿の作成・編集・削除のモーダルを開いている間は重ねて出さない（閉じたあとに出す）
+  const showNewPostsDialog = newCount > dismissedCount && !composing && !actions.dialogOpen
 
   // ヘッダーの「ホーム」を、ホームを表示中にもう一度押したとき（AppLayout が state に refresh を付けて遷移してくる）
   useEffect(() => {
@@ -247,6 +266,7 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
         )}
       </section>
 
+      {showNewPostsDialog && <NewPostsDialog count={newCount} onShow={showNewPosts} onLater={dismissNewPosts} />}
       {composing && <PostComposer mode="create" onSubmit={handleCreate} onClose={() => setComposing(false)} />}
       {actions.elements}
     </>

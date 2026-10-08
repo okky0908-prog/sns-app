@@ -62,3 +62,18 @@
 .danger:hover {
   background: #dc1f2b;
 }
+
+.title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primary:hover {
+  background: var(--color-primary-dark);
+}
