@@ -21,6 +21,7 @@ repositories {
 
 val mybatisVersion = "4.1.0"
 val jjwtVersion = "0.13.0"
+val awsSdkVersion = "2.55.14"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -34,6 +35,11 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
     // JSON の処理には Gson を使う（jjwt-jackson は Jackson 2 に依存し、Spring Boot 4 の Jackson 3 と混ざるため）
     runtimeOnly("io.jsonwebtoken:jjwt-gson:$jjwtVersion")
+    // 画像の保存先（S3）。同期の S3 クライアントだけを使うので、非同期用の Netty は入れない
+    implementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
+    implementation("software.amazon.awssdk:s3") {
+        exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+    }
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")

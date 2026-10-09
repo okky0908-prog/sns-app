@@ -1,0 +1,9 @@
+# 本番（AWS）用の設定。起動時に spring.profiles.active=production を指定すると、application.yml の上に重ねて読まれる。
+# application.yml の既定値はローカル開発（LocalStack など）向けなので、本番で設定し忘れると気づきにくい値はここで上書きする
+app:
+  storage:
+    # 指定がなければ空（AWS の S3 に IAM ロールの権限で接続する）。LocalStack の既定値は使わない
+    endpoint: ${S3_ENDPOINT:}
+    # CloudFront の URL。指定がなければ空にして、StorageProperties の入力チェックで起動時にエラーにする。
+    # （${IMAGE_BASE_URL} のように既定値を書かないと、解決できなかったときに「${IMAGE_BASE_URL}」という文字のまま入り、チェックを通ってしまう）
+    image-base-url: ${IMAGE_BASE_URL:}

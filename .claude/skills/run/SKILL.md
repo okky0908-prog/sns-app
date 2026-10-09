@@ -24,7 +24,7 @@ description: このリポジトリ（Spring Boot バックエンド + Vite/React
 cp .env.example .env
 
 # 1. DB と S3（LocalStack）
-docker compose up -d postgres localstack   # LocalStack を追加するまでは postgres だけ
+docker compose up -d postgres localstack
 
 # 2. バックエンド（リポジトリルートから）。Java 25 は Homebrew の openjdk@25（keg-only のため JAVA_HOME を指定）
 cd backend && JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew bootRun
@@ -33,7 +33,9 @@ cd backend && JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents
 cd frontend && npm run dev
 ```
 
-- 現在の実装状況：PostgreSQL・バックエンド（認証・投稿・タイムラインの API）・フロントエンド（ログイン・新規登録・タイムライン〈無限スクロール・新しい投稿のお知らせ〉・投稿詳細の画面）。LocalStack は画像投稿の実装時に追加する。まだないものは起動しなくてよい
+- 現在の実装状況：PostgreSQL・LocalStack（S3）・バックエンド・フロントエンド（ログイン・新規登録・タイムライン・投稿詳細・いいね・コメント・プロフィール・フォロー）
+- LocalStack は `localstack/localstack:4.14.0` に固定している（2026.03.0 以降は起動にアカウントと認証トークンが必要なため。docs/tech-stack.md）。バージョンを上げないこと
+- 無料版の LocalStack はデータを保存しないので、コンテナを作り直すとアップロードした画像は消える（DB には画像のキーが残るので、画像が表示されなくなる）
 - バックエンドより先に LocalStack を起動しておくこと（画像のアップロード先の S3 バケットが必要なため）
 - S3 バケットは LocalStack の起動時に初期化スクリプトで作成する。バケットがない場合は、LocalStack が起動しきっているか（下の起動確認）を確認する
 

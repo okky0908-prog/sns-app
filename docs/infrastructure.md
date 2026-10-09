@@ -110,8 +110,8 @@ Spring Boot の `application-production.yml` で、次の値を環境変数か�
 | DB の接続先 | `DB_HOST`・`POSTGRES_PORT`・`POSTGRES_DB`・`POSTGRES_USER`・`POSTGRES_PASSWORD` | RDS のエンドポイントと認証情報（ローカルの `.env` と同じ名前） |
 | JWT の署名鍵 | `JWT_SECRET` | サーバー上でだけ作る。リポジトリには入れない |
 | リフレッシュトークンの Cookie | `REFRESH_TOKEN_COOKIE_SECURE=true` | Cookie に Secure 属性を付け、HTTPS のときだけ送らせる。そのため本番は HTTPS 化が前提（下の「今後の課題」参照） |
-| S3 | `S3_BUCKET`・`AWS_REGION` | バケット名とリージョン。アクセスキーは IAM ロールから自動で取得されるため設定しない |
-| 画像の配信元 | `IMAGE_BASE_URL` | CloudFront の URL（例: `https://dxxxxxxxx.cloudfront.net`） |
+| S3 | `S3_BUCKET`・`AWS_REGION`・`S3_ENDPOINT`（空にする） | バケット名とリージョン。`S3_ENDPOINT` はローカルの LocalStack 用なので、本番では空にする（空なら AWS の S3 に接続する）。アクセスキーは IAM ロールから自動で取得されるため設定しない |
+| 画像の配信元 | `IMAGE_BASE_URL` | CloudFront の URL（例: `https://dxxxxxxxx.cloudfront.net`）。`application-production.yml` では既定値を置かないので、設定し忘れると起動時にエラーになる |
 | アップロードサイズ | `spring.servlet.multipart.max-file-size` など | 1枚5MB・1回のリクエストで合計20MB（4枚）まで |
 
 - 環境変数は、バックエンドのサーバーの `/opt/sns-app/backend.env`（権限 600）に置き、systemd のサービスから読み込む（本棚アプリと同じ方式）
@@ -127,7 +127,7 @@ Spring Boot の `application-production.yml` で、次の値を環境変数か�
 | フロントエンドの EC2 | Vite の開発サーバー（`localhost:5173`） |
 | バックエンドの EC2 | Spring Boot（`localhost:8080`） |
 | RDS for PostgreSQL | PostgreSQL 17 のコンテナ（`postgres:17`） |
-| S3 | LocalStack のコンテナ |
+| S3 | LocalStack のコンテナ（`localstack/localstack:4.14.0`、`localhost:4566`）。起動時にバケット `sns-app-images` を作る（`localstack/init/ready.d/create-bucket.sh`）。接続先・認証情報はバックエンドの設定（`app.storage`）でローカル用に切り替える |
 | CloudFront | なし（LocalStack の S3 の URL から直接表示する） |
 
 ## 費用

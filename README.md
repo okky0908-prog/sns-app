@@ -90,11 +90,13 @@ openssl rand -base64 48
 
 `.env` は docker compose とバックエンドの両方が読む（Git には入れない）。
 
-### 2. PostgreSQL を起動する
+### 2. PostgreSQL と LocalStack（S3 の代わり）を起動する
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres localstack
 ```
+
+LocalStack は画像の保存先（S3）の代わり。起動時にバケット `sns-app-images` が作られる。2026.03.0 以降は起動に LocalStack のアカウントが必要になったため、アカウントなしで動く 4.14.0 に固定している（[技術スタック](docs/tech-stack.md)）。
 
 ### 3. バックエンドを起動する
 
@@ -131,7 +133,7 @@ JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradle
 JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew spotlessApply   # 整形を自動で直す
 ```
 
-テストはローカルの PostgreSQL（`docker compose up -d postgres`）を使う。各テストは終了時にロールバックされ、データは残らない。
+テストはローカルの PostgreSQL と LocalStack（`docker compose up -d postgres localstack`）を使う。各テストは終了時にロールバックされ、データは残らない。
 
 フロントエンドの型チェック・ビルドと lint：
 

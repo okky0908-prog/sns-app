@@ -99,7 +99,7 @@
 ### 画像 URL の組み立て
 
 DB には S3 のオブジェクトキー（例: `posts/2026/09/3f2a...jpg`）だけを保存し、API で返すときに「配信元のURL + キー」で URL を組み立てる。
-配信元のURL は `application.yml` の設定値（例: `app.image-base-url`）で環境ごとに切り替える。
+配信元のURL は `application.yml` の設定値 `app.storage.image-base-url`（環境変数 `IMAGE_BASE_URL`）で環境ごとに切り替える。
 
 | 環境 | 配信元のURL（例） |
 |---|---|
