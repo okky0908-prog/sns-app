@@ -15,6 +15,8 @@ public interface LikeMapper {
   /** いいねを取り消す。いいねしていなければ何もしない */
   void delete(@Param("postId") long postId, @Param("userId") long userId);
 
-  /** いいね数と、me がいいね済みかを1回の SQL で取る */
-  LikeResponse findStatus(@Param("postId") long postId, @Param("me") long me);
+  long countByPostId(long postId);
+
+  /** userId がいいね済みか */
+  boolean exists(@Param("postId") long postId, @Param("userId") long userId);
 }

@@ -37,14 +37,19 @@ public class LikeService {
       // 投稿があることを確かめてから INSERT するまでの間に、投稿が削除された（外部キーの違反）
       throw new ApiException(ErrorCode.POST_NOT_FOUND);
     }
-    return likeMapper.findStatus(postId, me);
+    return status(me, postId);
   }
 
   @Transactional
   public LikeResponse unlike(long me, long postId) {
     requirePost(postId);
     likeMapper.delete(postId, me);
-    return likeMapper.findStatus(postId, me);
+    return status(me, postId);
+  }
+
+  /** 今のいいね数と、me がいいね済みか（その間のほかの人のいいねも反映される） */
+  private LikeResponse status(long me, long postId) {
+    return new LikeResponse(likeMapper.countByPostId(postId), likeMapper.exists(postId, me));
   }
 
   private void requirePost(long postId) {
