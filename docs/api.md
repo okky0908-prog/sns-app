@@ -444,6 +444,8 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 
 ### A-52 / A-53 フォロー中・フォロワー一覧
 
+`GET /api/users/{username}/following?cursor=` / `GET /api/users/{username}/followers?cursor=`
+
 `items` の中身は次の形。
 
 ```json
@@ -457,6 +459,11 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
   "me": false
 }
 ```
+
+- フォローした日時（フォロワー一覧ならフォローされた日時）の新しい順に20件。続きはカーソル方式（カーソルにはフォローした日時と follows の ID が入っている）
+- `followedByMe` は、一覧を見ている相手ではなく **ログイン中の自分** がその人をフォローしているか。`me` は自分自身の行か（フォローボタンを出さない）
+- ユーザーがいなければ 404（`USER_NOT_FOUND`）。`{username}` は大文字・小文字を区別しない
+- **現在の実装：** `iconUrl` は、アイコンのアップロードの実装までは常に `null`
 
 ### A-62 プロフィール編集
 

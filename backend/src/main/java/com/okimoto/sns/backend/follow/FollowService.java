@@ -1,10 +1,14 @@
 package com.okimoto.sns.backend.follow;
 
+import com.okimoto.sns.backend.user.UserListItemResponse;
 import com.okimoto.sns.backend.user.UserService;
 import com.okimoto.sns.backend.web.ApiException;
+import com.okimoto.sns.backend.web.CreatedAtCursor;
+import com.okimoto.sns.backend.web.CursorPageResponse;
 import com.okimoto.sns.backend.web.ErrorCode;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class FollowService {
+
+  static final int PAGE_SIZE = 20;
 
   private final FollowMapper followMapper;
   private final UserService userService;
@@ -47,6 +53,48 @@ public class FollowService {
     long targetId = userService.findIdOrThrow(username);
     followMapper.delete(me, targetId);
     return status(me, targetId);
+  }
+
+  /** A-52 username がフォローしている人の一覧（フォローした日時の新しい順・カーソル方式） */
+  @Transactional(readOnly = true)
+  public CursorPageResponse<UserListItemResponse> following(
+      long me, String username, String cursor) {
+    CreatedAtCursor after = CreatedAtCursor.decodeOrNull(cursor);
+    long userId = userService.findIdOrThrow(username);
+    return toPage(me, followMapper.findFollowing(userId, me, after, PAGE_SIZE + 1));
+  }
+
+  /** A-53 username をフォローしている人の一覧（フォローされた日時の新しい順・カーソル方式） */
+  @Transactional(readOnly = true)
+  public CursorPageResponse<UserListItemResponse> followers(
+      long me, String username, String cursor) {
+    CreatedAtCursor after = CreatedAtCursor.decodeOrNull(cursor);
+    long userId = userService.findIdOrThrow(username);
+    return toPage(me, followMapper.findFollowers(userId, me, after, PAGE_SIZE + 1));
+  }
+
+  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける（タイムラインと同じやり方） */
+  private CursorPageResponse<UserListItemResponse> toPage(long me, List<FollowedUser> rows) {
+    boolean hasNext = rows.size() > PAGE_SIZE;
+    List<FollowedUser> page = rows.subList(0, Math.min(PAGE_SIZE, rows.size()));
+    String nextCursor =
+        hasNext
+            ? CreatedAtCursor.of(page.getLast().getFollowedAt(), page.getLast().getFollowId())
+                .encode()
+            : null;
+    List<UserListItemResponse> items =
+        page.stream()
+            .map(
+                row ->
+                    UserListItemResponse.of(
+                        row.getId(),
+                        row.getUsername(),
+                        row.getDisplayName(),
+                        row.getBio(),
+                        row.isFollowedByMe(),
+                        me))
+            .toList();
+    return new CursorPageResponse<>(items, nextCursor, hasNext);
   }
 
   /** 今のフォロー状態と、相手のフォロワー数（その間のほかの人のフォローも反映される） */

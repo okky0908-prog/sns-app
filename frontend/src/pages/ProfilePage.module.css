@@ -81,6 +81,15 @@
   color: var(--color-sub);
 }
 
+.countLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.countLink:hover {
+  text-decoration: underline;
+}
+
 .counts strong {
   color: var(--color-text);
 }

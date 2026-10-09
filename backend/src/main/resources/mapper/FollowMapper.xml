@@ -22,4 +22,40 @@
     SELECT EXISTS (SELECT 1 FROM follows WHERE follower_id = #{followerId} AND followee_id = #{followeeId})
   </select>
 
+  <!--
+    一覧の1行：フォロー（並び順とカーソル用）と相手のユーザー、ログイン中の自分がその人をフォロー中か（#{me}）を1回の SQL で取る（N+1 にしない）。
+    「相手」は、フォロー中一覧ならフォローされている人、フォロワー一覧ならフォローしている人
+  -->
+  <sql id="selectFollowedUser">
+    SELECT f.id AS follow_id, f.created_at AS followed_at,
+           u.id, u.username, u.display_name, u.bio, u.icon_key,
+           EXISTS (SELECT 1 FROM follows mf WHERE mf.follower_id = #{me} AND mf.followee_id = u.id) AS followed_by_me
+    FROM follows f
+  </sql>
+
+  <!-- 続きを取るとき：カーソル（前回の最後の行のフォロー日時と ID）より前にフォローしたものだけ -->
+  <sql id="olderThanCursor">
+    <if test="cursor != null">
+      AND (f.created_at, f.id) &lt; (#{cursor.createdAt}, #{cursor.id})
+    </if>
+  </sql>
+
+  <select id="findFollowing" resultType="com.okimoto.sns.backend.follow.FollowedUser">
+    <include refid="selectFollowedUser"/>
+    JOIN users u ON u.id = f.followee_id
+    WHERE f.follower_id = #{userId}
+    <include refid="olderThanCursor"/>
+    ORDER BY f.created_at DESC, f.id DESC
+    LIMIT #{limit}
+  </select>
+
+  <select id="findFollowers" resultType="com.okimoto.sns.backend.follow.FollowedUser">
+    <include refid="selectFollowedUser"/>
+    JOIN users u ON u.id = f.follower_id
+    WHERE f.followee_id = #{userId}
+    <include refid="olderThanCursor"/>
+    ORDER BY f.created_at DESC, f.id DESC
+    LIMIT #{limit}
+  </select>
+
 </mapper>

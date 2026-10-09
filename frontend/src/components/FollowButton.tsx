@@ -7,8 +7,8 @@ interface FollowButtonProps {
   username: string
   /** ログイン中の自分がフォローしているか */
   following: boolean
-  /** 相手のフォロワー数（押した直後に±1して見せる） */
-  followerCount: number
+  /** 相手のフォロワー数（押した直後に±1して見せる）。一覧の行のように数を出さない場所では省略する */
+  followerCount?: number
   /** フォロー状態が変わった（押した直後・API の結果・失敗して元に戻すとき） */
   onChange: (state: FollowState) => void
   /** 失敗したときのお知らせ */
@@ -22,7 +22,7 @@ interface FollowButtonProps {
  * - 送信中は押せない（連打で状態がずれないように）。フォロー解除の確認ダイアログは出さない
  * - フォロー中のボタンは、マウスを乗せると赤字の「フォロー解除」に変わる
  */
-export function FollowButton({ username, following, followerCount, onChange, onError }: FollowButtonProps) {
+export function FollowButton({ username, following, followerCount = 0, onChange, onError }: FollowButtonProps) {
   const [sending, setSending] = useState(false)
 
   async function handleClick() {

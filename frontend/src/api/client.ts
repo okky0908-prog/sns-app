@@ -11,6 +11,7 @@ import type {
   LoginInput,
   Post,
   Profile,
+  UserListItem,
   SignupInput,
   UserSummary,
 } from './types'
@@ -269,4 +270,16 @@ export function followUser(username: string): Promise<FollowState> {
 /** A-51 フォローを解除する（何度呼んでも同じ結果） */
 export function unfollowUser(username: string): Promise<FollowState> {
   return apiFetch(`/api/users/${encodeURIComponent(username)}/follow`, { method: 'DELETE', auth: true })
+}
+
+export type FollowListKind = 'following' | 'followers'
+
+/** A-52 フォロー中一覧 / A-53 フォロワー一覧（フォローした日時の新しい順に20件ずつ）。続きは前回の nextCursor を渡す */
+export function fetchFollowList(
+  username: string,
+  kind: FollowListKind,
+  cursor: string | null = null,
+): Promise<CursorPage<UserListItem>> {
+  const path = `/api/users/${encodeURIComponent(username)}/${kind}`
+  return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
 }

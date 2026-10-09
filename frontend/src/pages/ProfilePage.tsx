@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { fetchProfile, fetchUserPosts, isApiError } from '../api/client'
 import type { FollowState, LikeState, Post, Profile } from '../api/types'
 import { FollowButton } from '../components/FollowButton'
@@ -134,14 +134,14 @@ function ProfilePage({ username }: { username: string }) {
             <p className={styles.displayName}>{profile.displayName}</p>
             <p className={styles.username}>@{profile.username}</p>
             {profile.bio && <p className={styles.bio}>{profile.bio}</p>}
-            {/* フォロー中・フォロワーの一覧（S-09）へのリンクは、一覧の実装時に追加する */}
+            {/* 押すと S-09 フォロー中・フォロワー一覧へ */}
             <p className={styles.counts}>
-              <span>
+              <Link to={`/users/${encodeURIComponent(profile.username)}/following`} className={styles.countLink}>
                 <strong>{profile.followingCount}</strong> フォロー中
-              </span>
-              <span>
+              </Link>
+              <Link to={`/users/${encodeURIComponent(profile.username)}/followers`} className={styles.countLink}>
                 <strong>{profile.followerCount}</strong> フォロワー
-              </span>
+              </Link>
             </p>
           </section>
 
