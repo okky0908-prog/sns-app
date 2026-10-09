@@ -222,4 +222,32 @@ class PostQueryCountTest {
     assertThat(result.body().get("followingCount").asLong()).isEqualTo(5);
     assertThat(result.sqlCount()).isEqualTo(1);
   }
+
+  @Test
+  void フォロー中一覧とフォロワー一覧は件数によらずSQLの数が同じ() throws Exception {
+    List<Integer> followingCounts = new ArrayList<>();
+    List<Integer> followerCounts = new ArrayList<>();
+    for (int n : new int[] {2, 21}) {
+      for (int i = 0; i < n; i++) {
+        long other = createUser();
+        for (long[] pair : new long[][] {{viewerId, other}, {other, viewerId}}) {
+          jdbcTemplate.update(
+              "INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, now())",
+              pair[0],
+              pair[1]);
+        }
+      }
+      Result following = fetch("/api/users/q_user1/following");
+      Result followers = fetch("/api/users/q_user1/followers");
+      assertThat(following.body().get("items").size()).isEqualTo(Math.min(n, 20));
+      assertThat(followers.body().get("items").size()).isEqualTo(Math.min(n, 20));
+      followingCounts.add(following.sqlCount());
+      followerCounts.add(followers.sqlCount());
+    }
+    // フォロー中一覧：ユーザー名から ID を探す SQL + 相手のユーザーとフォロー状態をまとめて取る SQL の2回。
+    // 続けて呼ぶフォロワー一覧では、テストが1つのトランザクションの中で動くため、ID を探す SQL は MyBatis のキャッシュから返る
+    // （本番はリクエストごとに別のセッションなので2回になる）。どちらも件数によって増えないことを確かめる
+    assertThat(followingCounts).containsOnly(2);
+    assertThat(followerCounts).containsOnly(followerCounts.getFirst());
+  }
 }

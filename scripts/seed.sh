@@ -15,6 +15,7 @@
 #                                                 1人目が2人目以降をフォローする（seed_ 以外の自分のユーザーも指定できる）
 #   scripts/seed.sh likes <投稿ID> [人数]         テスト用ユーザーがいいねする（既定は3人全員。1〜3）
 #   scripts/seed.sh comments <投稿ID> [件数]      テスト用ユーザーが順番にコメントする（既定は 25 件）
+#   scripts/seed.sh fans <ユーザー名> [人数]       フォロワー用のユーザー（seed_fan1〜）を作り、その人をフォローさせる（既定は 25 人）
 #
 # 例:
 #   scripts/seed.sh posts 65                  # 無限スクロール（20件ずつ）を4ページ分確認する
@@ -23,6 +24,7 @@
 #   scripts/seed.sh posts 101                 # 「99+件の新しい投稿」を確認する
 #   scripts/seed.sh likes 123 2               # 投稿 123 に2人がいいねする（ほかの人のいいねが数に入るかを確認する）
 #   scripts/seed.sh comments 123 25           # 投稿 123 に25件コメントする（20件ずつの「さらに表示」を確認する）
+#   scripts/seed.sh fans seed_alice 25        # seed_alice のフォロワーを25人にする（一覧の無限スクロールを確認する）
 #
 # 接続先は環境変数 API_BASE で変えられる（既定は http://localhost:8080）。
 
@@ -154,6 +156,18 @@ cmd_comments() {
   echo "投稿 ${post_id} に ${count} 件コメントしました（コメント数: $(jq -r .commentCount <<<"$response")）"
 }
 
+cmd_fans() {
+  local target=${1:-} count=${2:-25}
+  [[ $target =~ ^[A-Za-z0-9_]+$ ]] || die "使い方: scripts/seed.sh fans <ユーザー名> [人数]"
+  [[ $count =~ ^[0-9]+$ ]] || die "人数は数字で指定してください: $count"
+  local i response
+  for ((i = 1; i <= count; i++)); do
+    response=$(api POST "/api/users/${target}/follow" '{}' "$(token_of "seed_fan${i}")") ||
+      die "seed_fan${i} のフォローに失敗しました（上のエラーを確認してください）"
+  done
+  echo "${target} を ${count} 人がフォローしました（フォロワー数: $(jq -r .followerCount <<<"$response")）"
+}
+
 command -v jq >/dev/null || die "jq が必要です（brew install jq）"
 
 case ${1:-} in
@@ -162,6 +176,7 @@ case ${1:-} in
   follow) shift && cmd_follow "$@" ;;
   likes) shift && cmd_likes "$@" ;;
   comments) shift && cmd_comments "$@" ;;
+  fans) shift && cmd_fans "$@" ;;
   *)
     sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
     exit 1

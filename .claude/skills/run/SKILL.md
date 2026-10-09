@@ -49,6 +49,7 @@ scripts/seed.sh posts 3 seed_carol            # 画面を開いたまま実行 �
 scripts/seed.sh posts 101 seed_bob            # 「↑ 99+件の新しい投稿」
 scripts/seed.sh likes <投稿ID> 2              # テスト用ユーザー2人がいいねする（ほかの人のいいねが数に入るかの確認）
 scripts/seed.sh comments <投稿ID> 25          # テスト用ユーザーが25件コメントする（20件ずつの「さらに表示」の確認）
+scripts/seed.sh fans seed_alice 25            # seed_fan1〜25 を作って seed_alice をフォローさせる（フォロワー一覧の無限スクロールの確認）
 ```
 
 - ユーザー・投稿は API 経由で作るので、画面から操作したときと同じ処理（パスワードのハッシュ化など）になる

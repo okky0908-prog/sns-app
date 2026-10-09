@@ -98,6 +98,15 @@ export interface Profile extends UserSummary {
   me: boolean
 }
 
+/** ユーザー一覧の1行（A-52・A-53 フォロー中・フォロワー一覧、A-70 ユーザー検索） */
+export interface UserListItem extends UserSummary {
+  bio: string | null
+  /** ログイン中の自分がこの人をフォローしているか（一覧を見ている相手ではなく、自分から見た状態） */
+  followedByMe: boolean
+  /** 自分自身か（フォローボタンを出さない） */
+  me: boolean
+}
+
 /** フォロー・フォロー解除（A-50・A-51）の結果 */
 export interface FollowState {
   following: boolean

@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router'
 import { PublicOnly, RequireAuth } from './auth/RouteGuards'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/LoginPage'
+import { FollowListRoute } from './pages/FollowListPage'
 import { PostDetailPage } from './pages/PostDetailPage'
 import { ProfileRoute } from './pages/ProfilePage'
 import { SignupPage } from './pages/SignupPage'
@@ -29,6 +30,8 @@ export const router = createBrowserRouter([
           { path: '/all', element: <TimelinePage key="all" tab="all" /> },
           { path: '/posts/:postId', element: <PostDetailPage /> },
           { path: '/users/:username', element: <ProfileRoute /> },
+          { path: '/users/:username/following', element: <FollowListRoute kind="following" /> },
+          { path: '/users/:username/followers', element: <FollowListRoute kind="followers" /> },
         ],
       },
     ],
