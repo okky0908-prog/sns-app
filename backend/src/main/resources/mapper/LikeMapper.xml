@@ -13,19 +13,12 @@
     DELETE FROM likes WHERE post_id = #{postId} AND user_id = #{userId}
   </delete>
 
-  <!-- LikeResponse は record なのでコンストラクタで作る。_long・_boolean はプリミティブ型（long・boolean だと Long・Boolean になる） -->
-  <resultMap id="likeStatus" type="com.okimoto.sns.backend.like.LikeResponse">
-    <constructor>
-      <arg column="like_count" javaType="_long"/>
-      <arg column="liked_by_me" javaType="_boolean"/>
-    </constructor>
-  </resultMap>
+  <select id="countByPostId" resultType="long">
+    SELECT count(*) FROM likes WHERE post_id = #{postId}
+  </select>
 
-  <select id="findStatus" resultMap="likeStatus">
-    SELECT count(*) AS like_count,
-           coalesce(bool_or(user_id = #{me}), false) AS liked_by_me
-    FROM likes
-    WHERE post_id = #{postId}
+  <select id="exists" resultType="boolean">
+    SELECT EXISTS (SELECT 1 FROM likes WHERE post_id = #{postId} AND user_id = #{userId})
   </select>
 
 </mapper>
