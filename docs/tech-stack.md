@@ -43,7 +43,7 @@
 | 認証 | spring-boot-starter-security（Spring Boot 4.1.0 が管理するバージョン） | 新規 | 前回はログイン機能がなかった |
 | JWT | JJWT 0.13.0（`jjwt-api`・`jjwt-impl`・`jjwt-gson`） | 新規 | トークンの発行と検証。JSON の処理には Gson を使う（`jjwt-jackson` は Jackson 2 に依存し、Spring Boot 4 が使う Jackson 3 と混ざるため。Gson のバージョンは Spring Boot が管理） |
 | パスワードのハッシュ化 | BCrypt（Spring Security に含まれる `BCryptPasswordEncoder`） | 新規 | 追加のライブラリは不要 |
-| S3 | AWS SDK for Java v2（`software.amazon.awssdk:bom` で S3 モジュールを使う。バージョン未定） | 新規 | 画像のアップロード・削除 |
+| S3 | AWS SDK for Java v2 2.55.14（`software.amazon.awssdk:bom` で S3 モジュールを使う） | 新規 | 画像のアップロード・削除。同期のクライアントだけを使うので、非同期用の Netty は除外する |
 
 ## データベース・永続化
 
@@ -60,7 +60,7 @@
 |---|---|---|---|
 | コンテナ | Docker Compose | ○ | |
 | DB | `postgres:17` | ○ | |
-| S3 の代わり | LocalStack（Docker イメージのバージョン未定） | 新規 | AWS に接続せずに画像のアップロードを試せる |
+| S3 の代わり | LocalStack 4.14.0（Docker イメージ `localstack/localstack:4.14.0`、S3 だけ起動） | 新規 | AWS に接続せずに画像のアップロードを試せる。**2026.03.0 以降は起動に LocalStack のアカウントと認証トークンが必要になった**ため、トークンなしで動く最後の版 4.14.0 に固定する（更新は受けられないが、使うのは S3 の保存・削除・表示だけで、手元の開発用なので影響は小さい）。無料版はデータを保存しないので、コンテナを作り直すと画像は消える |
 
 ## インフラ（AWS）
 

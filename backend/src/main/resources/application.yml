@@ -39,3 +39,11 @@ app:
     cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
     # 2つのタブが同時に再発行したときなどに、使い回しと誤判定してログアウトさせないための猶予時間
     reuse-grace: 10s
+  # 画像の保存先（S3）。既定値はローカル開発の LocalStack（docker-compose）に合わせてある
+  storage:
+    bucket: ${S3_BUCKET:sns-app-images}
+    region: ${AWS_REGION:ap-northeast-1}
+    # LocalStack の URL。本番（AWS の S3）では空にする（S3_ENDPOINT=）。空なら AWS の S3 に、IAM ロールの権限で接続する
+    endpoint: ${S3_ENDPOINT:http://localhost:4566}
+    # 画像を表示するときの配信元の URL。API は「この URL + / + キー」を返す（本番は CloudFront の URL）
+    image-base-url: ${IMAGE_BASE_URL:http://localhost:4566/sns-app-images}
