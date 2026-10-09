@@ -3,6 +3,7 @@ import { PublicOnly, RequireAuth } from './auth/RouteGuards'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { PostDetailPage } from './pages/PostDetailPage'
+import { ProfileRoute } from './pages/ProfilePage'
 import { SignupPage } from './pages/SignupPage'
 import { TimelinePage } from './pages/TimelinePage'
 
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
           { path: '/', element: <TimelinePage key="following" tab="following" /> },
           { path: '/all', element: <TimelinePage key="all" tab="all" /> },
           { path: '/posts/:postId', element: <PostDetailPage /> },
+          { path: '/users/:username', element: <ProfileRoute /> },
         ],
       },
     ],

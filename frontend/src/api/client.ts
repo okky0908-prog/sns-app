@@ -6,9 +6,11 @@ import type {
   CreatedComment,
   CursorPage,
   FieldErrorBody,
+  FollowState,
   LikeState,
   LoginInput,
   Post,
+  Profile,
   SignupInput,
   UserSummary,
 } from './types'
@@ -244,4 +246,27 @@ export function createComment(postId: number, content: string): Promise<CreatedC
 /** A-32 コメント削除（本人だけ）。削除後のコメント数が返る */
 export function deleteComment(commentId: number): Promise<{ commentCount: number }> {
   return apiFetch(`/api/comments/${commentId}`, { method: 'DELETE', auth: true })
+}
+
+// ===== プロフィール・フォロー API（docs/api.md の A-50・A-51・A-60・A-61） =====
+
+/** A-60 プロフィール。ユーザー名は大文字・小文字を区別しない */
+export function fetchProfile(username: string): Promise<Profile> {
+  return apiFetch(`/api/users/${encodeURIComponent(username)}`, { auth: true })
+}
+
+/** A-61 そのユーザーの投稿一覧（新しい順に20件ずつ）。続きは前回の nextCursor を渡す */
+export function fetchUserPosts(username: string, cursor: string | null = null): Promise<CursorPage<Post>> {
+  const path = `/api/users/${encodeURIComponent(username)}/posts`
+  return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
+}
+
+/** A-50 フォローする（何度呼んでも同じ結果） */
+export function followUser(username: string): Promise<FollowState> {
+  return apiFetch(`/api/users/${encodeURIComponent(username)}/follow`, { method: 'POST', auth: true })
+}
+
+/** A-51 フォローを解除する（何度呼んでも同じ結果） */
+export function unfollowUser(username: string): Promise<FollowState> {
+  return apiFetch(`/api/users/${encodeURIComponent(username)}/follow`, { method: 'DELETE', auth: true })
 }

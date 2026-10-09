@@ -2,6 +2,7 @@ package com.okimoto.sns.backend.user;
 
 import java.util.Optional;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 /** users テーブルへのアクセス。SQL は resources/mapper/UserMapper.xml に書く。 */
 @Mapper
@@ -13,6 +14,12 @@ public interface UserMapper {
   Optional<User> findByEmail(String email);
 
   boolean existsByUsernameIgnoreCase(String username);
+
+  /** ユーザー名（大文字・小文字を区別しない）からユーザー ID を探す */
+  Optional<Long> findIdByUsernameIgnoreCase(String username);
+
+  /** プロフィール（フォロー数・フォロワー数・me がフォロー中か）を1回の SQL で取る。ユーザー名は大文字・小文字を区別しない */
+  Optional<Profile> findProfile(@Param("username") String username, @Param("me") long me);
 
   boolean existsByEmail(String email);
 

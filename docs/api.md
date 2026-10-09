@@ -39,12 +39,14 @@
 |---|---|---|
 | 400 | `VALIDATION_FAILED` | 入力チェックエラー（`errors` に項目ごとの内容が入る） |
 | 400 | `MALFORMED_REQUEST` | JSON が壊れているなど、リクエストを読めない |
+| 400 | `CANNOT_FOLLOW_SELF` | 自分自身をフォローしようとした |
 | 401 | `UNAUTHENTICATED` | アクセストークンがない・無効・期限切れ。画面側は A-04 で再発行して1回だけやり直す |
 | 401 | `INVALID_CREDENTIALS` | ログインでメールアドレスまたはパスワードが違う |
 | 401 | `SESSION_EXPIRED` | リフレッシュトークンがない・無効・期限切れ（再発行できない。もう一度ログイン） |
 | 403 | `FORBIDDEN` | 他人の投稿・コメントを編集・削除しようとした |
 | 404 | `POST_NOT_FOUND` | 投稿が存在しない（削除された） |
 | 404 | `COMMENT_NOT_FOUND` | コメントが存在しない（削除された） |
+| 404 | `USER_NOT_FOUND` | ユーザーが存在しない |
 | 404 | `RESOURCE_NOT_FOUND` | 存在しない URL |
 | 405 | `METHOD_NOT_ALLOWED` | その URL で使えないメソッド |
 | 409 | `ALREADY_REGISTERED` | ユーザー名・メールアドレスが登録済み（どの項目かは `errors` に入る） |
@@ -403,8 +405,9 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 { "following": true, "followerCount": 9 }
 ```
 
-- 自分自身をフォローしようとしたら 400
+- 自分自身をフォローしようとしたら 400（`CANNOT_FOLLOW_SELF`）。ユーザーがいなければ 404（`USER_NOT_FOUND`）
 - いいねと同じく、何回呼んでも結果が同じになるようにする
+- `{username}` は大文字・小文字を区別しない（A-60・A-61 も同じ）
 
 ### A-60 プロフィール
 
@@ -428,6 +431,16 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 |---|---|
 | followedByMe | ログイン中の自分がこのユーザーをフォローしているか |
 | me | 自分のプロフィールか。「プロフィールを編集」と「フォローする」のどちらを出すかに使う |
+
+- ユーザーがいなければ 404（`USER_NOT_FOUND`）
+- **現在の実装：** `iconUrl` は、アイコンのアップロード（画像投稿の実装時に作る）までは常に `null`
+
+### A-61 そのユーザーの投稿一覧
+
+`GET /api/users/{username}/posts?cursor=`
+
+- 中身はタイムライン（A-10・A-15）と同じ Post の一覧。新しい順に20件、続きはカーソル方式
+- ユーザーがいなければ 404（`USER_NOT_FOUND`）
 
 ### A-52 / A-53 フォロー中・フォロワー一覧
 

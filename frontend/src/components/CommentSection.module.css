@@ -94,6 +94,11 @@
   font-weight: bold;
 }
 
+.avatarLink {
+  flex-shrink: 0;
+  height: 36px;
+}
+
 .body {
   flex: 1;
   min-width: 0;

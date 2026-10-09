@@ -23,6 +23,20 @@
     SELECT EXISTS (SELECT 1 FROM users WHERE LOWER(username) = LOWER(#{username}))
   </select>
 
+  <select id="findIdByUsernameIgnoreCase" resultType="long">
+    SELECT id FROM users WHERE LOWER(username) = LOWER(#{username})
+  </select>
+
+  <!-- プロフィール。フォロー数・フォロワー数・自分がフォロー中かも1回の SQL で取る（#{me} はログイン中のユーザーの ID） -->
+  <select id="findProfile" resultType="com.okimoto.sns.backend.user.Profile">
+    SELECT u.id, u.username, u.display_name, u.bio, u.icon_key,
+           (SELECT count(*) FROM follows f WHERE f.follower_id = u.id) AS following_count,
+           (SELECT count(*) FROM follows f WHERE f.followee_id = u.id) AS follower_count,
+           EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = #{me} AND f.followee_id = u.id) AS followed_by_me
+    FROM users u
+    WHERE LOWER(u.username) = LOWER(#{username})
+  </select>
+
   <select id="existsByEmail" resultType="boolean">
     SELECT EXISTS (SELECT 1 FROM users WHERE email = #{email})
   </select>

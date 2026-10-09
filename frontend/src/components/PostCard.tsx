@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import type { LikeState, Post } from '../api/types'
 import { formatRelativeTime } from '../lib/format'
 import { LikeButton } from './LikeButton'
+import { UserLink } from './UserLink'
 import styles from './PostCard.module.css'
 
 interface PostCardProps {
@@ -34,13 +35,20 @@ export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange,
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- マウス操作の補助。キーボードでは日時のリンクを使う
     <article className={`${styles.card} ${detail ? styles.detail : ''}`} data-post-id={post.id} onClick={handleCardClick}>
-      <div className={styles.avatar} aria-hidden="true">
-        {[...post.author.displayName][0] ?? '?'}
-      </div>
+      <UserLink username={post.author.username} plain className={styles.avatarLink}>
+        <span className={styles.avatar} aria-hidden="true">
+          {[...post.author.displayName][0] ?? '?'}
+        </span>
+        <span className={styles.visuallyHidden}>{post.author.displayName}のプロフィール</span>
+      </UserLink>
       <div className={styles.body}>
         <div className={styles.head}>
-          <span className={styles.displayName}>{post.author.displayName}</span>
-          <span className={styles.meta}>@{post.author.username}</span>
+          <UserLink username={post.author.username} className={styles.displayName}>
+            {post.author.displayName}
+          </UserLink>
+          <UserLink username={post.author.username} className={styles.meta}>
+            @{post.author.username}
+          </UserLink>
           <span className={styles.meta}>·</span>
           <Link to={path} className={styles.time} title={new Date(post.createdAt).toLocaleString('ja-JP')}>
             <time dateTime={post.createdAt}>{formatRelativeTime(post.createdAt)}</time>

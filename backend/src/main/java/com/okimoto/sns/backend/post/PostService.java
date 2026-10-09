@@ -65,10 +65,22 @@ public class PostService {
   @Transactional(readOnly = true)
   public CursorPageResponse<PostResponse> timeline(long me, String cursor, boolean following) {
     CreatedAtCursor after = CreatedAtCursor.decodeOrNull(cursor);
-    List<Post> posts =
+    return toPage(
+        me,
         following
             ? postMapper.findFollowingTimeline(me, after, PAGE_SIZE + 1)
-            : postMapper.findAll(me, after, PAGE_SIZE + 1);
+            : postMapper.findAll(me, after, PAGE_SIZE + 1));
+  }
+
+  /** そのユーザーの投稿一覧（プロフィール。新しい順・カーソル方式。中身はタイムラインと同じ） */
+  @Transactional(readOnly = true)
+  public CursorPageResponse<PostResponse> userPosts(long me, long userId, String cursor) {
+    CreatedAtCursor after = CreatedAtCursor.decodeOrNull(cursor);
+    return toPage(me, postMapper.findByUserId(me, userId, after, PAGE_SIZE + 1));
+  }
+
+  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける */
+  private CursorPageResponse<PostResponse> toPage(long me, List<Post> posts) {
     boolean hasNext = posts.size() > PAGE_SIZE;
     List<Post> page = posts.subList(0, Math.min(PAGE_SIZE, posts.size()));
     String nextCursor =

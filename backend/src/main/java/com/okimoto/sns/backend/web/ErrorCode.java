@@ -16,6 +16,8 @@ public enum ErrorCode {
   VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "入力内容に誤りがあります"),
   /** JSON が壊れている・必要なパラメータの形が違うなど、リクエストそのものを読めない */
   MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "リクエストの形式が正しくありません"),
+  /** 自分自身をフォローしようとした（画面にはボタンを出さないので、通常は起きない） */
+  CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "自分自身はフォローできません"),
 
   // ===== 401 =====
   /** アクセストークンがない・正しくない・期限切れ。画面側は再発行（A-04）して1回だけやり直す */
@@ -32,6 +34,7 @@ public enum ErrorCode {
   // ===== 404 =====
   POST_NOT_FOUND(HttpStatus.NOT_FOUND, "この投稿は見つかりません"),
   COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "このコメントは見つかりません"),
+  USER_NOT_FOUND(HttpStatus.NOT_FOUND, "このアカウントは存在しません"),
   /** 存在しない URL（API） */
   RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "指定された URL は存在しません"),
 

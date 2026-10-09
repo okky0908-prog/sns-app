@@ -5,7 +5,7 @@ import styles from './AppLayout.module.css'
 /** ホームを表示中にもう一度押したら、タイムラインが最新を取り直す（TimelinePage が受け取る） */
 const REFRESH = { refresh: true }
 
-/** ログイン後の画面の共通レイアウト（共通ヘッダー＋中央の1カラム）。検索・プロフィールへのリンクは各機能の実装時に追加する */
+/** ログイン後の画面の共通レイアウト（共通ヘッダー＋中央の1カラム）。検索へのリンクはユーザー検索の実装時に追加する */
 export function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -26,6 +26,14 @@ export function AppLayout() {
             <NavLink to="/" state={REFRESH} end className={({ isActive }) => (isActive ? styles.active : undefined)}>
               ホーム
             </NavLink>
+            {user && (
+              <NavLink
+                to={`/users/${encodeURIComponent(user.username)}`}
+                className={({ isActive }) => (isActive ? styles.active : undefined)}
+              >
+                プロフィール
+              </NavLink>
+            )}
             {user && (
               <span className={styles.user} title={`${user.displayName}（@${user.username}）としてログイン中`}>
                 @{user.username}
