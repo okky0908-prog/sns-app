@@ -5,19 +5,13 @@ import type { LikeState, Post } from '../api/types'
 import { NewPostsDialog } from '../components/NewPostsDialog'
 import { PostCard } from '../components/PostCard'
 import { PostComposer } from '../components/PostComposer'
+import { withoutDuplicates } from '../lib/list'
+import { useInfiniteScroll } from '../lib/useInfiniteScroll'
 import { usePostActions } from '../posts/usePostActions'
 import styles from './TimelinePage.module.css'
 
 /** 新しい投稿があるかを確認する間隔（docs/feature-specs/03_timeline.md） */
 const NEW_POSTS_CHECK_INTERVAL_MS = 60_000
-/** 一番下の目印がここまで近づいたら続きを読み込む（下まで行き着く前に読み込み始める） */
-const PRELOAD_MARGIN = '400px'
-
-/** すでにある投稿と同じ ID のものを除く */
-function withoutDuplicates(posts: Post[], existing: Post[]): Post[] {
-  const ids = new Set(existing.map((p) => p.id))
-  return posts.filter((p) => !ids.has(p.id))
-}
 
 /** S-03 タイムライン（docs/screens.md・docs/feature-specs/03_timeline.md） */
 export function TimelinePage({ tab }: { tab: TimelineTab }) {
@@ -34,7 +28,6 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreFailed, setMoreFailed] = useState(false)
   const [composing, setComposing] = useState(false)
-  const sentinelRef = useRef<HTMLDivElement>(null)
   /** 最後にサーバーから取った一番新しい投稿の ID。新しい投稿の件数はこれより後を数える（自分の投稿は数えない） */
   const newestIdRef = useRef(0)
   /** 1ページ目を取り直すたびに増やす。取り直す前に始めた「続きの読み込み」「件数の確認」の結果は捨てる */
@@ -117,18 +110,7 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
   }, [tab, nextCursor])
 
   const canLoadMore = status === 'ready' && hasNext && !loadingMore && !moreFailed
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel || !canLoadMore) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadMore()
-      },
-      { rootMargin: PRELOAD_MARGIN },
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [canLoadMore, loadMore])
+  const sentinelRef = useInfiniteScroll<HTMLDivElement>(canLoadMore, loadMore)
 
   // ===== 新しい投稿のお知らせ：一定時間ごとに件数だけ確認し、押されたときだけ最新を取り直す =====
 

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, createComment, deleteComment, errorMessage, fetchComments, fetchPost, isApiError } from '../api/client'
 import type { Comment } from '../api/types'
 import { countChars, formatRelativeTime } from '../lib/format'
+import { withoutDuplicates } from '../lib/list'
 import { ConfirmDialog } from './ConfirmDialog'
+import { UserLink } from './UserLink'
 import styles from './CommentSection.module.css'
 
 const MAX_LENGTH = 280
@@ -21,15 +23,9 @@ interface CommentSectionProps {
   notify: (message: string, error?: boolean) => void
 }
 
-/** すでにあるコメントと同じ ID のものを除く */
-function withoutDuplicates(comments: Comment[], existing: Comment[]): Comment[] {
-  const ids = new Set(existing.map((c) => c.id))
-  return comments.filter((c) => !ids.has(c.id))
-}
-
 /**
  * S-06 投稿詳細のコメント欄（docs/feature-specs/04_comment.md）。入力欄と、古い順のコメント一覧（20件ずつ「さらに表示」）。
- * コメントした人の名前は、プロフィール画面（S-07）ができるまではリンクにしない
+ * コメントした人のアイコン・表示名・@ユーザー名は、その人のプロフィール（S-07）へのリンク
  */
 export function CommentSection({ postId, focusRequest, onCountChange, notify }: CommentSectionProps) {
   /** サーバーから読み込んだコメント（古い順） */
@@ -191,13 +187,19 @@ export function CommentSection({ postId, focusRequest, onCountChange, notify }: 
         <ul className={styles.list}>
           {shown.map((comment) => (
             <li key={comment.id} className={styles.item} data-comment-id={comment.id}>
-              <div className={styles.avatar} aria-hidden="true">
-                {[...comment.author.displayName][0] ?? '?'}
-              </div>
+              <UserLink username={comment.author.username} plain className={styles.avatarLink}>
+                <span className={styles.avatar} aria-hidden="true">
+                  {[...comment.author.displayName][0] ?? '?'}
+                </span>
+              </UserLink>
               <div className={styles.body}>
                 <div className={styles.head}>
-                  <span className={styles.displayName}>{comment.author.displayName}</span>
-                  <span className={styles.meta}>@{comment.author.username}</span>
+                  <UserLink username={comment.author.username} className={styles.displayName}>
+                    {comment.author.displayName}
+                  </UserLink>
+                  <UserLink username={comment.author.username} className={styles.meta}>
+                    @{comment.author.username}
+                  </UserLink>
                   <span className={styles.meta}>·</span>
                   <time
                     className={styles.meta}

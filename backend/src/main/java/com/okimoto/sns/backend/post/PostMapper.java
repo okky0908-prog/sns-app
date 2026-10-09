@@ -22,6 +22,13 @@ public interface PostMapper {
   List<Post> findAll(
       @Param("me") long me, @Param("cursor") CreatedAtCursor cursor, @Param("limit") int limit);
 
+  /** そのユーザーの投稿（プロフィールの投稿一覧）。新しい順。cursor が null なら先頭から。 */
+  List<Post> findByUserId(
+      @Param("me") long me,
+      @Param("userId") long userId,
+      @Param("cursor") CreatedAtCursor cursor,
+      @Param("limit") int limit);
+
   /** フォロー中タイムラインで、since より新しい他人の投稿の件数（limit 件まで）。 */
   int countNewInFollowingTimeline(
       @Param("me") long me, @Param("since") long since, @Param("limit") int limit);

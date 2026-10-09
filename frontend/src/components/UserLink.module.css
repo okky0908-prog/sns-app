@@ -1,0 +1,14 @@
+/* ユーザーへのリンク。文字の色はまわりに合わせ、マウスを乗せたら下線でクリックできることを示す */
+.link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.plain {
+  color: inherit;
+  text-decoration: none;
+}

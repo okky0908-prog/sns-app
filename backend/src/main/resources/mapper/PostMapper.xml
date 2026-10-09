@@ -49,6 +49,15 @@
     LIMIT #{limit}
   </select>
 
+  <!-- そのユーザーの投稿（プロフィールの投稿一覧）。idx_posts_user_id_created_at を使う -->
+  <select id="findByUserId" resultType="com.okimoto.sns.backend.post.Post">
+    <include refid="selectWithAuthor"/>
+    WHERE p.user_id = #{userId}
+    <include refid="olderThanCursor"/>
+    ORDER BY p.created_at DESC, p.id DESC
+    LIMIT #{limit}
+  </select>
+
   <!--
     新しい投稿の件数（「↑ N件の新しい投稿」）。投稿 ID は登録順に振られるので、since より大きい ID を「新しい」とする。
     全部は数えず limit 件で打ち切る（画面では 99 件を超えたら「99+」と出す）。自分の投稿は数えない

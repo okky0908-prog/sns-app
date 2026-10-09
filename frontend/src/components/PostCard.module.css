@@ -36,6 +36,21 @@
   font-weight: bold;
 }
 
+.avatarLink {
+  flex-shrink: 0;
+  height: 44px;
+}
+
+/* 画面には出さず、読み上げにだけ使う文字 */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .body {
   flex: 1;
   min-width: 0;

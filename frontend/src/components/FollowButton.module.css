@@ -1,0 +1,48 @@
+/* フォローボタン（docs/feature-specs/06_follow.md）。フォローしていない：塗りつぶし／フォロー中：枠線だけ */
+.button {
+  min-width: 110px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.notFollowing {
+  border: 1px solid var(--color-text);
+  background: var(--color-text);
+  color: #fff;
+}
+
+.notFollowing:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.following {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text);
+}
+
+/* マウスを乗せたら「フォロー解除」（赤字）に切り替える */
+.hoverLabel {
+  display: none;
+}
+
+.following:hover:not(:disabled) {
+  border-color: #fdc9ce;
+  background: #fdecee;
+  color: var(--color-danger);
+}
+
+.following:hover:not(:disabled) .label {
+  display: none;
+}
+
+.following:hover:not(:disabled) .hoverLabel {
+  display: inline;
+}

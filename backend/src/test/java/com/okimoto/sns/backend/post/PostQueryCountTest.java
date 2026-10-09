@@ -192,4 +192,34 @@ class PostQueryCountTest {
     // 投稿があるかの確認 + コメントと書いた人をまとめて取る SQL の2回
     assertThat(counts).containsOnly(2);
   }
+
+  @Test
+  void プロフィールの投稿一覧は件数によらずSQLの数が同じ() throws Exception {
+    // 閲覧者自身の投稿を2件 → 23件に増やして、プロフィールの投稿一覧（A-61）を取る
+    String path = "/api/users/q_user1/posts";
+    List<Integer> counts = new ArrayList<>();
+    for (int n : new int[] {2, 21}) {
+      for (int i = 0; i < n; i++) {
+        Post post = new Post(viewerId, "自分の投稿" + i, OffsetDateTime.now().plusNanos(i * 1000L));
+        postMapper.insert(post);
+        jdbcTemplate.update(
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, now())",
+            post.getId(),
+            createUser());
+      }
+      Result result = fetch(path);
+      assertThat(result.body().get("items").size()).isPositive();
+      counts.add(result.sqlCount());
+    }
+    // ユーザー名から ID を探す SQL + 投稿（投稿者・いいね数・コメント数つき）をまとめて取る SQL の2回
+    assertThat(counts).containsOnly(2);
+  }
+
+  @Test
+  void プロフィールはフォロー数とフォロワー数を含めて1回のSQLで取る() throws Exception {
+    createPostsByDifferentAuthors(5); // 閲覧者が5人をフォロー
+    Result result = fetch("/api/users/q_user1");
+    assertThat(result.body().get("followingCount").asLong()).isEqualTo(5);
+    assertThat(result.sqlCount()).isEqualTo(1);
+  }
 }

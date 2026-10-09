@@ -25,12 +25,14 @@ export interface FieldErrorBody {
 export type ApiErrorCode =
   | 'VALIDATION_FAILED'
   | 'MALFORMED_REQUEST'
+  | 'CANNOT_FOLLOW_SELF'
   | 'UNAUTHENTICATED'
   | 'INVALID_CREDENTIALS'
   | 'SESSION_EXPIRED'
   | 'FORBIDDEN'
   | 'POST_NOT_FOUND'
   | 'COMMENT_NOT_FOUND'
+  | 'USER_NOT_FOUND'
   | 'RESOURCE_NOT_FOUND'
   | 'METHOD_NOT_ALLOWED'
   | 'ALREADY_REGISTERED'
@@ -84,6 +86,24 @@ export interface Post {
 
 /** いいね・取り消し（A-40・A-41）の結果。投稿の likeCount・likedByMe をこの値で上書きする */
 export type LikeState = Pick<Post, 'likeCount' | 'likedByMe'>
+
+/** プロフィール（A-60） */
+export interface Profile extends UserSummary {
+  bio: string | null
+  followingCount: number
+  followerCount: number
+  /** ログイン中の自分がこのユーザーをフォローしているか */
+  followedByMe: boolean
+  /** 自分のプロフィールか（「プロフィールを編集」とフォローボタンのどちらを出すか） */
+  me: boolean
+}
+
+/** フォロー・フォロー解除（A-50・A-51）の結果 */
+export interface FollowState {
+  following: boolean
+  /** 相手のフォロワー数 */
+  followerCount: number
+}
 
 /** コメント（A-30 の items の各要素） */
 export interface Comment {
