@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.user;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -22,6 +23,14 @@ public interface UserMapper {
   Optional<Profile> findProfile(@Param("username") String username, @Param("me") long me);
 
   boolean existsByEmail(String email);
+
+  /** プロフィールを更新する。iconKey が null ならアイコンは今のまま（差し替えたときだけ渡す） */
+  void updateProfile(
+      @Param("id") long id,
+      @Param("displayName") String displayName,
+      @Param("bio") String bio,
+      @Param("iconKey") String iconKey,
+      @Param("now") OffsetDateTime now);
 
   /** 登録後、採番された ID を user に入れる。 */
   void insert(User user);

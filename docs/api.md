@@ -53,6 +53,7 @@
 | 413 | `PAYLOAD_TOO_LARGE` | アップロードする画像のサイズが上限を超えた |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | Content-Type が違う（JSON の API に JSON 以外を送った など） |
 | 500 | `INTERNAL_ERROR` | 想定していないエラー（バグなど）。原因はサーバーのログにだけ残す |
+| 500 | `IMAGE_UPLOAD_FAILED` | 画像を S3 に保存できなかった（ほかの項目も更新しない） |
 | 503 | `SERVICE_UNAVAILABLE` | DB につながらないなど、一時的に処理できない |
 
 - 種類はバックエンドの `ErrorCode`（列挙型）で一元管理する。増やすときは `ErrorCode`・この表・フロントの `ApiErrorCode` の3か所に同じ名前を追加する。一度使い始めた名前は変えない
@@ -433,7 +434,7 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 | me | 自分のプロフィールか。「プロフィールを編集」と「フォローする」のどちらを出すかに使う |
 
 - ユーザーがいなければ 404（`USER_NOT_FOUND`）
-- **現在の実装：** `iconUrl` は、アイコンのアップロード（画像投稿の実装時に作る）までは常に `null`
+- `iconUrl` はアイコンを設定していなければ `null`（画面は表示名の頭文字を出す）。他の API の `iconUrl`（投稿者・コメントした人・一覧・ログイン中のユーザー）も同じ
 
 ### A-61 そのユーザーの投稿一覧
 
@@ -463,7 +464,6 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 - フォローした日時（フォロワー一覧ならフォローされた日時）の新しい順に20件。続きはカーソル方式（カーソルにはフォローした日時と follows の ID が入っている）
 - `followedByMe` は、一覧を見ている相手ではなく **ログイン中の自分** がその人をフォローしているか。`me` は自分自身の行か（フォローボタンを出さない）
 - ユーザーがいなければ 404（`USER_NOT_FOUND`）。`{username}` は大文字・小文字を区別しない
-- **現在の実装：** `iconUrl` は、アイコンのアップロードの実装までは常に `null`
 
 ### A-62 プロフィール編集
 
@@ -476,6 +476,11 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 | icon | ファイル | | 送ったときだけアイコンを差し替える。jpg / png / gif、5MBまで |
 
 - レスポンス 200 OK。A-60 と同じ形で更新後のプロフィールを返す
+- 表示名・自己紹介は前後の空白・改行を除いて数える（絵文字も1文字）。改行はブラウザがフォームで送る `\r\n` を `\n` にそろえてから数える。自己紹介を空にすると `null` になる
+- アイコンの形式は、ファイル名や Content-Type ではなく **ファイルの中身（先頭のバイト列）** で判定する。保存先は S3 の `icons/{UUID}.{拡張子}`
+- 入力エラーは 400（`VALIDATION_FAILED`。`errors` の `field` は `displayName`・`bio`・`icon`）。S3 に保存できなければ 500（`IMAGE_UPLOAD_FAILED`）で、表示名・自己紹介も更新しない
+- アイコンを差し替えたら、DB の更新がコミットされたあとに古いアイコンを S3 から削除する（失敗してもログに残すだけ）。DB の更新が失敗したら、保存したばかりの新しいアイコンを削除する
+- 1回のリクエストの上限は 25MB（`spring.servlet.multipart`）。超えると 413（`PAYLOAD_TOO_LARGE`）
 
 ### A-70 ユーザー検索
 

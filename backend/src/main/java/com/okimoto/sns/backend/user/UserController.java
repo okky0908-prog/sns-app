@@ -4,22 +4,43 @@ import com.okimoto.sns.backend.auth.AuthenticatedUser;
 import com.okimoto.sns.backend.post.PostResponse;
 import com.okimoto.sns.backend.post.PostService;
 import com.okimoto.sns.backend.web.CursorPageResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-/** プロフィールの API（docs/api.md の A-60・A-61）。ログイン（アクセストークン）が必要。 */
+/** プロフィールの API（docs/api.md の A-60〜A-62）。ログイン（アクセストークン）が必要。 */
 @RestController
 public class UserController {
 
   private final UserService userService;
+  private final ProfileEditService profileEditService;
   private final PostService postService;
 
-  public UserController(UserService userService, PostService postService) {
+  public UserController(
+      UserService userService, ProfileEditService profileEditService, PostService postService) {
     this.userService = userService;
+    this.profileEditService = profileEditService;
     this.postService = postService;
+  }
+
+  /**
+   * A-62 自分のプロフィールの編集（multipart/form-data）。表示名・自己紹介と、送ったときだけアイコン画像を差し替える。
+   *
+   * <p>URL にユーザー名を入れず me にしているのは、ログイン中のユーザー以外を更新する方法をなくすため。
+   */
+  @PutMapping(path = "/api/users/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ProfileResponse update(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @Valid @ModelAttribute ProfileUpdateRequest request,
+      @RequestParam(required = false) MultipartFile icon) {
+    return profileEditService.update(user.id(), request, icon);
   }
 
   /** A-60 プロフィール。 */

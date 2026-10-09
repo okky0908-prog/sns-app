@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import type { LikeState, Post } from '../api/types'
 import { formatRelativeTime } from '../lib/format'
+import { Avatar } from './Avatar'
 import { LikeButton } from './LikeButton'
 import { UserLink } from './UserLink'
 import styles from './PostCard.module.css'
@@ -36,9 +37,7 @@ export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange,
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- マウス操作の補助。キーボードでは日時のリンクを使う
     <article className={`${styles.card} ${detail ? styles.detail : ''}`} data-post-id={post.id} onClick={handleCardClick}>
       <UserLink username={post.author.username} plain className={styles.avatarLink}>
-        <span className={styles.avatar} aria-hidden="true">
-          {[...post.author.displayName][0] ?? '?'}
-        </span>
+        <Avatar displayName={post.author.displayName} iconUrl={post.author.iconUrl} size={44} />
         <span className={styles.visuallyHidden}>{post.author.displayName}のプロフィール</span>
       </UserLink>
       <div className={styles.body}>

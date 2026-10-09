@@ -48,6 +48,8 @@ public enum ErrorCode {
   // ===== 500 / 503 =====
   /** 想定していないエラー（バグなど）。内部の情報は利用者に出さず、ログにだけ残す */
   INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "サーバーでエラーが発生しました。時間をおいてもう一度お試しください"),
+  /** 画像の保存先（S3）に保存できなかった。ほかの項目も更新しない */
+  IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "画像のアップロードに失敗しました。時間をおいてもう一度お試しください"),
   /** DB につながらないなど、一時的に処理できない */
   SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ただいまサービスを利用できません。時間をおいてもう一度お試しください");
 

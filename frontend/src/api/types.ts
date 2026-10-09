@@ -39,6 +39,7 @@ export type ApiErrorCode =
   | 'PAYLOAD_TOO_LARGE'
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'INTERNAL_ERROR'
+  | 'IMAGE_UPLOAD_FAILED'
   | 'SERVICE_UNAVAILABLE'
 
 export interface ApiErrorBody {

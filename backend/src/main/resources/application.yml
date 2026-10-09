@@ -11,6 +11,12 @@ spring:
     password: ${POSTGRES_PASSWORD:sns}
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      # アイコンは5MBまで（超えたら項目ごとのエラーで返すため、ここでは少し大きめにしておく）。
+      # 1回のリクエストは、画像投稿（5MB×4枚）に備えて大きめにする。これを超えると 413（PAYLOAD_TOO_LARGE）
+      max-file-size: 10MB
+      max-request-size: 25MB
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml

@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.comment;
 
 import com.okimoto.sns.backend.post.PostMapper;
+import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.CreatedAtCursor;
 import com.okimoto.sns.backend.web.CursorPageResponse;
@@ -20,11 +21,14 @@ public class CommentService {
 
   private final CommentMapper commentMapper;
   private final PostMapper postMapper;
+  private final ImageStorage imageStorage;
   private final Clock clock;
 
-  public CommentService(CommentMapper commentMapper, PostMapper postMapper, Clock clock) {
+  public CommentService(
+      CommentMapper commentMapper, PostMapper postMapper, ImageStorage imageStorage, Clock clock) {
     this.commentMapper = commentMapper;
     this.postMapper = postMapper;
+    this.imageStorage = imageStorage;
     this.clock = clock;
   }
 
@@ -44,8 +48,7 @@ public class CommentService {
         hasNext
             ? CreatedAtCursor.of(page.getLast().getCreatedAt(), page.getLast().getId()).encode()
             : null;
-    List<CommentResponse> items =
-        page.stream().map(comment -> CommentResponse.from(comment, me)).toList();
+    List<CommentResponse> items = page.stream().map(comment -> toResponse(comment, me)).toList();
     return new CursorPageResponse<>(items, nextCursor, hasNext);
   }
 
@@ -59,8 +62,7 @@ public class CommentService {
       // 投稿があることを確かめてから INSERT するまでの間に、投稿が削除された（外部キーの違反）
       throw new ApiException(ErrorCode.POST_NOT_FOUND);
     }
-    CommentResponse created =
-        CommentResponse.from(commentMapper.findById(comment.getId()).orElseThrow(), me);
+    CommentResponse created = toResponse(commentMapper.findById(comment.getId()).orElseThrow(), me);
     return CreatedCommentResponse.of(created, commentMapper.countByPostId(postId));
   }
 
@@ -76,6 +78,10 @@ public class CommentService {
     }
     commentMapper.delete(commentId);
     return new CommentCountResponse(commentMapper.countByPostId(comment.getPostId()));
+  }
+
+  private CommentResponse toResponse(Comment comment, long me) {
+    return CommentResponse.from(comment, me, imageStorage.urlOf(comment.getAuthorIconKey()));
   }
 
   private void requirePost(long postId) {

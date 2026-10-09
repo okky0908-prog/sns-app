@@ -46,4 +46,14 @@
     VALUES (#{username}, #{displayName}, #{email}, #{passwordHash}, #{bio}, #{iconKey}, #{createdAt}, #{updatedAt})
   </insert>
 
+  <!-- アイコンは、新しいキーが渡されたときだけ差し替える（COALESCE：null なら今の値のまま） -->
+  <update id="updateProfile">
+    UPDATE users
+    SET display_name = #{displayName},
+        bio = #{bio},
+        icon_key = COALESCE(#{iconKey}, icon_key),
+        updated_at = #{now}
+    WHERE id = #{id}
+  </update>
+
 </mapper>

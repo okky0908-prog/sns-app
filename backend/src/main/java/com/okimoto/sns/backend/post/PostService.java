@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.post;
 
+import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.CreatedAtCursor;
 import com.okimoto.sns.backend.web.CursorPageResponse;
@@ -20,10 +21,12 @@ public class PostService {
   static final int NEW_COUNT_LIMIT = 100;
 
   private final PostMapper postMapper;
+  private final ImageStorage imageStorage;
   private final Clock clock;
 
-  public PostService(PostMapper postMapper, Clock clock) {
+  public PostService(PostMapper postMapper, ImageStorage imageStorage, Clock clock) {
     this.postMapper = postMapper;
+    this.imageStorage = imageStorage;
     this.clock = clock;
   }
 
@@ -36,7 +39,7 @@ public class PostService {
 
   @Transactional(readOnly = true)
   public PostResponse get(long me, long postId) {
-    return PostResponse.from(findOrThrow(postId, me), me);
+    return toResponse(findOrThrow(postId, me), me);
   }
 
   /** 本文の編集。本文が変わらなければ何もしない（「編集済み」を付けない）。 */
@@ -87,7 +90,7 @@ public class PostService {
         hasNext
             ? CreatedAtCursor.of(page.getLast().getCreatedAt(), page.getLast().getId()).encode()
             : null;
-    List<PostResponse> items = page.stream().map(post -> PostResponse.from(post, me)).toList();
+    List<PostResponse> items = page.stream().map(post -> toResponse(post, me)).toList();
     return new CursorPageResponse<>(items, nextCursor, hasNext);
   }
 
@@ -103,6 +106,10 @@ public class PostService {
             ? postMapper.countNewInFollowingTimeline(me, since, NEW_COUNT_LIMIT)
             : postMapper.countNewInAll(me, since, NEW_COUNT_LIMIT);
     return new NewPostCountResponse(count);
+  }
+
+  private PostResponse toResponse(Post post, long me) {
+    return PostResponse.from(post, me, imageStorage.urlOf(post.getAuthorIconKey()));
   }
 
   private Post findOrThrow(long postId, long me) {

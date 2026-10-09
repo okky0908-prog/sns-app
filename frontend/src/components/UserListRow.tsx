@@ -1,4 +1,5 @@
 import type { FollowState, UserListItem } from '../api/types'
+import { Avatar } from './Avatar'
 import { FollowButton } from './FollowButton'
 import { UserLink } from './UserLink'
 import styles from './UserListRow.module.css'
@@ -18,9 +19,7 @@ export function UserListRow({ user, onFollowChange, onError }: UserListRowProps)
   return (
     <li className={styles.row} data-user-id={user.id}>
       <UserLink username={user.username} plain className={styles.avatarLink}>
-        <span className={styles.avatar} aria-hidden="true">
-          {[...user.displayName][0] ?? '?'}
-        </span>
+        <Avatar displayName={user.displayName} iconUrl={user.iconUrl} size={44} />
       </UserLink>
       <div className={styles.body}>
         <UserLink username={user.username} className={styles.displayName}>

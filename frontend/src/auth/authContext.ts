@@ -9,6 +9,8 @@ export interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>
   signup: (input: SignupInput) => Promise<void>
   logout: () => Promise<void>
+  /** プロフィールを編集したあと、ログイン中のユーザーの表示名・アイコンを新しいものにする */
+  updateUser: (user: UserSummary) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

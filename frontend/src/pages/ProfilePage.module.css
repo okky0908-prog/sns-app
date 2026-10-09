@@ -44,17 +44,18 @@
   margin-bottom: 12px;
 }
 
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 36px;
+
+.editButton {
+  padding: 6px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text);
   font-weight: bold;
+  text-decoration: none;
+}
+
+.editButton:hover {
+  background: var(--color-hover);
 }
 
 .displayName {

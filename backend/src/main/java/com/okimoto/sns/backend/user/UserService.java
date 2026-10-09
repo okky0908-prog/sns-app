@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.user;
 
+import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -10,9 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
   private final UserMapper userMapper;
+  private final ImageStorage imageStorage;
 
-  public UserService(UserMapper userMapper) {
+  public UserService(UserMapper userMapper, ImageStorage imageStorage) {
     this.userMapper = userMapper;
+    this.imageStorage = imageStorage;
   }
 
   /** プロフィール。ユーザー名は大文字・小文字を区別しない（/users/Yamada でも yamada のページを開く） */
@@ -20,7 +23,7 @@ public class UserService {
   public ProfileResponse profile(long me, String username) {
     return userMapper
         .findProfile(username, me)
-        .map(profile -> ProfileResponse.from(profile, me))
+        .map(profile -> ProfileResponse.from(profile, me, imageStorage.urlOf(profile.getIconKey())))
         .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
   }
 

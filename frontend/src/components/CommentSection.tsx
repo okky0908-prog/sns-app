@@ -3,6 +3,7 @@ import { ApiError, createComment, deleteComment, errorMessage, fetchComments, fe
 import type { Comment } from '../api/types'
 import { countChars, formatRelativeTime } from '../lib/format'
 import { withoutDuplicates } from '../lib/list'
+import { Avatar } from './Avatar'
 import { ConfirmDialog } from './ConfirmDialog'
 import { UserLink } from './UserLink'
 import styles from './CommentSection.module.css'
@@ -188,9 +189,7 @@ export function CommentSection({ postId, focusRequest, onCountChange, notify }: 
           {shown.map((comment) => (
             <li key={comment.id} className={styles.item} data-comment-id={comment.id}>
               <UserLink username={comment.author.username} plain className={styles.avatarLink}>
-                <span className={styles.avatar} aria-hidden="true">
-                  {[...comment.author.displayName][0] ?? '?'}
-                </span>
+                <Avatar displayName={comment.author.displayName} iconUrl={comment.author.iconUrl} size={36} />
               </UserLink>
               <div className={styles.body}>
                 <div className={styles.head}>

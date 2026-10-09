@@ -4,6 +4,7 @@ import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { FollowListRoute } from './pages/FollowListPage'
 import { PostDetailPage } from './pages/PostDetailPage'
+import { ProfileEditPage } from './pages/ProfileEditPage'
 import { ProfileRoute } from './pages/ProfilePage'
 import { SignupPage } from './pages/SignupPage'
 import { TimelinePage } from './pages/TimelinePage'
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
           { path: '/users/:username', element: <ProfileRoute /> },
           { path: '/users/:username/following', element: <FollowListRoute kind="following" /> },
           { path: '/users/:username/followers', element: <FollowListRoute kind="followers" /> },
+          { path: '/settings/profile', element: <ProfileEditPage /> },
         ],
       },
     ],
