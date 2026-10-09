@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.follow;
 
+import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.user.UserListItemResponse;
 import com.okimoto.sns.backend.user.UserService;
 import com.okimoto.sns.backend.web.ApiException;
@@ -25,11 +26,14 @@ public class FollowService {
 
   private final FollowMapper followMapper;
   private final UserService userService;
+  private final ImageStorage imageStorage;
   private final Clock clock;
 
-  public FollowService(FollowMapper followMapper, UserService userService, Clock clock) {
+  public FollowService(
+      FollowMapper followMapper, UserService userService, ImageStorage imageStorage, Clock clock) {
     this.followMapper = followMapper;
     this.userService = userService;
+    this.imageStorage = imageStorage;
     this.clock = clock;
   }
 
@@ -91,6 +95,7 @@ public class FollowService {
                         row.getUsername(),
                         row.getDisplayName(),
                         row.getBio(),
+                        imageStorage.urlOf(row.getIconKey()),
                         row.isFollowedByMe(),
                         me))
             .toList();

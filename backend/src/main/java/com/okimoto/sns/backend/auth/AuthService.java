@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.auth;
 
+import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
 import com.okimoto.sns.backend.web.ApiError;
@@ -32,6 +33,7 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
   private final RefreshTokenService refreshTokenService;
+  private final ImageStorage imageStorage;
   private final Clock clock;
 
   /** 存在しないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
@@ -42,11 +44,13 @@ public class AuthService {
       PasswordEncoder passwordEncoder,
       JwtService jwtService,
       RefreshTokenService refreshTokenService,
+      ImageStorage imageStorage,
       Clock clock) {
     this.userMapper = userMapper;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
     this.refreshTokenService = refreshTokenService;
+    this.imageStorage = imageStorage;
     this.clock = clock;
     this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
   }
@@ -121,7 +125,7 @@ public class AuthService {
             .findById(rotation.userId())
             .orElseThrow(() -> new ApiException(ErrorCode.SESSION_EXPIRED));
     return new AuthResult(
-        jwtService.issue(user.getId()), rotation.refreshToken(), UserResponse.from(user));
+        jwtService.issue(user.getId()), rotation.refreshToken(), toUserResponse(user));
   }
 
   /** ログアウト。リフレッシュトークンを無効にする（アクセストークンは期限の15分が過ぎるまで有効なまま）。 */
@@ -134,7 +138,7 @@ public class AuthService {
   public UserResponse me(long userId) {
     return userMapper
         .findById(userId)
-        .map(UserResponse::from)
+        .map(this::toUserResponse)
         // トークンは正しいが、ユーザーが存在しない（削除された）場合
         .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
   }
@@ -143,7 +147,7 @@ public class AuthService {
     return new AuthResult(
         jwtService.issue(user.getId()),
         refreshTokenService.issue(user.getId()),
-        UserResponse.from(user));
+        toUserResponse(user));
   }
 
   /** メールアドレスは小文字にそろえる（Yamada@Example.com と yamada@example.com を同じとみなす） */
@@ -153,5 +157,9 @@ public class AuthService {
 
   private static boolean fitsBcrypt(String password) {
     return password.getBytes(StandardCharsets.UTF_8).length <= PASSWORD_MAX_BYTES;
+  }
+
+  private UserResponse toUserResponse(User user) {
+    return UserResponse.from(user, imageStorage.urlOf(user.getIconKey()));
   }
 }

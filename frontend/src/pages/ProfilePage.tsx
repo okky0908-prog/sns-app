@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { fetchProfile, fetchUserPosts, isApiError } from '../api/client'
 import type { FollowState, LikeState, Post, Profile } from '../api/types'
+import { Avatar } from '../components/Avatar'
 import { FollowButton } from '../components/FollowButton'
 import { PostCard } from '../components/PostCard'
 import { withoutDuplicates } from '../lib/list'
@@ -21,6 +22,7 @@ export function ProfileRoute() {
 /** docs/feature-specs/07_profile.md。上にプロフィール、下にそのユーザーの投稿一覧（無限スクロール） */
 function ProfilePage({ username }: { username: string }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [profileStatus, setProfileStatus] = useState<'loading' | 'ready' | 'notFound' | 'error'>('loading')
   const [posts, setPosts] = useState<Post[]>([])
@@ -34,6 +36,15 @@ function ProfilePage({ username }: { username: string }) {
     onDeleted: (deleted) => setPosts((prev) => prev.filter((p) => p.id !== deleted.id)),
   })
   const { notify } = actions
+
+  // プロフィール編集（S-08）で保存して戻ってきたときのお知らせ
+  useEffect(() => {
+    const notice = (location.state as { notice?: string } | null)?.notice
+    if (notice) {
+      notify(notice)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location, navigate, notify])
 
   // プロフィールと投稿一覧は同時に取りに行く（プロフィールを待たずに投稿一覧も読み込む）
   useEffect(() => {
@@ -117,11 +128,12 @@ function ProfilePage({ username }: { username: string }) {
         <>
           <section className={styles.profile} aria-label="プロフィール">
             <div className={styles.top}>
-              <div className={styles.avatar} aria-hidden="true">
-                {[...profile.displayName][0] ?? '?'}
-              </div>
-              {/* 自分のときの「プロフィールを編集」は、プロフィール編集（S-08）の実装時に追加する */}
-              {!profile.me && (
+              <Avatar displayName={profile.displayName} iconUrl={profile.iconUrl} size={88} />
+              {profile.me ? (
+                <Link to="/settings/profile" className={styles.editButton}>
+                  プロフィールを編集
+                </Link>
+              ) : (
                 <FollowButton
                   username={profile.username}
                   following={profile.followedByMe}

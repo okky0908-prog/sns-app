@@ -1,0 +1,141 @@
+/* S-08 プロフィール編集 */
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.message {
+  padding: 40px 24px;
+  color: var(--color-sub);
+  text-align: center;
+}
+
+.form {
+  padding: 16px;
+}
+
+.alert {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fdecee;
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.iconField {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* ファイルの選択欄そのものは隠し、「アイコン画像を変更」ボタンから開く */
+.fileInput {
+  display: none;
+}
+
+.hint {
+  margin: 6px 0 0;
+  color: var(--color-sub);
+  font-size: 13px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font: inherit;
+  resize: vertical;
+}
+
+.textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+.textareaError {
+  border-color: var(--color-danger);
+}
+
+.bioFooter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.error {
+  margin: 4px 0 0;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.counter {
+  margin-top: 4px;
+  color: var(--color-sub);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.over {
+  color: var(--color-danger);
+  font-weight: bold;
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.primary,
+.secondary {
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.primary {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}

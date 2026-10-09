@@ -29,11 +29,11 @@ public record PostResponse(
 
   public record PostImageResponse(String url, int sortOrder) {}
 
-  static PostResponse from(Post post, long me) {
-    // アイコン画像（S3）はプロフィール編集の実装時に対応する。それまでは常に null
+  /** authorIconUrl は投稿者のアイコン画像の URL（ImageStorage#urlOf で作る。なければ null） */
+  static PostResponse from(Post post, long me, String authorIconUrl) {
     UserResponse author =
         new UserResponse(
-            post.getUserId(), post.getAuthorUsername(), post.getAuthorDisplayName(), null);
+            post.getUserId(), post.getAuthorUsername(), post.getAuthorDisplayName(), authorIconUrl);
     return new PostResponse(
         post.getId(),
         post.getContent(),

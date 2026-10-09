@@ -76,6 +76,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  /** JSON にして送る値。FormData なら multipart/form-data のまま送る（画像のアップロード） */
   body?: unknown
   /** true ならアクセストークンを付ける。401 が返ったら再発行して1回だけやり直す */
   auth?: boolean
@@ -84,7 +85,9 @@ interface RequestOptions {
 /** 1回だけリクエストを送る（Cookie は同じオリジンなのでブラウザが自動で付ける） */
 async function send<T>(path: string, { method = 'GET', body, auth = false }: RequestOptions): Promise<T> {
   const headers: Record<string, string> = {}
-  if (body !== undefined) {
+  const isForm = body instanceof FormData
+  // FormData のときは Content-Type を付けない（ブラウザが区切り文字つきの multipart/form-data を付ける）
+  if (body !== undefined && !isForm) {
     headers['Content-Type'] = 'application/json'
   }
   if (auth && accessToken) {
@@ -96,7 +99,7 @@ async function send<T>(path: string, { method = 'GET', body, auth = false }: Req
     res = await fetch(path, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     })
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', NETWORK_ERROR_MESSAGE)
@@ -282,4 +285,20 @@ export function fetchFollowList(
 ): Promise<CursorPage<UserListItem>> {
   const path = `/api/users/${encodeURIComponent(username)}/${kind}`
   return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
+}
+
+export interface ProfileUpdateInput {
+  displayName: string
+  bio: string
+  /** 新しいアイコン画像。選んでいなければ null（アイコンは今のまま） */
+  icon: File | null
+}
+
+/** A-62 自分のプロフィールの編集（multipart/form-data）。更新後のプロフィールが返る */
+export function updateProfile(input: ProfileUpdateInput): Promise<Profile> {
+  const form = new FormData()
+  form.append('displayName', input.displayName)
+  form.append('bio', input.bio)
+  if (input.icon) form.append('icon', input.icon)
+  return apiFetch('/api/users/me', { method: 'PUT', body: form, auth: true })
 }

@@ -1,0 +1,15 @@
+/* ユーザーのアイコン。画像も頭文字も丸く表示する */
+.avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-primary);
+  object-fit: cover;
+}
+
+.initial {
+  color: #fff;
+  font-weight: bold;
+}

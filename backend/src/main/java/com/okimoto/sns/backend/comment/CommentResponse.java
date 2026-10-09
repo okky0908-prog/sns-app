@@ -11,11 +11,14 @@ import java.time.OffsetDateTime;
 public record CommentResponse(
     long id, String content, UserResponse author, OffsetDateTime createdAt, boolean mine) {
 
-  static CommentResponse from(Comment comment, long me) {
-    // アイコン画像（S3）はプロフィール編集の実装時に対応する。それまでは常に null（PostResponse と同じ）
+  /** authorIconUrl はコメントした人のアイコン画像の URL（ImageStorage#urlOf で作る。なければ null） */
+  static CommentResponse from(Comment comment, long me, String authorIconUrl) {
     UserResponse author =
         new UserResponse(
-            comment.getUserId(), comment.getAuthorUsername(), comment.getAuthorDisplayName(), null);
+            comment.getUserId(),
+            comment.getAuthorUsername(),
+            comment.getAuthorDisplayName(),
+            authorIconUrl);
     return new CommentResponse(
         comment.getId(),
         comment.getContent(),
