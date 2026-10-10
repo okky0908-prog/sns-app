@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 投稿のレスポンス（docs/api.md「Post（投稿）」）。
  *
- * <p>画像（images）は画像投稿の実装までは常に空。
+ * <p>画像（images）は表示順（sortOrder 1〜4）に並ぶ。画像がなければ空。
  *
  * @param likeCount いいね数
  * @param likedByMe ログイン中のユーザーがいいね済みか（ハートの色）
@@ -29,15 +29,19 @@ public record PostResponse(
 
   public record PostImageResponse(String url, int sortOrder) {}
 
-  /** authorIconUrl は投稿者のアイコン画像の URL（ImageStorage#urlOf で作る。なければ null） */
-  static PostResponse from(Post post, long me, String authorIconUrl) {
+  /**
+   * @param authorIconUrl 投稿者のアイコン画像の URL（ImageStorage#urlOf で作る。なければ null）
+   * @param images 投稿の画像（表示順）
+   */
+  static PostResponse from(
+      Post post, long me, String authorIconUrl, List<PostImageResponse> images) {
     UserResponse author =
         new UserResponse(
             post.getUserId(), post.getAuthorUsername(), post.getAuthorDisplayName(), authorIconUrl);
     return new PostResponse(
         post.getId(),
         post.getContent(),
-        List.of(),
+        images,
         author,
         post.getLikeCount(),
         post.isLikedByMe(),

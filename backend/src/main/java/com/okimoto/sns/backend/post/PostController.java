@@ -3,7 +3,9 @@ package com.okimoto.sns.backend.post;
 import com.okimoto.sns.backend.auth.AuthenticatedUser;
 import com.okimoto.sns.backend.web.CursorPageResponse;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** 投稿とタイムラインの API（docs/api.md の A-10〜A-17）。すべてログイン（アクセストークン）が必要。 */
 @RestController
@@ -55,12 +58,18 @@ public class PostController {
     return postService.countNewPosts(user.id(), since, false);
   }
 
-  /** A-11 投稿作成（今回はテキストのみ。画像対応時に multipart に変える）。 */
-  @PostMapping("/api/posts")
+  /**
+   * A-11 投稿作成（multipart/form-data）。本文（content）と画像（images、4枚まで）のどちらか一方は必要。
+   *
+   * <p>入力のチェックは PostService で行う（本文と画像を合わせて判定するため）。
+   */
+  @PostMapping(path = "/api/posts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @ResponseStatus(HttpStatus.CREATED)
   public PostResponse create(
-      @AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody PostRequest request) {
-    return postService.create(user.id(), request.content());
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) String content,
+      @RequestParam(required = false) List<MultipartFile> images) {
+    return postService.create(user.id(), content, images);
   }
 
   /** A-12 投稿詳細。 */

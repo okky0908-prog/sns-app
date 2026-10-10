@@ -195,9 +195,11 @@ export function fetchTimeline(tab: TimelineTab, cursor: string | null = null): P
   return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
 }
 
-/** A-11 投稿作成（今はテキストのみ） */
+/** A-11 投稿作成（multipart/form-data）。画像を選ぶ画面は画像投稿②で作るので、今は本文だけを送る */
 export function createPost(content: string): Promise<Post> {
-  return apiFetch('/api/posts', { method: 'POST', body: { content }, auth: true })
+  const form = new FormData()
+  form.append('content', content)
+  return apiFetch('/api/posts', { method: 'POST', body: form, auth: true })
 }
 
 /** A-12 投稿詳細 */

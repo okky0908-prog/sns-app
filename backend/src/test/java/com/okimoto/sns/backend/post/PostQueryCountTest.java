@@ -80,6 +80,14 @@ class PostQueryCountTest {
           "INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, now())",
           viewerId,
           authorId);
+      // 画像の SQL も件数で増えないことを確かめるため、各投稿に画像を2枚付ける（S3 には置かない。URL を作るだけ）
+      for (int order = 1; order <= 2; order++) {
+        jdbcTemplate.update(
+            "INSERT INTO post_images (post_id, image_key, sort_order, created_at) VALUES (?, ?, ?, now())",
+            post.getId(),
+            "posts/test/" + post.getId() + "-" + order + ".png",
+            order);
+      }
       for (long userId : new long[] {authorId, viewerId}) {
         jdbcTemplate.update(
             "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, now())",
@@ -122,6 +130,7 @@ class PostQueryCountTest {
     assertThat(many.body().get("items").get(0).get("likeCount").asLong()).isEqualTo(2);
     assertThat(many.body().get("items").get(0).get("likedByMe").asBoolean()).isTrue();
     assertThat(many.body().get("items").get(0).get("commentCount").asLong()).isEqualTo(2);
+    assertThat(many.body().get("items").get(0).get("images")).hasSize(2);
 
     assertThat(many.sqlCount())
         .as(
@@ -146,11 +155,15 @@ class PostQueryCountTest {
   }
 
   @Test
-  void 今のタイムラインは投稿と投稿者といいねとコメント数を1回のSQLで取っている() throws Exception {
+  void 今のタイムラインは投稿の情報と画像を2回のSQLで取っている() throws Exception {
     createPostsByDifferentAuthors(PostService.PAGE_SIZE);
-    // 今は1回（いいね・画像などの実装で増えたら、この数を見直す。件数で変わらないことは上のテストで確かめる）
-    assertThat(fetch("/api/timeline/all").sqlCount()).isEqualTo(1);
-    assertThat(fetch("/api/timeline").sqlCount()).isEqualTo(1);
+    // 投稿（投稿者・いいね・コメント数つき）の SQL + 画像を投稿 ID でまとめて取る SQL の2回
+    // （機能の追加で増えたら、この数を見直す。件数で変わらないことは上のテストで確かめる）
+    assertThat(fetch("/api/timeline/all").sqlCount()).isEqualTo(2);
+    // テストは1つのトランザクションの中で動くので、同じ画像の SQL が MyBatis のキャッシュから返らないよう、
+    // MyBatis で書き込みを1回してキャッシュを消してから数える（本番はリクエストごとに別のセッション）
+    createUser();
+    assertThat(fetch("/api/timeline").sqlCount()).isEqualTo(2);
   }
 
   @Test
@@ -211,8 +224,8 @@ class PostQueryCountTest {
       assertThat(result.body().get("items").size()).isPositive();
       counts.add(result.sqlCount());
     }
-    // ユーザー名から ID を探す SQL + 投稿（投稿者・いいね数・コメント数つき）をまとめて取る SQL の2回
-    assertThat(counts).containsOnly(2);
+    // ユーザー名から ID を探す SQL + 投稿（投稿者・いいね数・コメント数つき）+ 画像をまとめて取る SQL の3回
+    assertThat(counts).containsOnly(3);
   }
 
   @Test

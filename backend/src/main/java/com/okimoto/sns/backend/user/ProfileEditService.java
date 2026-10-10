@@ -1,23 +1,15 @@
 package com.okimoto.sns.backend.user;
 
 import com.okimoto.sns.backend.storage.ImageStorage;
-import com.okimoto.sns.backend.storage.ImageType;
-import com.okimoto.sns.backend.web.ApiError;
+import com.okimoto.sns.backend.storage.UploadedImage;
 import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.ErrorCode;
-import java.io.IOException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * プロフィール編集（docs/feature-specs/07_profile.md の F-61）。更新できるのはログイン中のユーザー自身だけ。
@@ -33,14 +25,6 @@ import software.amazon.awssdk.core.exception.SdkException;
  */
 @Service
 public class ProfileEditService {
-
-  private static final Logger log = LoggerFactory.getLogger(ProfileEditService.class);
-
-  /** アイコン画像の上限（5MB） */
-  static final long MAX_ICON_BYTES = 5L * 1024 * 1024;
-
-  static final String ICON_TYPE_ERROR = "jpg・png・gif の画像を選択してください";
-  static final String ICON_SIZE_ERROR = "5MB以下の画像を選択してください";
 
   private final UserMapper userMapper;
   private final UserService userService;
@@ -65,8 +49,10 @@ public class ProfileEditService {
         userMapper.findById(me).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
     String newIconKey = null;
     if (icon != null && !icon.isEmpty()) {
-      newIconKey = uploadIcon(icon);
-      cleanUpIconsAfterTransaction(user.getIconKey(), newIconKey);
+      newIconKey = imageStorage.store("icons/", UploadedImage.from(icon, "icon"));
+      // コミットされたら古いアイコンを、取り消されたら保存したばかりの新しいアイコンを削除する
+      imageStorage.deleteAfterTransaction(
+          user.getIconKey() == null ? List.of() : List.of(user.getIconKey()), List.of(newIconKey));
     }
     String bio = request.bio() == null ? "" : request.bio().strip();
     userMapper.updateProfile(
@@ -76,48 +62,5 @@ public class ProfileEditService {
         newIconKey,
         OffsetDateTime.now(clock));
     return userService.profile(me, user.getUsername());
-  }
-
-  /** 形式と大きさを確かめてから S3 の icons/{UUID}.{拡張子} に保存し、そのキーを返す */
-  private String uploadIcon(MultipartFile icon) {
-    if (icon.getSize() > MAX_ICON_BYTES) {
-      throw iconError(ICON_SIZE_ERROR);
-    }
-    byte[] bytes;
-    try {
-      bytes = icon.getBytes();
-    } catch (IOException e) {
-      throw new ApiException(ErrorCode.MALFORMED_REQUEST);
-    }
-    ImageType type = ImageType.detect(bytes).orElseThrow(() -> iconError(ICON_TYPE_ERROR));
-    String key = "icons/" + UUID.randomUUID() + "." + type.extension();
-    try {
-      imageStorage.upload(key, bytes, type.contentType());
-    } catch (SdkException e) {
-      log.error("アイコン画像を保存できませんでした: {}", key, e);
-      throw new ApiException(ErrorCode.IMAGE_UPLOAD_FAILED);
-    }
-    return key;
-  }
-
-  /** トランザクションが終わったときに、使わなくなった画像を削除する（コミット：古い画像、取り消し：新しい画像） */
-  private void cleanUpIconsAfterTransaction(String oldKey, String newKey) {
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCompletion(int status) {
-            if (status == STATUS_COMMITTED) {
-              if (oldKey != null) {
-                imageStorage.deleteQuietly(oldKey);
-              }
-            } else {
-              imageStorage.deleteQuietly(newKey);
-            }
-          }
-        });
-  }
-
-  private static ApiException iconError(String message) {
-    return ApiException.badRequest(List.of(new ApiError.FieldError("icon", message)));
   }
 }
