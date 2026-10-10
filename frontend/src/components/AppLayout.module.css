@@ -64,7 +64,18 @@
 }
 
 .user {
-  color: var(--color-sub);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+}
+
+/* 長い表示名（50文字まで）でヘッダーが崩れないよう、はみ出す分は「…」にする */
+.userName {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logout {
