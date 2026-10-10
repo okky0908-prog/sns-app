@@ -56,4 +56,45 @@
     WHERE id = #{id}
   </update>
 
+  <!-- 検索結果の1行で共通：ログイン中の自分（#{me}）がフォロー中か。同じ SQL の中で取る（N+1 にしない） -->
+  <sql id="followedByMe">
+    EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = #{me} AND f.followee_id = u.id) AS followed_by_me
+  </sql>
+
+  <!--
+    ユーザー検索（docs/database.md「ユーザー検索の SQL」）。#{pattern} は % _ \ をエスケープ済み（PostgreSQL の LIKE は \ がエスケープ文字）。
+    一致の度合いを列（match_rank）にしてから、その列とユーザー名でカーソルの続きを絞り込むため、内側の SELECT で計算する
+  -->
+  <select id="search" resultType="com.okimoto.sns.backend.user.FoundUser">
+    SELECT * FROM (
+      SELECT u.id, u.username, u.display_name, u.bio, u.icon_key, u.created_at,
+             <include refid="followedByMe"/>,
+             CASE
+               WHEN LOWER(u.username) = LOWER(#{keyword}) THEN 0  -- ユーザー名が完全一致
+               WHEN u.username ILIKE #{pattern} || '%' THEN 1     -- ユーザー名が前方一致
+               ELSE 2                                             -- それ以外（途中に含む・表示名に含む）
+             END AS match_rank
+      FROM users u
+      WHERE u.username ILIKE '%' || #{pattern} || '%'
+         OR u.display_name ILIKE '%' || #{pattern} || '%'
+    ) found
+    <if test="cursor != null">
+      WHERE (found.match_rank, LOWER(found.username)) &gt; (#{cursor.rank}, #{cursor.username})
+    </if>
+    ORDER BY found.match_rank, LOWER(found.username)
+    LIMIT #{limit}
+  </select>
+
+  <!-- 最近参加したユーザー（キーワードが空のとき）。idx_users_created_at を使う -->
+  <select id="findRecent" resultType="com.okimoto.sns.backend.user.FoundUser">
+    SELECT u.id, u.username, u.display_name, u.bio, u.icon_key, u.created_at,
+           <include refid="followedByMe"/>
+    FROM users u
+    <if test="cursor != null">
+      WHERE (u.created_at, u.id) &lt; (#{cursor.createdAt}, #{cursor.id})
+    </if>
+    ORDER BY u.created_at DESC, u.id DESC
+    LIMIT #{limit}
+  </select>
+
 </mapper>

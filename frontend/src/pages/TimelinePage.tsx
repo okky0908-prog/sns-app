@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import { createPost, fetchNewPostCount, fetchTimeline, type TimelineTab } from '../api/client'
 import type { LikeState, Post } from '../api/types'
 import { NewPostsDialog } from '../components/NewPostsDialog'
@@ -227,9 +227,13 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
         )}
         {status === 'ready' && posts.length === 0 && (
           <p className={styles.message}>
-            {tab === 'all'
-              ? 'まだ誰も投稿していません。最初の投稿をしてみましょう'
-              : 'まだ投稿がありません。「全体」タブで気になる人を探してみましょう（フォロー機能は今後追加します）'}
+            {tab === 'all' ? (
+              'まだ誰も投稿していません。最初の投稿をしてみましょう'
+            ) : (
+              <>
+                まだ投稿がありません。<Link to="/search">ユーザーを検索</Link>して、気になる人をフォローしてみましょう
+              </>
+            )}
           </p>
         )}
         {posts.map((post) => (

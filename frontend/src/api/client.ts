@@ -302,3 +302,12 @@ export function updateProfile(input: ProfileUpdateInput): Promise<Profile> {
   if (input.icon) form.append('icon', input.icon)
   return apiFetch('/api/users/me', { method: 'PUT', body: form, auth: true })
 }
+
+// ===== ユーザー検索 API（docs/api.md の A-70） =====
+
+/** A-70 ユーザー検索（20件ずつ）。q が空なら最近参加したユーザー。続きは前回の nextCursor を渡す */
+export function searchUsers(q: string, cursor: string | null = null): Promise<CursorPage<UserListItem>> {
+  const params = new URLSearchParams({ q })
+  if (cursor) params.set('cursor', cursor)
+  return apiFetch(`/api/users/search?${params}`, { auth: true })
+}

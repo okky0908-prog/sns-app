@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,14 @@ public class AuthService {
 
   static final String USERNAME_TAKEN = "このユーザー名はすでに使われています";
   static final String EMAIL_TAKEN = "このメールアドレスはすでに登録されています";
+  static final String USERNAME_RESERVED = "このユーザー名は使えません";
+
+  /**
+   * 使えないユーザー名（小文字）。API の URL とぶつかるもの（/api/users/search はユーザー検索なので、search という人のプロフィールを取れなくなる）。
+   * 4文字未満の名前（me など）は、もともとユーザー名の形式で使えない
+   */
+  static final Set<String> RESERVED_USERNAMES = Set.of("search");
+
   static final String PASSWORD_TOO_LONG = "パスワードが長すぎます（全角文字は1文字を3バイトとして、72バイトまで）";
 
   /** BCrypt が扱えるのは72バイトまで */
@@ -62,6 +71,11 @@ public class AuthService {
     if (!fitsBcrypt(request.password())) {
       throw ApiException.badRequest(
           List.of(new ApiError.FieldError("password", PASSWORD_TOO_LONG)));
+    }
+
+    if (RESERVED_USERNAMES.contains(username.toLowerCase(Locale.ROOT))) {
+      throw ApiException.badRequest(
+          List.of(new ApiError.FieldError("username", USERNAME_RESERVED)));
     }
 
     List<ApiError.FieldError> conflicts = new ArrayList<>();

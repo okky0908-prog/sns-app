@@ -105,7 +105,7 @@
 /* 「↑ N件の新しい投稿」：タブのすぐ下に、スクロールしても見えるように固定する */
 .newPostsArea {
   position: sticky;
-  top: 58px;
+  top: calc(var(--header-height) + 8px);
   z-index: 5;
   display: flex;
   /* 高さ0の入れ物に乗せて一覧の上に重ねる。ボタンが入れ物の高さ（0）に引き伸ばされてつぶれないよう、上端にそろえる */

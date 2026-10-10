@@ -148,6 +148,18 @@ class AuthControllerTest {
   }
 
   @Test
+  void signup_URLとぶつかるユーザー名searchは大文字小文字によらず使えない() throws Exception {
+    for (String username : new String[] {"search", "Search", "SEARCH"}) {
+      postJson(
+              "/api/auth/signup",
+              signupBody(username, "検索", username + "@example.com", "password123"))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].field").value("username"))
+          .andExpect(jsonPath("$.errors[0].message").value("このユーザー名は使えません"));
+    }
+  }
+
+  @Test
   void signup_ユーザー名の形式が違うと400() throws Exception {
     for (String username : new String[] {"abc", "abcdefghijklmnop", "山田太郎", "user-name"}) {
       postJson("/api/auth/signup", signupBody(username, "名前", "a@example.com", "password123"))

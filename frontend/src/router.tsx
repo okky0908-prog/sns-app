@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { FollowListRoute } from './pages/FollowListPage'
 import { PostDetailPage } from './pages/PostDetailPage'
 import { ProfileEditPage } from './pages/ProfileEditPage'
+import { SearchRoute } from './pages/SearchPage'
 import { ProfileRoute } from './pages/ProfilePage'
 import { SignupPage } from './pages/SignupPage'
 import { TimelinePage } from './pages/TimelinePage'
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: '/users/:username/following', element: <FollowListRoute kind="following" /> },
           { path: '/users/:username/followers', element: <FollowListRoute kind="followers" /> },
           { path: '/settings/profile', element: <ProfileEditPage /> },
+          { path: '/search', element: <SearchRoute /> },
         ],
       },
     ],
