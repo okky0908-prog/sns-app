@@ -4,6 +4,7 @@ import type { LikeState, Post } from '../api/types'
 import { formatRelativeTime } from '../lib/format'
 import { Avatar } from './Avatar'
 import { LikeButton } from './LikeButton'
+import { PostImages } from './PostImages'
 import { UserLink } from './UserLink'
 import styles from './PostCard.module.css'
 
@@ -55,7 +56,8 @@ export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange,
           {post.editedAt && <span className={styles.meta}>· 編集済み</span>}
           {post.mine && <PostMenu onEdit={() => onEdit(post)} onDelete={() => onDelete(post)} />}
         </div>
-        <p className={styles.content}>{post.content}</p>
+        {post.content && <p className={styles.content}>{post.content}</p>}
+        <PostImages images={post.images} />
         <div className={styles.actions}>
           {/* 投稿詳細を開いてコメント入力欄にカーソルを合わせる。詳細の中で押したときは履歴を増やさない */}
           <Link

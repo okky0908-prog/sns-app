@@ -195,10 +195,11 @@ export function fetchTimeline(tab: TimelineTab, cursor: string | null = null): P
   return apiFetch(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { auth: true })
 }
 
-/** A-11 投稿作成（multipart/form-data）。画像を選ぶ画面は画像投稿②で作るので、今は本文だけを送る */
-export function createPost(content: string): Promise<Post> {
+/** A-11 投稿作成（multipart/form-data）。本文と画像（4枚まで、選んだ順）のどちらか一方は必要 */
+export function createPost(content: string, images: File[] = []): Promise<Post> {
   const form = new FormData()
   form.append('content', content)
+  for (const image of images) form.append('images', image)
   return apiFetch('/api/posts', { method: 'POST', body: form, auth: true })
 }
 

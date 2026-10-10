@@ -1,0 +1,51 @@
+/* 投稿カードの画像の並べ方（mockup/style.css の .post-images をもとにしたもの） */
+.grid {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+/* 2〜4枚：枠を横長（16:9）に固定し、その中を画像で埋める（枚数によらずカードの高さがそろう） */
+.count2,
+.count3,
+.count4 {
+  grid-template-columns: 1fr 1fr;
+  aspect-ratio: 16 / 9;
+}
+
+.count3,
+.count4 {
+  grid-template-rows: 1fr 1fr;
+}
+
+/* 3枚：1枚目を左に縦長で大きく、残りの2枚を右に重ねる */
+.count3 .item:first-child {
+  grid-row: span 2;
+}
+
+.item {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  background: var(--color-bg);
+  cursor: zoom-in;
+}
+
+.item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 1枚：幅いっぱいに大きく出す。縦長の画像でも高くなりすぎないよう高さは400pxまで（はみ出す分は切り取る） */
+.count1 .item img {
+  height: auto;
+  max-height: 400px;
+}
