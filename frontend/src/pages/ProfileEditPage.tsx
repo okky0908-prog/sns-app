@@ -7,12 +7,11 @@ import { Avatar } from '../components/Avatar'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { FormField } from '../components/FormField'
 import { countChars } from '../lib/format'
+import { IMAGE_ACCEPT, imageFileError } from '../lib/imageFile'
 import styles from './ProfileEditPage.module.css'
 
 const DISPLAY_NAME_MAX = 50
 const BIO_MAX = 160
-const ICON_MAX_BYTES = 5 * 1024 * 1024
-const ICON_TYPES = ['image/jpeg', 'image/png', 'image/gif']
 
 type Errors = Partial<Record<'displayName' | 'bio' | 'icon', string>>
 
@@ -77,12 +76,9 @@ export function ProfileEditPage() {
     e.target.value = '' // 同じファイルを選び直しても change が起きるように
     if (!file) return
     // 形式の最終的な判定はサーバーがファイルの中身で行う。ここでは明らかに違うものを先に止める
-    if (!ICON_TYPES.includes(file.type)) {
-      setErrors((prev) => ({ ...prev, icon: 'jpg・png・gif の画像を選択してください' }))
-      return
-    }
-    if (file.size > ICON_MAX_BYTES) {
-      setErrors((prev) => ({ ...prev, icon: '5MB以下の画像を選択してください' }))
+    const fileError = imageFileError(file)
+    if (fileError) {
+      setErrors((prev) => ({ ...prev, icon: fileError }))
       return
     }
     setErrors((prev) => ({ ...prev, icon: undefined }))
@@ -149,7 +145,7 @@ export function ProfileEditPage() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png,image/gif"
+              accept={IMAGE_ACCEPT}
               className={styles.fileInput}
               aria-label="アイコン画像"
               onChange={handleIconChange}

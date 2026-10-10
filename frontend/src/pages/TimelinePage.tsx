@@ -6,6 +6,7 @@ import { NewPostsDialog } from '../components/NewPostsDialog'
 import { PostCard } from '../components/PostCard'
 import { PostComposer } from '../components/PostComposer'
 import { withoutDuplicates } from '../lib/list'
+import { useAnyOverlayOpen } from '../lib/overlay'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
 import { usePostActions } from '../posts/usePostActions'
 import styles from './TimelinePage.module.css'
@@ -154,8 +155,9 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
 
   const dismissNewPosts = useCallback(() => setDismissedCount(newCount), [newCount])
 
-  // 投稿の作成・編集・削除のモーダルを開いている間は重ねて出さない（閉じたあとに出す）
-  const showNewPostsDialog = newCount > dismissedCount && !composing && !actions.dialogOpen
+  // 投稿の作成・編集・削除のモーダルや、画像の拡大表示を開いている間は重ねて出さない（閉じたあとに出す）
+  const overlayOpen = useAnyOverlayOpen()
+  const showNewPostsDialog = newCount > dismissedCount && !composing && !actions.dialogOpen && !overlayOpen
 
   // ヘッダーの「ホーム」を、ホームを表示中にもう一度押したとき（AppLayout が state に refresh を付けて遷移してくる）
   useEffect(() => {
@@ -172,8 +174,8 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
     refresh()
   }
 
-  async function handleCreate(content: string) {
-    const created = await createPost(content)
+  async function handleCreate(content: string, images: File[]) {
+    const created = await createPost(content, images)
     setComposing(false)
     // 自分の投稿はどちらのタブにも出るので、先頭に足す（新しい投稿の件数には自分の投稿は含まれない）
     setPosts((prev) => [created, ...prev])

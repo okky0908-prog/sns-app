@@ -66,7 +66,15 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
 
   const elements = (
     <>
-      {editing && <PostComposer mode="edit" initialContent={editing.content} onSubmit={submitEdit} onClose={closeEditor} />}
+      {editing && (
+        <PostComposer
+          mode="edit"
+          initialContent={editing.content}
+          initialImages={editing.images}
+          onSubmit={submitEdit}
+          onClose={closeEditor}
+        />
+      )}
       {deleting && (
         <ConfirmDialog
           message={'この投稿を削除しますか？\nこの操作は取り消せません'}
