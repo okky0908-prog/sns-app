@@ -57,6 +57,20 @@ api() {
   echo "$response"
 }
 
+# 投稿する（A-11 は multipart/form-data）。2xx 以外ならエラーレスポンスを表示して失敗を返す
+# 使い方: post_multipart <アクセストークン> <本文>
+post_multipart() {
+  local token=$1 content=$2 response status
+  response=$(curl -sS -X POST -H "Authorization: Bearer $token" \
+    --form-string "content=$content" -w '\n%{http_code}' "$API_BASE/api/posts") ||
+    die "$API_BASE に接続できません。バックエンドを起動してください"
+  status=${response##*$'\n'}
+  if [[ $status != 2* ]]; then
+    echo "${response%$'\n'*}" >&2
+    return 1
+  fi
+}
+
 # ユーザーのアクセストークンを返す。なければ新規登録する
 token_of() {
   local username=$1 email="$1@example.com" response
@@ -94,9 +108,8 @@ cmd_posts() {
   stamp=$(date '+%H:%M:%S')
   for ((i = 1; i <= count; i++)); do
     index=$(((i - 1) % ${#users[@]}))
-    api POST /api/posts \
-      "$(jq -n --arg c "テスト投稿 ${i}/${count}（${users[$index]}、${stamp} に投入）" '{content: $c}')" \
-      "${tokens[$index]}" >/dev/null || die "$i 件目の投稿に失敗しました"
+    post_multipart "${tokens[$index]}" "テスト投稿 ${i}/${count}（${users[$index]}、${stamp} に投入）" ||
+      die "${i} 件目の投稿に失敗しました"
     ((i % 20 == 0)) && echo "  $i / $count 件"
   done
   echo "$count 件投稿しました（${users[*]}）"

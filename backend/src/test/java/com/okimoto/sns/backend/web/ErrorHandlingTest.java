@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -124,7 +125,8 @@ class ErrorHandlingTest {
   void 壊れたJSONは400_MALFORMED_REQUEST() throws Exception {
     expectError(
             mockMvc.perform(
-                loggedIn(post("/api/posts"))
+                // JSON を受け取る API（投稿編集）に壊れた JSON を送る
+                loggedIn(put("/api/posts/1"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"content\": ")),
             400,

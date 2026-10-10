@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.okimoto.sns.backend.post.PostImageMapper">
+
+  <insert id="insertAll">
+    INSERT INTO post_images (post_id, image_key, sort_order, created_at)
+    VALUES
+    <foreach collection="images" item="image" separator=",">
+      (#{image.postId}, #{image.imageKey}, #{image.sortOrder}, #{image.createdAt})
+    </foreach>
+  </insert>
+
+  <!--
+    一覧・詳細に出す投稿の画像を、投稿 ID でまとめて1回で取る（docs/database.md「N+1 問題を防ぐ」）。
+    JOIN にしないのは、行が画像の枚数分に増えて「投稿20件」の LIMIT が崩れるため
+  -->
+  <select id="findByPostIds" resultType="com.okimoto.sns.backend.post.PostImage">
+    SELECT id, post_id, image_key, sort_order, created_at
+    FROM post_images
+    WHERE post_id IN
+    <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+      #{postId}
+    </foreach>
+    ORDER BY post_id, sort_order
+  </select>
+
+</mapper>

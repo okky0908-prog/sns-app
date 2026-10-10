@@ -12,6 +12,7 @@ import com.okimoto.sns.backend.auth.JwtService;
 import com.okimoto.sns.backend.post.Post;
 import com.okimoto.sns.backend.post.PostMapper;
 import com.okimoto.sns.backend.storage.ImageStorage;
+import com.okimoto.sns.backend.storage.UploadedImage;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -211,7 +212,7 @@ class ProfileEditTest {
 
   @Test
   void 五MBを超えるアイコンは400で_表示名も更新しない() throws Exception {
-    byte[] big = new byte[(int) ProfileEditService.MAX_ICON_BYTES + 1];
+    byte[] big = new byte[(int) UploadedImage.MAX_BYTES + 1];
     System.arraycopy(PNG, 0, big, 0, PNG.length);
     update("変わらないはず", null, icon("big.png", "image/png", big))
         .andExpect(status().isBadRequest())

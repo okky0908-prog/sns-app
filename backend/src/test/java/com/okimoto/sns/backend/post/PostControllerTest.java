@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -73,11 +74,12 @@ class PostControllerTest {
     return request.header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issue(userId));
   }
 
+  /** 投稿作成（A-11）は multipart/form-data。本文だけを送る（画像付きの投稿は PostImageTest で確かめる） */
   private ResultActions createPost(long userId, String content) throws Exception {
     return mockMvc.perform(
-        as(userId, post("/api/posts"))
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("content", content))));
+        multipart("/api/posts")
+            .param("content", content)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issue(userId)));
   }
 
   private long createPostAndGetId(long userId, String content) throws Exception {
@@ -122,12 +124,14 @@ class PostControllerTest {
   }
 
   @Test
-  void create_本文は1から280文字_絵文字も1文字と数える() throws Exception {
+  void create_画像がなければ本文は1から280文字_絵文字も1文字と数える() throws Exception {
     createPost(aliceId, "   ")
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].field").value("content"))
-        .andExpect(jsonPath("$.errors[0].message").value("本文は1〜280文字で入力してください"));
-    createPost(aliceId, "あ".repeat(281)).andExpect(status().isBadRequest());
+        .andExpect(jsonPath("$.errors[0].message").value("本文を入力するか、画像を選択してください"));
+    createPost(aliceId, "あ".repeat(281))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].message").value("本文は280文字以内で入力してください"));
     createPost(aliceId, "あ".repeat(280)).andExpect(status().isCreated());
     createPost(aliceId, "😀".repeat(280)).andExpect(status().isCreated());
   }
@@ -201,7 +205,9 @@ class PostControllerTest {
         .andExpect(jsonPath("$.code").value("FORBIDDEN"))
         .andExpect(jsonPath("$.message").value("この操作は実行できません"));
     updatePost(aliceId, 999_999_999L, "書き換え").andExpect(status().isNotFound());
-    updatePost(aliceId, postId, "").andExpect(status().isBadRequest());
+    updatePost(aliceId, postId, "")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].message").value("画像のない投稿は本文を空にできません"));
     // 他人の編集は反映されていない
     mockMvc
         .perform(as(aliceId, get("/api/posts/{id}", postId)))
