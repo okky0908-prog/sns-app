@@ -15,19 +15,38 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-/** プロフィールの API（docs/api.md の A-60〜A-62）。ログイン（アクセストークン）が必要。 */
+/** プロフィール・ユーザー検索の API（docs/api.md の A-60〜A-62・A-70）。ログイン（アクセストークン）が必要。 */
 @RestController
 public class UserController {
 
   private final UserService userService;
   private final ProfileEditService profileEditService;
+  private final UserSearchService userSearchService;
   private final PostService postService;
 
   public UserController(
-      UserService userService, ProfileEditService profileEditService, PostService postService) {
+      UserService userService,
+      ProfileEditService profileEditService,
+      UserSearchService userSearchService,
+      PostService postService) {
     this.userService = userService;
     this.profileEditService = profileEditService;
+    this.userSearchService = userSearchService;
     this.postService = postService;
+  }
+
+  /**
+   * A-70 ユーザー検索。q が空なら最近参加したユーザー。続きは前回の nextCursor を cursor に渡す。
+   *
+   * <p>URL の形が A-60（/api/users/{username}）と同じだが、Spring は文字どおりの /search を優先する。 そのため search
+   * というユーザー名は新規登録で使えないようにしている（AuthService）。
+   */
+  @GetMapping("/api/users/search")
+  public CursorPageResponse<UserListItemResponse> search(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) String cursor) {
+    return userSearchService.search(user.id(), q, cursor);
   }
 
   /**

@@ -250,4 +250,22 @@ class PostQueryCountTest {
     assertThat(followingCounts).containsOnly(2);
     assertThat(followerCounts).containsOnly(followerCounts.getFirst());
   }
+
+  @Test
+  void ユーザー検索と最近参加したユーザーは件数によらず1回のSQL() throws Exception {
+    List<Integer> counts = new ArrayList<>();
+    for (int n : new int[] {2, 21}) {
+      for (int i = 0; i < n; i++) {
+        long other = createUser();
+        jdbcTemplate.update(
+            "INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, now())",
+            viewerId,
+            other);
+      }
+      counts.add(fetch("/api/users/search?q=q_user").sqlCount());
+      counts.add(fetch("/api/users/search?q=").sqlCount());
+    }
+    // 検索結果とフォロー状態をまとめて取る SQL の1回だけ
+    assertThat(counts).containsOnly(1);
+  }
 }

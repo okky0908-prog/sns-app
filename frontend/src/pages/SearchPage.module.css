@@ -1,0 +1,97 @@
+/* S-10 ユーザー検索 */
+.header {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 4;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.form {
+  position: relative;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 36px 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  background: #fff;
+}
+
+/* 入力をクリアする × */
+.clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  line-height: 1;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.heading {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 18px;
+}
+
+.message {
+  padding: 40px 24px;
+  color: var(--color-sub);
+  text-align: center;
+}
+
+.message p {
+  margin: 0 0 12px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 続きの読み込み（タイムラインと同じ見た目） */
+.moreArea {
+  padding: 16px;
+  text-align: center;
+}
+
+.more {
+  padding: 6px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--color-hover);
+}
+
+.error {
+  margin: 0 0 8px;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.loadingMore {
+  margin: 0;
+  color: var(--color-sub);
+  font-size: 14px;
+}

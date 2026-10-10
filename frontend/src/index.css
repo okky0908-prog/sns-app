@@ -9,6 +9,8 @@
   --color-primary-dark: #1a8cd8;
   --color-danger: #f4212e;
   --color-hover: #f7f9f9;
+  /* 共通ヘッダーの高さ。ヘッダーの下に固定する部分（検索欄・新しい投稿のお知らせ）の位置もこれで決める */
+  --header-height: 58px;
   font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
   font-size: 15px;
   line-height: 1.5;
