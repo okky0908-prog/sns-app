@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/authContext'
+import { Avatar } from './Avatar'
 import styles from './AppLayout.module.css'
 
 /** ホームを表示中にもう一度押したら、タイムラインが最新を取り直す（TimelinePage が受け取る） */
@@ -61,8 +62,10 @@ export function AppLayout() {
               </NavLink>
             )}
             {user && (
+              // ログイン中のアカウント（プロフィール画像と表示名）。プロフィール編集で変えたら、すぐここにも反映される
               <span className={styles.user} title={`${user.displayName}（@${user.username}）としてログイン中`}>
-                @{user.username}
+                <Avatar displayName={user.displayName} iconUrl={user.iconUrl} size={28} />
+                <span className={styles.userName}>{user.displayName}</span>
               </span>
             )}
             <button type="button" className={styles.logout} onClick={handleLogout}>
