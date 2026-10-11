@@ -1,0 +1,31 @@
+# ライブラリの更新 PR を Dependabot に作らせる。
+# 脆弱性の修正（security updates）はこの設定と関係なく、見つかったらすぐ PR が作られる。
+# 普通の更新は月1回、種類ごとに1つの PR にまとめる（PR が増えすぎないように）。
+# バージョンの決め方は docs/tech-stack.md。メジャーバージョンが上がる更新は、動作確認をしてから取り込む
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /backend
+    schedule:
+      interval: monthly
+    groups:
+      backend:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    groups:
+      frontend:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

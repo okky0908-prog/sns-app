@@ -1,0 +1,28 @@
+# バックエンド（Gradle）の依存関係を、間接的に使っているものも含めて GitHub に送る。
+# GitHub は build.gradle.kts を読むだけでは間接的な依存（Spring Boot が中で使うライブラリなど）がわからないため、
+# これを送ることで、それらの脆弱性も Dependabot alerts で通知される
+name: Dependency submission
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  gradle:
+    name: Gradle の依存関係を送信
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/dependency-submission@v6
+        with:
+          build-root-directory: backend
