@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar'
 import { FollowButton } from '../components/FollowButton'
 import { PostCard } from '../components/PostCard'
 import { withoutDuplicates } from '../lib/list'
+import { useGoBack } from '../lib/useGoBack'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
 import { usePostActions } from '../posts/usePostActions'
 import styles from './ProfilePage.module.css'
@@ -104,10 +105,7 @@ function ProfilePage({ username }: { username: string }) {
     setProfile((prev) => (prev ? { ...prev, followedByMe: state.following, followerCount: state.followerCount } : prev))
   }
 
-  function goBack() {
-    if (window.history.state?.idx > 0) navigate(-1)
-    else navigate('/')
-  }
+  const goBack = useGoBack('/')
 
   return (
     <>

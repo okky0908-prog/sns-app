@@ -8,7 +8,6 @@ import com.okimoto.sns.backend.web.CursorPageResponse;
 import com.okimoto.sns.backend.web.ErrorCode;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +32,7 @@ public class CommentService {
   }
 
   /**
-   * コメント一覧（古い順・カーソル方式）。21件取って、21件目があれば「続きあり」とする（タイムラインと同じやり方）。
+   * コメント一覧（古い順・カーソル方式）。21件取って、21件目があれば「続きあり」とする（CursorPageResponse#of）。
    *
    * @param cursor 前回のレスポンスの nextCursor。null なら先頭（一番古いもの）から
    */
@@ -41,15 +40,11 @@ public class CommentService {
   public CursorPageResponse<CommentResponse> list(long me, long postId, String cursor) {
     CreatedAtCursor after = CreatedAtCursor.decodeOrNull(cursor);
     requirePost(postId);
-    List<Comment> comments = commentMapper.findByPostId(postId, after, PAGE_SIZE + 1);
-    boolean hasNext = comments.size() > PAGE_SIZE;
-    List<Comment> page = comments.subList(0, Math.min(PAGE_SIZE, comments.size()));
-    String nextCursor =
-        hasNext
-            ? CreatedAtCursor.of(page.getLast().getCreatedAt(), page.getLast().getId()).encode()
-            : null;
-    List<CommentResponse> items = page.stream().map(comment -> toResponse(comment, me)).toList();
-    return new CursorPageResponse<>(items, nextCursor, hasNext);
+    return CursorPageResponse.of(
+        commentMapper.findByPostId(postId, after, PAGE_SIZE + 1),
+        PAGE_SIZE,
+        last -> CreatedAtCursor.of(last.getCreatedAt(), last.getId()).encode(),
+        page -> page.stream().map(comment -> toResponse(comment, me)).toList());
   }
 
   @Transactional

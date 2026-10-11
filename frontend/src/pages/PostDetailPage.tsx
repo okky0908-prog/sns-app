@@ -4,6 +4,7 @@ import { fetchPost, isApiError } from '../api/client'
 import type { LikeState, Post } from '../api/types'
 import { CommentSection } from '../components/CommentSection'
 import { PostCard } from '../components/PostCard'
+import { useGoBack } from '../lib/useGoBack'
 import { usePostActions } from '../posts/usePostActions'
 import styles from './PostDetailPage.module.css'
 
@@ -63,11 +64,8 @@ export function PostDetailPage() {
     }
   }, [id, validId])
 
-  function goBack() {
-    // アプリ内から来たときは前の画面へ、URL を直接開いたときはタイムラインへ
-    if (window.history.state?.idx > 0) navigate(-1)
-    else navigate('/')
-  }
+  // アプリ内から来たときは前の画面へ、URL を直接開いたときはタイムラインへ
+  const goBack = useGoBack('/')
 
   return (
     <>

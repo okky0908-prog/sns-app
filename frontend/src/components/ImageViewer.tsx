@@ -22,8 +22,11 @@ export function ImageViewer({ images, startIndex, onClose }: ImageViewerProps) {
   const multiple = images.length > 1
   const move = (step: number) => setIndex((i) => (i + step + images.length) % images.length)
 
+  // 開いたら閉じるボタンにフォーカスし、閉じたら開く前の場所（押した画像のボタン）にフォーカスを戻す（キーボードで続けて操作できるように）
   useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     closeRef.current?.focus()
+    return () => previous?.focus()
   }, [])
 
   useEffect(() => {

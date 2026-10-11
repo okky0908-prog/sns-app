@@ -165,16 +165,13 @@ public class PostService {
     return toPage(me, postMapper.findByUserId(me, userId, after, PAGE_SIZE + 1));
   }
 
-  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける */
+  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける。画像は1ページ分まとめて取る */
   private CursorPageResponse<PostResponse> toPage(long me, List<Post> posts) {
-    boolean hasNext = posts.size() > PAGE_SIZE;
-    List<Post> page = posts.subList(0, Math.min(PAGE_SIZE, posts.size()));
-    String nextCursor =
-        hasNext
-            ? CreatedAtCursor.of(page.getLast().getCreatedAt(), page.getLast().getId()).encode()
-            : null;
-    List<PostResponse> items = toResponses(page, me);
-    return new CursorPageResponse<>(items, nextCursor, hasNext);
+    return CursorPageResponse.of(
+        posts,
+        PAGE_SIZE,
+        last -> CreatedAtCursor.of(last.getCreatedAt(), last.getId()).encode(),
+        page -> toResponses(page, me));
   }
 
   /**
