@@ -152,3 +152,9 @@ PR と main への push のたびに、[.github/workflows/ci.yml](.github/workfl
 
 - バックエンド：`./gradlew check`（PostgreSQL と LocalStack は `docker-compose.yml` で起動する）
 - フロントエンド：`npm ci`・`npm run lint`・`npm run build`
+
+### ライブラリの脆弱性・更新（Dependabot）
+
+- 使っているライブラリに脆弱性が見つかると、GitHub の Security タブ（Dependabot alerts）に表示され、直すための PR が自動で作られる
+- 普通の更新は、月1回まとめて PR が作られる（[.github/dependabot.yml](.github/dependabot.yml)）。メジャーバージョンが上がるものは動作確認をしてから取り込む
+- バックエンドは、間接的に使っているライブラリも調べられるよう、main への push のたびに依存関係を GitHub に送る（[.github/workflows/dependency-submission.yml](.github/workflows/dependency-submission.yml)）
