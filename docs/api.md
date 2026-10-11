@@ -74,7 +74,7 @@
 | A-15 | GET | `/api/timeline/all?cursor=` | 必要 | 全体タイムライン（全ユーザーの投稿） | F-22, F-21 |
 | A-16 | GET | `/api/timeline/new-count?since=` | 必要 | フォロー中タイムラインの新しい投稿の件数 | F-24 |
 | A-17 | GET | `/api/timeline/all/new-count?since=` | 必要 | 全体タイムラインの新しい投稿の件数 | F-24 |
-| A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart）。**現在はテキストのみのため JSON `{ content }`**。画像投稿の実装時に multipart に変える | F-10 |
+| A-11 | POST | `/api/posts` | 必要 | 投稿作成（multipart。本文と画像4枚まで） | F-10 |
 | A-12 | GET | `/api/posts/{postId}` | 必要 | 投稿詳細 | F-13 |
 | A-13 | PUT | `/api/posts/{postId}` | 必要（本人のみ） | 投稿の本文を編集 | F-11 |
 | A-14 | DELETE | `/api/posts/{postId}` | 必要（本人のみ） | 投稿削除 | F-12 |
@@ -253,7 +253,7 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 { "accessToken": "eyJhbGciOi...", "user": { ... } }
 
 // レスポンス 401（Cookie がない・知らないトークン・期限切れ・使用済みのトークン）
-{ "status": 401, "message": "ログインの有効期限が切れました。もう一度ログインしてください", "errors": [] }
+{ "status": 401, "code": "SESSION_EXPIRED", "message": "ログインの有効期限が切れました。もう一度ログインしてください", "errors": [] }
 ```
 
 - 使ったリフレッシュトークンは無効にし、新しいものを Cookie で返す（ローテーション）

@@ -111,7 +111,7 @@ erDiagram
 | email | VARCHAR(255) | × | UNIQUE | ログインに使う。アプリ側で小文字にそろえてから保存する |
 | password_hash | VARCHAR(255) | × | | BCrypt でハッシュ化したパスワード |
 | bio | VARCHAR(160) | ○ | | 自己紹介 |
-| icon_key | VARCHAR(255) | ○ | | アイコン画像の S3 オブジェクトキー（例: `icons/uuid.png`）。NULL ならデフォルト画像 |
+| icon_key | VARCHAR(255) | ○ | | アイコン画像の S3 オブジェクトキー（例: `icons/uuid.png`）。NULL なら画面は表示名の頭文字を出す |
 | created_at | TIMESTAMPTZ | × | | 登録日時 |
 | updated_at | TIMESTAMPTZ | × | | 更新日時 |
 
@@ -224,7 +224,7 @@ PostgreSQL では、UNIQUE 制約には自動でインデックスが作られ�
 | refresh_tokens | (user_id) | 使い回しを検知したときに、そのユーザーのトークンをまとめて無効にする。ユーザー削除時の CASCADE |
 | users | UNIQUE(LOWER(username)) | ユーザー名の重複チェック（大文字・小文字を区別しない）、プロフィール表示 |
 | users | (created_at DESC) | ユーザー検索でキーワードが空のときの「最近参加したユーザー」 |
-| users | GIN(username gin_trgm_ops)<br>GIN(display_name gin_trgm_ops) | ユーザー検索の部分一致（`ILIKE '%キーワード%'`） |
+| users | GIN(username gin_trgm_ops)<br>GIN(display_name gin_trgm_ops) | ユーザー検索の部分一致（`ILIKE '%キーワード%'`）。**未作成**（ユーザーが増えたら追加する。下の説明を参照） |
 
 ### ユーザー検索のインデックスについて
 
@@ -292,7 +292,7 @@ ORDER BY
         WHEN u.username ILIKE :q || '%'             THEN 1  -- ユーザー名が前方一致
         ELSE 2                                              -- それ以外
     END,
-    u.username
+    LOWER(u.username)
 LIMIT 21;  -- 20件 + 続きがあるかの確認用に1件
 ```
 
@@ -359,8 +359,11 @@ SQL の読みやすさを保つため、MyBatis の機能は次の範囲で使�
 | `V3__create_posts.sql` | posts テーブルの作成（ユーザー別・全体のタイムライン用のインデックス） | 作成済み（投稿・タイムライン） |
 | `V4__create_follows.sql` | follows テーブルの作成（一意制約・自分自身をフォローできない CHECK 制約、followee_id のインデックス）。フォロー中タイムラインで使うため、フォローの画面より先に作成 | 作成済み（投稿・タイムライン） |
 | `V5__add_rotated_at_to_refresh_tokens.sql` | refresh_tokens に rotated_at 列を追加（同時の再発行でログアウトされないようにするため） | 作成済み（Issue #12） |
-| `V6__`〜 | post_images・comments・likes テーブル | 各機能の実装時に追加 |
-| （未定） | ローカル動作確認用のサンプルデータ（複数ユーザー、投稿、コメント、いいね、フォロー関係） | 投稿・タイムラインの実装時に追加 |
+| `V6__create_likes.sql` | likes テーブルの作成（post_id と user_id の一意制約、user_id のインデックス） | 作成済み（いいね） |
+| `V7__create_comments.sql` | comments テーブルの作成（(post_id, created_at, id) と user_id のインデックス） | 作成済み（コメント） |
+| `V8__create_post_images.sql` | post_images テーブルの作成（表示順 1〜4 の CHECK 制約、(post_id, sort_order) の一意制約） | 作成済み（画像投稿） |
+
+- 動作確認用のサンプルデータ（複数ユーザー・投稿・いいね・コメント・フォロー関係）はマイグレーションには入れず、`scripts/seed.sh` で入れる（本番の DB にテストデータが入らないように。使い方は README）
 
 - pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V<次の番号>__add_user_search_index.sql` として追加する
 - `bootRun` 起動時に Flyway が未適用のマイグレーションを自動実行する（[技術スタック](./tech-stack.md)参照）
