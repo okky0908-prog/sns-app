@@ -71,7 +71,7 @@ export interface PostImage {
 export interface Post {
   id: number
   content: string
-  /** 画像投稿の実装までは常に空 */
+  /** 投稿の画像（0〜4枚、表示順） */
   images: PostImage[]
   author: UserSummary
   likeCount: number

@@ -112,7 +112,7 @@ Spring Boot の `application-production.yml` で、次の値を環境変数か�
 | リフレッシュトークンの Cookie | `REFRESH_TOKEN_COOKIE_SECURE=true` | Cookie に Secure 属性を付け、HTTPS のときだけ送らせる。そのため本番は HTTPS 化が前提（下の「今後の課題」参照） |
 | S3 | `S3_BUCKET`・`AWS_REGION`・`S3_ENDPOINT`（空にする） | バケット名とリージョン。`S3_ENDPOINT` はローカルの LocalStack 用なので、本番では空にする（空なら AWS の S3 に接続する）。アクセスキーは IAM ロールから自動で取得されるため設定しない |
 | 画像の配信元 | `IMAGE_BASE_URL` | CloudFront の URL（例: `https://dxxxxxxxx.cloudfront.net`）。`application-production.yml` では既定値を置かないので、設定し忘れると起動時にエラーになる |
-| アップロードサイズ | `spring.servlet.multipart.max-file-size` など | 1枚5MB・1回のリクエストで合計20MB（4枚）まで |
+| アップロードサイズ | `spring.servlet.multipart.max-file-size`・`max-request-size`（`application.yml` に設定済み。環境変数は不要） | 画像は1枚5MBまで（アプリの入力チェックで項目ごとのエラーにする）。multipart の上限は少し大きめに、1ファイル10MB・1回のリクエスト25MB（4枚＋本文）にしてあり、超えると 413 |
 
 - 環境変数は、バックエンドのサーバーの `/opt/sns-app/backend.env`（権限 600）に置き、systemd のサービスから読み込む（本棚アプリと同じ方式）
 - フロントエンドは API を同じドメインの `/api` で呼ぶので、API の URL をビルド時に埋め込む必要がない

@@ -20,7 +20,7 @@
 | ビルド・開発サーバー | Vite 8.2.1（`@vitejs/plugin-react` 6.0.5） | ○ | 開発時は Vite のプロキシで `/api` を Spring Boot に中継する |
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
 | Lint | oxlint 1.79.0 | ○ | |
-| 型定義 | `@types/react` 19.2.17、`@types/react-dom` 19.2.3、`@types/node` 24.13.3 | ○ | |
+| 型定義 | `@types/react` 19.2.18、`@types/react-dom` 19.2.4、`@types/node` 24.13.3 | ○ | `@types/react`・`@types/react-dom` は前回より1つ新しいパッチ版（React 19.2.8 に合わせて更新されたもの） |
 | 状態管理 | React 標準（useState / useContext 等） | ○ | ログインユーザーの情報は Context で共有する。外部の状態管理ライブラリは使わない |
 | サーバー通信 | 標準の fetch API | ○ | JWT を付ける・401 でログイン画面へ移動する、といった共通処理は自前の小さな関数にまとめる |
 | スタイリング | CSS Modules | ○ | 追加ライブラリに依存しない |
@@ -52,7 +52,7 @@
 | DB | PostgreSQL 17（Docker イメージ `postgres:17`、AWS は RDS for PostgreSQL 17） | ○ | |
 | DB アクセス | MyBatis（`mybatis-spring-boot-starter` 4.1.0、MyBatis 3.5.19） | 新規 | 前回の Spring Data JPA から変更。SQL を `backend/src/main/resources/mapper/*.xml` に自分で書く。一覧の集計（いいね数・コメント数）やユーザー検索など、SQL を細かく書く場面が多いため。値は必ず `#{}` で渡す |
 | JDBC ドライバ | PostgreSQL JDBC 42.7.11 | ○ | |
-| マイグレーション | Flyway 12.4.0（`flyway-database-postgresql`） | ○ | テーブル作成・インデックス・pg_trgm 拡張の有効化を SQL ファイルで管理する |
+| マイグレーション | Flyway 12.4.0（`flyway-database-postgresql`） | ○ | テーブル作成・インデックスを SQL ファイルで管理する（V1〜V8）。ユーザー検索用の pg_trgm 拡張は、ユーザーが増えたときに追加する |
 
 ## ローカル開発環境
 

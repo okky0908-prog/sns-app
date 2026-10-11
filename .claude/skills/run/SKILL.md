@@ -46,7 +46,7 @@ cd frontend && npm run dev
 ```bash
 scripts/seed.sh users                         # テスト用ユーザー seed_alice / seed_bob / seed_carol を作る（パスワード password123）
 scripts/seed.sh posts 65                      # 3人が順番に65件投稿する（20件ずつの無限スクロールを4ページ分確認できる）
-scripts/seed.sh follow <自分のユーザー名> seed_alice seed_bob   # フォロー中タブに出るようにする（API がないので DB に直接登録）
+scripts/seed.sh follow <自分のユーザー名> seed_alice seed_bob   # フォロー中タブに出るようにする（自分のパスワードがなくても使えるよう、DB に直接登録）
 scripts/seed.sh posts 3 seed_carol            # 画面を開いたまま実行 →「↑ 3件の新しい投稿」（最大60秒後。ブラウザのタブを切り替えて戻ると即時）
 scripts/seed.sh posts 101 seed_bob            # 「↑ 99+件の新しい投稿」
 scripts/seed.sh likes <投稿ID> 2              # テスト用ユーザー2人がいいねする（ほかの人のいいねが数に入るかの確認）

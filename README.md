@@ -47,7 +47,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 
 ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSCode では拡張機能「Markdown Preview Mermaid Support」を入れるとプレビューで表示できる。
 
-## ディレクトリ構成（予定）
+## ディレクトリ構成
 
 ```
 .
@@ -55,9 +55,12 @@ ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSC
 ├── frontend/   # React + Vite フロントエンド（SPA）
 ├── docs/       # 要件定義・設計ドキュメント
 ├── mockup/     # 実装前に作成した静的HTML/CSS/JSモックアップ
-├── infra/      # AWS構築用の Terraform コード・デプロイスクリプト
+├── localstack/ # LocalStack の起動時にバケットを作るスクリプト
+├── scripts/    # 動作確認用のテストデータを入れるスクリプト（seed.sh）
 └── docker-compose.yml   # ローカルの PostgreSQL・LocalStack 起動用
 ```
+
+AWS 構築用の Terraform（`infra/`）は、AWS 上に構築すると決めたときに追加する（[インフラ構成](docs/infrastructure.md)。暫定案）。
 
 ## モックアップ
 
@@ -70,9 +73,9 @@ ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSC
 
 ## セットアップ・起動方法
 
-現在は、ユーザー登録・ログイン・ログアウトまで実装済み（バックエンドの API と、フロントエンドのログイン・新規登録画面）。認証はアクセストークン（15分）＋リフレッシュトークン（14日、HttpOnly Cookie）の方式。ログイン後はタイムライン（フォロー中・全体）が表示され、テキストの投稿の作成・編集・削除と投稿詳細ができる。タイムラインは無限スクロールで、60秒ごとに新しい投稿を確認して「↑ N件の新しい投稿」で知らせる。画像の添付・いいね・コメント・フォロー・プロフィール・ユーザー検索はこれから実装する。
+[機能一覧](docs/features.md) の機能（F-01〜F-71）はすべて実装済み。各機能の受け入れ条件は、自動テストとブラウザでの操作で確かめてある（[機能定義書](docs/feature-specs/README.md)）。AWS 上への構築は未定（[インフラ構成](docs/infrastructure.md)）。
 
-固定ポート（`backend: 8080` / `frontend: 5173` / `postgres: 5432`）で起動する。ポートが競合したときの対処など詳しい手順は[.claude/skills/run/SKILL.md](.claude/skills/run/SKILL.md)を参照。
+固定ポート（`backend: 8080` / `frontend: 5173` / `postgres: 5432` / `localstack: 4566`）で起動する。ポートが競合したときの対処など詳しい手順は[.claude/skills/run/SKILL.md](.claude/skills/run/SKILL.md)を参照。
 
 ### 前提条件
 
@@ -123,7 +126,7 @@ npm run dev
 
 http://localhost:5173 を開くとログイン画面が表示される。「新規登録はこちら」からアカウントを作ると、そのままログインしてタイムラインに移る。「✏ 投稿する」から投稿できる。`/api` へのリクエストは Vite のプロキシでバックエンド（8080）に中継される。
 
-動作確認用のテストデータ（テスト用ユーザー・大量の投稿・フォロー関係）は `scripts/seed.sh` で入れられる（例：`scripts/seed.sh posts 65`）。使い方は `scripts/seed.sh` を引数なしで実行すると表示される。
+動作確認用のテストデータ（テスト用ユーザー・大量の投稿・フォロー関係・いいね・コメント・フォロワー）は `scripts/seed.sh` で入れられる（例：`scripts/seed.sh posts 65`）。使い方は `scripts/seed.sh` を引数なしで実行すると表示される。
 
 ### テスト・整形チェック
 
