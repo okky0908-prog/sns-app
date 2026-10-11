@@ -69,25 +69,25 @@ public class UserSearchService {
     return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
-  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける（タイムラインと同じやり方） */
+  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける（カーソルの作り方はキーワードの有無で違う） */
   private CursorPageResponse<UserListItemResponse> toPage(
       long me, List<FoundUser> rows, Function<FoundUser, String> cursorOf) {
-    boolean hasNext = rows.size() > PAGE_SIZE;
-    List<FoundUser> page = rows.subList(0, Math.min(PAGE_SIZE, rows.size()));
-    String nextCursor = hasNext ? cursorOf.apply(page.getLast()) : null;
-    List<UserListItemResponse> items =
-        page.stream()
-            .map(
-                row ->
-                    UserListItemResponse.of(
-                        row.getId(),
-                        row.getUsername(),
-                        row.getDisplayName(),
-                        row.getBio(),
-                        imageStorage.urlOf(row.getIconKey()),
-                        row.isFollowedByMe(),
-                        me))
-            .toList();
-    return new CursorPageResponse<>(items, nextCursor, hasNext);
+    return CursorPageResponse.of(
+        rows,
+        PAGE_SIZE,
+        cursorOf,
+        page ->
+            page.stream()
+                .map(
+                    row ->
+                        UserListItemResponse.of(
+                            row.getId(),
+                            row.getUsername(),
+                            row.getDisplayName(),
+                            row.getBio(),
+                            imageStorage.urlOf(row.getIconKey()),
+                            row.isFollowedByMe(),
+                            me))
+                .toList());
   }
 }

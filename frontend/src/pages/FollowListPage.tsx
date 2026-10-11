@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { NavLink, useNavigate, useParams } from 'react-router'
+import { NavLink, useParams } from 'react-router'
 import { fetchFollowList, isApiError, type FollowListKind } from '../api/client'
 import type { FollowState, UserListItem } from '../api/types'
-import { Toast } from '../components/Toast'
 import { UserListRow } from '../components/UserListRow'
 import { withoutDuplicates } from '../lib/list'
+import { useGoBack } from '../lib/useGoBack'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
+import { useToast } from '../lib/useToast'
 import styles from './FollowListPage.module.css'
 
 const EMPTY_MESSAGE: Record<FollowListKind, string> = {
@@ -21,13 +22,12 @@ export function FollowListRoute({ kind }: { kind: FollowListKind }) {
 
 /** S-09 フォロー中・フォロワー一覧（docs/feature-specs/06_follow.md）。20件ずつ無限スクロール */
 function FollowListPage({ username, kind }: { username: string; kind: FollowListKind }) {
-  const navigate = useNavigate()
   const [users, setUsers] = useState<UserListItem[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'notFound' | 'error'>('loading')
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreFailed, setMoreFailed] = useState(false)
-  const [toast, setToast] = useState<{ id: number; message: string } | null>(null)
+  const { notify, toastElement } = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -70,15 +70,10 @@ function FollowListPage({ username, kind }: { username: string; kind: FollowList
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, followedByMe: state.following } : u))),
     [],
   )
-  const handleError = useCallback((message: string) => setToast((prev) => ({ id: (prev?.id ?? 0) + 1, message })), [])
-  const clearToast = useCallback(() => setToast(null), [])
-
-  function goBack() {
-    if (window.history.state?.idx > 0) navigate(-1)
-    else navigate(`/users/${encodeURIComponent(username)}`)
-  }
+  const handleError = useCallback((message: string) => notify(message, true), [notify])
 
   const base = `/users/${encodeURIComponent(username)}`
+  const goBack = useGoBack(base)
   return (
     <>
       <div className={styles.header}>
@@ -124,7 +119,7 @@ function FollowListPage({ username, kind }: { username: string; kind: FollowList
           </div>
         )}
       </section>
-      {toast && <Toast key={toast.id} message={toast.message} error onDone={clearToast} />}
+      {toastElement}
     </>
   )
 }

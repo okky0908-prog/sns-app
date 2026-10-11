@@ -3,7 +3,7 @@ import { deletePost, errorMessage, isApiError, updatePost } from '../api/client'
 import type { Post } from '../api/types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { PostComposer } from '../components/PostComposer'
-import { Toast } from '../components/Toast'
+import { useToast } from '../lib/useToast'
 
 interface Options {
   onUpdated: (post: Post) => void
@@ -21,13 +21,7 @@ interface Options {
 export function usePostActions({ onUpdated, onDeleted }: Options) {
   const [editing, setEditing] = useState<Post | null>(null)
   const [deleting, setDeleting] = useState<Post | null>(null)
-  const [toast, setToast] = useState<{ id: number; message: string; error: boolean } | null>(null)
-
-  const notify = useCallback(
-    (message: string, error = false) => setToast((prev) => ({ id: (prev?.id ?? 0) + 1, message, error })),
-    [],
-  )
-  const clearToast = useCallback(() => setToast(null), [])
+  const { notify, toastElement } = useToast()
   const closeEditor = useCallback(() => setEditing(null), [])
   const cancelDelete = useCallback(() => setDeleting(null), [])
 
@@ -87,7 +81,7 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
           onCancel={cancelDelete}
         />
       )}
-      {toast && <Toast key={toast.id} message={toast.message} error={toast.error} onDone={clearToast} />}
+      {toastElement}
     </>
   )
 
@@ -96,7 +90,5 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
     startDelete: setDeleting,
     notify,
     elements,
-    /** 編集モーダル・削除の確認ダイアログを開いているか（ほかのモーダルを重ねて出さないため） */
-    dialogOpen: editing !== null || deleting !== null,
   }
 }

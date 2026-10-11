@@ -77,29 +77,25 @@ public class FollowService {
     return toPage(me, followMapper.findFollowers(userId, me, after, PAGE_SIZE + 1));
   }
 
-  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける（タイムラインと同じやり方） */
+  /** PAGE_SIZE + 1 件取った結果を、1ページ分と「続きがあるか」に分ける（カーソルはフォローした日時と follows の ID） */
   private CursorPageResponse<UserListItemResponse> toPage(long me, List<FollowedUser> rows) {
-    boolean hasNext = rows.size() > PAGE_SIZE;
-    List<FollowedUser> page = rows.subList(0, Math.min(PAGE_SIZE, rows.size()));
-    String nextCursor =
-        hasNext
-            ? CreatedAtCursor.of(page.getLast().getFollowedAt(), page.getLast().getFollowId())
-                .encode()
-            : null;
-    List<UserListItemResponse> items =
-        page.stream()
-            .map(
-                row ->
-                    UserListItemResponse.of(
-                        row.getId(),
-                        row.getUsername(),
-                        row.getDisplayName(),
-                        row.getBio(),
-                        imageStorage.urlOf(row.getIconKey()),
-                        row.isFollowedByMe(),
-                        me))
-            .toList();
-    return new CursorPageResponse<>(items, nextCursor, hasNext);
+    return CursorPageResponse.of(
+        rows,
+        PAGE_SIZE,
+        last -> CreatedAtCursor.of(last.getFollowedAt(), last.getFollowId()).encode(),
+        page ->
+            page.stream()
+                .map(
+                    row ->
+                        UserListItemResponse.of(
+                            row.getId(),
+                            row.getUsername(),
+                            row.getDisplayName(),
+                            row.getBio(),
+                            imageStorage.urlOf(row.getIconKey()),
+                            row.isFollowedByMe(),
+                            me))
+                .toList());
   }
 
   /** 今のフォロー状態と、相手のフォロワー数（その間のほかの人のフォローも反映される） */

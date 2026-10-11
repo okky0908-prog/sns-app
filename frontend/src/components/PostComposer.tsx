@@ -3,6 +3,7 @@ import { ApiError, errorMessage, isApiError } from '../api/client'
 import type { PostImage } from '../api/types'
 import { countChars } from '../lib/format'
 import { IMAGE_ACCEPT, imageFileError } from '../lib/imageFile'
+import { useOverlayOpen } from '../lib/overlay'
 import { ConfirmDialog } from './ConfirmDialog'
 import modalStyles from './Modal.module.css'
 import styles from './PostComposer.module.css'
@@ -28,6 +29,8 @@ interface PostComposerProps {
 
 /** S-04 投稿作成 / S-05 投稿編集のモーダル（docs/screens.md・docs/feature-specs/02_post.md） */
 export function PostComposer({ mode, initialContent = '', initialImages = [], onSubmit, onClose }: PostComposerProps) {
+  // 開いている間は、新しい投稿のお知らせ（モーダル）を重ねて出さない
+  useOverlayOpen()
   const [content, setContent] = useState(initialContent)
   const [images, setImages] = useState<SelectedImage[]>([])
   const [error, setError] = useState<string | null>(null)

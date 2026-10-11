@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 import { searchUsers } from '../api/client'
 import type { FollowState, UserListItem } from '../api/types'
-import { Toast } from '../components/Toast'
 import { UserListRow } from '../components/UserListRow'
 import { withoutDuplicates } from '../lib/list'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
+import { useToast } from '../lib/useToast'
 import styles from './SearchPage.module.css'
 
 /** 入力が止まってからこの時間がたったら検索する（1文字ごとにリクエストしない） */
@@ -42,7 +42,7 @@ function SearchPage() {
   } | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreFailed, setMoreFailed] = useState(false)
-  const [toast, setToast] = useState<{ id: number; message: string } | null>(null)
+  const { notify, toastElement } = useToast()
   /** 検索のたびに増やす。前のキーワードの結果があとから届いても、番号が違えば捨てる（古い結果で上書きしない） */
   const requestIdRef = useRef(0)
   const timerRef = useRef<number | undefined>(undefined)
@@ -136,8 +136,7 @@ function SearchPage() {
       ),
     [],
   )
-  const handleError = useCallback((message: string) => setToast((prev) => ({ id: (prev?.id ?? 0) + 1, message })), [])
-  const clearToast = useCallback(() => setToast(null), [])
+  const handleError = useCallback((message: string) => notify(message, true), [notify])
 
   const heading = keyword ? `「${keyword}」の検索結果` : '最近参加したユーザー'
   return (
@@ -203,7 +202,7 @@ function SearchPage() {
           </div>
         )}
       </section>
-      {toast && <Toast key={toast.id} message={toast.message} error onDone={clearToast} />}
+      {toastElement}
     </>
   )
 }

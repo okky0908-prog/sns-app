@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useOverlayOpen } from '../lib/overlay'
 import styles from './Modal.module.css'
 
 interface ConfirmDialogProps {
@@ -10,6 +11,8 @@ interface ConfirmDialogProps {
 
 /** 削除などの前に出す確認ダイアログ。Esc キーでキャンセル */
 export function ConfirmDialog({ message, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+  // 開いている間は、新しい投稿のお知らせ（モーダル）を重ねて出さない
+  useOverlayOpen()
   const confirmRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {

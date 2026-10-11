@@ -161,9 +161,10 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
 
   const dismissNewPosts = useCallback(() => setDismissedCount(newCount), [newCount])
 
-  // 投稿の作成・編集・削除のモーダルや、画像の拡大表示を開いている間は重ねて出さない（閉じたあとに出す）
+  // 投稿の作成・編集のモーダル、確認ダイアログ、画像の拡大表示など、ほかの表示を開いている間は重ねて出さない（閉じたあとに出す）。
+  // それぞれの部品が useOverlayOpen で「開いている」ことを登録するので、ここで個別に判定しなくてよい
   const overlayOpen = useAnyOverlayOpen()
-  const showNewPostsDialog = newCount > dismissedCount && !composing && !actions.dialogOpen && !overlayOpen
+  const showNewPostsDialog = newCount > dismissedCount && !overlayOpen
 
   // ヘッダーの「ホーム」を、ホームを表示中にもう一度押したとき（AppLayout が state に refresh を付けて遷移してくる）
   useEffect(() => {
