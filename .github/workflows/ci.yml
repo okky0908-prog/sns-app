@@ -1,0 +1,72 @@
+# PR と main への push のたびに、バックエンドのテストとフロントエンドの lint・ビルドを実行する。
+# マージは、この CI が通ってから行う（CLAUDE.md のリポジトリ運用ルール）
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同じブランチに続けて push したら、古い方の実行は止める
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: バックエンド（整形チェック・テスト）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # テストは実際の PostgreSQL と LocalStack（S3 の代わり）を使うので、ローカルと同じ docker-compose.yml で起動する。
+      # --wait で、ヘルスチェック（LocalStack はバケットを作り終えるまで）が通るのを待つ
+      - name: PostgreSQL と LocalStack を起動
+        run: docker compose up -d --wait postgres localstack
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # JWT の署名鍵などは src/test/resources/application-test.yml にテスト用の値があるので、.env は要らない
+      - name: ./gradlew check
+        working-directory: backend
+        run: ./gradlew check
+
+      - name: テスト結果を保存（失敗したときの確認用）
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: backend/build/reports/tests/
+
+      - name: コンテナのログ（失敗したときの確認用）
+        if: failure()
+        run: docker compose logs
+
+  frontend:
+    name: フロントエンド（lint・型チェック・ビルド）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
