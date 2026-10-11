@@ -145,3 +145,10 @@ cd frontend
 npm run build   # TypeScript の型チェック + ビルド
 npm run lint    # oxlint
 ```
+
+### CI（GitHub Actions）
+
+PR と main への push のたびに、[.github/workflows/ci.yml](.github/workflows/ci.yml) で次を自動で実行する。マージは CI が通ってから行う。
+
+- バックエンド：`./gradlew check`（PostgreSQL と LocalStack は `docker-compose.yml` で起動する）
+- フロントエンド：`npm ci`・`npm run lint`・`npm run build`
