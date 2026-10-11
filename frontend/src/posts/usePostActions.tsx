@@ -7,7 +7,11 @@ import { Toast } from '../components/Toast'
 
 interface Options {
   onUpdated: (post: Post) => void
-  onDeleted: (post: Post) => void
+  /**
+   * 投稿が消えた。alreadyDeleted は、自分が削除したのではなく、編集・削除しようとしたときにはもう削除されていたか
+   * （投稿詳細では、タイムラインに渡すお知らせを変えるのに使う）
+   */
+  onDeleted: (post: Post, alreadyDeleted: boolean) => void
 }
 
 /**
@@ -38,7 +42,7 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
       if (isApiError(err, 'POST_NOT_FOUND')) {
         // 編集中に削除されていた
         setEditing(null)
-        onDeleted(editing)
+        onDeleted(editing, true)
         notify('この投稿はすでに削除されています', true)
         return
       }
@@ -52,11 +56,11 @@ export function usePostActions({ onUpdated, onDeleted }: Options) {
     setDeleting(null)
     try {
       await deletePost(post.id)
-      onDeleted(post)
+      onDeleted(post, false)
       notify('投稿を削除しました')
     } catch (err) {
       if (isApiError(err, 'POST_NOT_FOUND')) {
-        onDeleted(post)
+        onDeleted(post, true)
         notify('この投稿はすでに削除されています', true)
       } else {
         notify(errorMessage(err), true)

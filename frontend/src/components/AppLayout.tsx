@@ -56,17 +56,23 @@ export function AppLayout() {
             {user && (
               <NavLink
                 to={`/users/${encodeURIComponent(user.username)}`}
-                className={({ isActive }) => (isActive ? styles.active : undefined)}
+                className={({ isActive }) => `${styles.profileLink} ${isActive ? styles.active : ''}`}
               >
                 プロフィール
               </NavLink>
             )}
             {user && (
-              // ログイン中のアカウント（プロフィール画像と表示名）。プロフィール編集で変えたら、すぐここにも反映される
-              <span className={styles.user} title={`${user.displayName}（@${user.username}）としてログイン中`}>
+              // ログイン中のアカウント（プロフィール画像と表示名）。押すと自分のプロフィールへ（画面仕様「ユーザーへのリンク」）。
+              // プロフィール編集で変えたら、すぐここにも反映される。表示名は重なることがあるので、@ユーザー名も読み上げとツールチップで伝える
+              <Link
+                to={`/users/${encodeURIComponent(user.username)}`}
+                className={styles.user}
+                title={`${user.displayName}（@${user.username}）としてログイン中`}
+                aria-label={`${user.displayName}（@${user.username}）のプロフィール`}
+              >
                 <Avatar displayName={user.displayName} iconUrl={user.iconUrl} size={28} />
                 <span className={styles.userName}>{user.displayName}</span>
-              </span>
+              </Link>
             )}
             <button type="button" className={styles.logout} onClick={handleLogout}>
               ログアウト

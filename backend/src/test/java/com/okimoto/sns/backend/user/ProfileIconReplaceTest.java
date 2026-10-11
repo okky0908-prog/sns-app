@@ -96,4 +96,29 @@ class ProfileIconReplaceTest {
     assertThat(statusOf(second)).isEqualTo(200);
     assertThat(statusOf(first)).isEqualTo(404);
   }
+
+  @Test
+  void 二つの編集が同時に来ても_先の編集のアイコンはS3に残らない() throws Exception {
+    // 2つの編集をほぼ同時に送る。ユーザーの行をロックしているので、あとの編集は先の編集のコミットを待ち、
+    // 先の編集が保存したアイコンを「古いアイコン」として消す（ロックがないと、両方が古いアイコンなしと読み、片方のアイコンが残り続ける）
+    java.util.concurrent.ExecutorService pool =
+        java.util.concurrent.Executors.newFixedThreadPool(2);
+    try {
+      java.util.concurrent.Future<String> first = pool.submit(this::uploadIcon);
+      Thread.sleep(50);
+      java.util.concurrent.Future<String> second = pool.submit(this::uploadIcon);
+      String a = first.get();
+      String b = second.get();
+
+      // どちらが先に処理されても、保存されている（あとにコミットされた）アイコンだけが残り、もう一方は消えている
+      String saved = userMapper.findById(userId).orElseThrow().getIconKey();
+      String kept = a.endsWith(saved) ? a : b;
+      String removed = kept.equals(a) ? b : a;
+      assertThat(kept).endsWith(saved);
+      assertThat(statusOf(kept)).isEqualTo(200);
+      assertThat(statusOf(removed)).isEqualTo(404);
+    } finally {
+      pool.shutdown();
+    }
+  }
 }

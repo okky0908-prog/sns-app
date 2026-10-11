@@ -29,7 +29,14 @@ export function PostDetailPage() {
   const actions = usePostActions({
     onUpdated: (updated) => setResult({ id: updated.id, post: updated, status: 'ready' }),
     // 削除したらタイムラインに戻る（お知らせはタイムライン側で出す）
-    onDeleted: () => navigate('/', { replace: true, state: { notice: '投稿を削除しました' } }),
+    // すでに削除されていたとき（別のタブで消した など）は、自分が削除したと誤解しないよう、エラーとして知らせる
+    onDeleted: (_post, alreadyDeleted) =>
+      navigate('/', {
+        replace: true,
+        state: alreadyDeleted
+          ? { notice: 'この投稿はすでに削除されています', noticeError: true }
+          : { notice: '投稿を削除しました' },
+      }),
   })
 
   function handleLikeChange(likedPostId: number, state: LikeState) {

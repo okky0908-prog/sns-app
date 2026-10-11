@@ -12,6 +12,13 @@
     WHERE id = #{id}
   </select>
 
+  <select id="findByIdForUpdate" resultType="com.okimoto.sns.backend.user.User">
+    SELECT <include refid="columns"/>
+    FROM users
+    WHERE id = #{id}
+    FOR UPDATE
+  </select>
+
   <select id="findByEmail" resultType="com.okimoto.sns.backend.user.User">
     SELECT <include refid="columns"/>
     FROM users

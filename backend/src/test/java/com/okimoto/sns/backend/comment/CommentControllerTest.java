@@ -268,4 +268,11 @@ class CommentControllerTest {
         .andExpect(jsonPath("$.items", hasSize(1)))
         .andExpect(jsonPath("$.items[0].author.username").value("c_bob"));
   }
+
+  @Test
+  void コメントも改行CRLFはLFにそろえる() throws Exception {
+    comment(bobId, postId, "1行目\r\n2行目")
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.content").value("1行目\n2行目"));
+  }
 }

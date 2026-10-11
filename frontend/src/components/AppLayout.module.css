@@ -29,6 +29,7 @@
 
 .search {
   flex: 1;
+  min-width: 0;
   max-width: 280px;
 }
 
@@ -63,11 +64,17 @@
   color: var(--color-primary);
 }
 
-.user {
+.nav a.user {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--color-text);
+  font-weight: normal;
+  text-decoration: none;
+}
+
+.nav a.user:hover .userName {
+  text-decoration: underline;
 }
 
 /* 長い表示名（50文字まで）でヘッダーが崩れないよう、はみ出す分は「…」にする */
@@ -97,4 +104,24 @@
   background: #fff;
   border-left: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
+}
+
+/*
+ * スマホなど幅の狭い画面（非機能要件「スマートフォンでは表示が崩れない程度に対応する」）。
+ * ヘッダーが1行に収まるよう、表示名の文字と「プロフィール」の文字リンクを隠す（アイコンを押せばプロフィールへ行ける）
+ */
+@media (max-width: 640px) {
+  .inner {
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .nav {
+    gap: 10px;
+  }
+
+  .userName,
+  .nav a.profileLink {
+    display: none;
+  }
 }

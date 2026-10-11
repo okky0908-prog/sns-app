@@ -419,4 +419,32 @@ class PostControllerTest {
     assertThat(posts).isZero();
     assertThat(follows).isZero();
   }
+
+  @Test
+  void 作り変えたカーソルは日時が範囲外でも計算があふれても400() throws Exception {
+    for (String raw :
+        new String[] {
+          "9223372036854775807:1000000000:1", // 秒にナノ秒の繰り上がりを足すと計算があふれる
+          "9000000000000:0:1", // DB が扱えない遠い未来
+          "-100:0:1", // 1970年より前
+        }) {
+      String cursor =
+          java.util.Base64.getUrlEncoder()
+              .withoutPadding()
+              .encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      mockMvc
+          .perform(as(aliceId, get("/api/timeline/all").param("cursor", cursor)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].field").value("cursor"));
+    }
+  }
+
+  @Test
+  void 編集でも改行CRLFはLFにそろえ_1文字と数える() throws Exception {
+    long postId = createPostAndGetId(aliceId, "もとの本文");
+    updatePost(aliceId, postId, "1行目\r\n2行目").andExpect(jsonPath("$.content").value("1行目\n2行目"));
+    // 140文字 + 改行 + 139文字 = 280文字。\r\n を2文字と数えると281文字になって保存できない
+    updatePost(aliceId, postId, "あ".repeat(140) + "\r\n" + "い".repeat(139))
+        .andExpect(status().isOk());
+  }
 }

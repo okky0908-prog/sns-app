@@ -7,6 +7,7 @@ import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.CreatedAtCursor;
 import com.okimoto.sns.backend.web.CursorPageResponse;
 import com.okimoto.sns.backend.web.ErrorCode;
+import com.okimoto.sns.backend.web.Texts;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -61,7 +62,7 @@ public class PostService {
    */
   @Transactional
   public PostResponse create(long me, String content, List<MultipartFile> images) {
-    String text = content == null ? "" : content.replace("\r\n", "\n").replace('\r', '\n').strip();
+    String text = content == null ? "" : Texts.normalizeNewlines(content).strip();
     List<MultipartFile> files =
         images == null ? List.of() : images.stream().filter(file -> !file.isEmpty()).toList();
     if (text.codePointCount(0, text.length()) > MAX_CONTENT) {
