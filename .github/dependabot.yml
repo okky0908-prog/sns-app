@@ -17,6 +17,11 @@ updates:
     directory: /frontend
     schedule:
       interval: monthly
+    ignore:
+      # Node.js は 24 系に固定している（frontend/.nvmrc）ので、型定義だけメジャーを上げない。
+      # Node.js を上げるときは、この除外も外す
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend:
         patterns: ["*"]

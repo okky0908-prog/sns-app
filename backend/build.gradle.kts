@@ -23,6 +23,11 @@ val mybatisVersion = "4.1.0"
 val jjwtVersion = "0.13.0"
 val awsSdkVersion = "2.55.14"
 
+// Spring Boot 4.1.1 が使う版には脆弱性があるため、直った版を個別に指定する（Dependabot alerts。Issue #63）。
+// Spring Boot を次に上げるときに、Spring Boot の版がこれ以上になっていれば、この2行は消す（docs/tech-stack.md）
+extra["tomcat.version"] = "11.0.26"
+extra["jackson-bom.version"] = "3.1.7"
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
