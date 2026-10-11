@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import styles from './Avatar.module.css'
 
 interface AvatarProps {
@@ -13,9 +14,21 @@ interface AvatarProps {
  * 読み上げでは、まわりの名前やリンクで誰かがわかるので、アイコン自体は読み上げない
  */
 export function Avatar({ displayName, iconUrl, size }: AvatarProps) {
+  // 画像を読み込めなかった URL。そのときは壊れた画像の代わりに頭文字を出す（S3 の画像が消えた・配信元の設定が違う など）
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const style = { width: size, height: size, fontSize: Math.round(size * 0.4) }
-  if (iconUrl) {
-    return <img className={styles.avatar} src={iconUrl} alt="" width={size} height={size} style={style} />
+  if (iconUrl && iconUrl !== failedUrl) {
+    return (
+      <img
+        className={styles.avatar}
+        src={iconUrl}
+        alt=""
+        width={size}
+        height={size}
+        style={style}
+        onError={() => setFailedUrl(iconUrl)}
+      />
+    )
   }
   return (
     <span className={`${styles.avatar} ${styles.initial}`} aria-hidden="true" style={style}>

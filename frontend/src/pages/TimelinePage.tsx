@@ -49,19 +49,24 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
 
   // 投稿詳細で削除して戻ってきたときのお知らせ
   useEffect(() => {
-    const notice = (location.state as { notice?: string } | null)?.notice
+    const { notice, noticeError } = (location.state as { notice?: string; noticeError?: boolean } | null) ?? {}
     if (notice) {
-      notify(notice)
+      notify(notice, noticeError)
       navigate(location.pathname, { replace: true, state: null })
     }
   }, [location, navigate, notify])
 
   // 1ページ目を読み込む（タブを切り替えると router の key で画面ごと作り直される。同じタブでは「最新を取り直す」ときにも使う）
+  /** 1ページ目の取得のたびに増やす。続けて取り直したとき、あとから届いた古い結果で上書きしないよう、最後に始めた取得の結果だけを使う */
+  const firstPageRequestRef = useRef(0)
+
   const loadFirstPage = useCallback(
-    (isCancelled: () => boolean = () => false) =>
-      fetchTimeline(tab)
+    (isCancelled: () => boolean = () => false) => {
+      const requestId = ++firstPageRequestRef.current
+      const outdated = () => isCancelled() || requestId !== firstPageRequestRef.current
+      return fetchTimeline(tab)
         .then((res) => {
-          if (isCancelled()) return
+          if (outdated()) return
           generationRef.current += 1
           setPosts(res.items)
           newestIdRef.current = res.items[0]?.id ?? 0
@@ -73,8 +78,9 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
           setStatus('ready')
         })
         .catch(() => {
-          if (!isCancelled()) setStatus('error')
-        }),
+          if (!outdated()) setStatus('error')
+        })
+    },
     [tab],
   )
 

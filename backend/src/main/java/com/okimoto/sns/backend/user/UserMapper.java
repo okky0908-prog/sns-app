@@ -13,6 +13,12 @@ public interface UserMapper {
 
   Optional<User> findById(long id);
 
+  /**
+   * findById と同じだが、行をロックする（SELECT ... FOR UPDATE）。トランザクションが終わるまで、ほかのトランザクションの同じ行の更新・ロックは待たされる。
+   * プロフィール編集で、古いアイコンのキーを読んでから更新するまでの間に、別の編集が割り込まないようにするため
+   */
+  Optional<User> findByIdForUpdate(long id);
+
   /** メールアドレスは小文字にそろえて保存しているので、小文字にしてから渡すこと。 */
   Optional<User> findByEmail(String email);
 

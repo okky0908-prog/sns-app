@@ -45,11 +45,26 @@ public class ProfileEditService {
    */
   @Transactional
   public ProfileResponse update(long me, ProfileUpdateRequest request, MultipartFile icon) {
-    User user =
-        userMapper.findById(me).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
-    String newIconKey = null;
-    if (icon != null && !icon.isEmpty()) {
-      newIconKey = imageStorage.store("icons/", UploadedImage.from(icon, "icon"));
+    // 新しいアイコンは、行をロックする前に S3 に保存する（S3 との通信の間、ロックを持ち続けないように）
+    String newIconKey =
+        icon == null || icon.isEmpty()
+            ? null
+            : imageStorage.store("icons/", UploadedImage.from(icon, "icon"));
+    // 行をロックしてから古いアイコンのキーを読む。2つのタブで同時に編集しても、あとの編集は先の編集のコミットを待ち、
+    // 先の編集が保存したアイコンを「古いアイコン」として消す（ロックしないと両方が同じ古いアイコンを読み、片方の新しいアイコンが S3 に残る）
+    User user;
+    try {
+      user =
+          userMapper
+              .findByIdForUpdate(me)
+              .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
+    } catch (RuntimeException e) {
+      if (newIconKey != null) {
+        imageStorage.deleteQuietly(newIconKey); // まだ後片付けを登録していないので、ここで消す
+      }
+      throw e;
+    }
+    if (newIconKey != null) {
       // コミットされたら古いアイコンを、取り消されたら保存したばかりの新しいアイコンを削除する
       imageStorage.deleteAfterTransaction(
           user.getIconKey() == null ? List.of() : List.of(user.getIconKey()), List.of(newIconKey));

@@ -16,6 +16,14 @@ import java.util.List;
  */
 public record CreatedAtCursor(OffsetDateTime createdAt, long id) {
 
+  /**
+   * カーソルとして受け付ける日時の範囲。これより外は形式の誤り（400）にする。 DB（PostgreSQL）が扱えない日時を SQL に渡して 500
+   * にならないように、実際の作成日時がありえる範囲に絞る
+   */
+  private static final Instant MIN = Instant.EPOCH;
+
+  private static final Instant MAX = Instant.parse("9999-12-31T23:59:59Z");
+
   public static CreatedAtCursor of(OffsetDateTime createdAt, long id) {
     return new CreatedAtCursor(createdAt, id);
   }
@@ -43,9 +51,13 @@ public record CreatedAtCursor(OffsetDateTime createdAt, long id) {
         throw new IllegalArgumentException(raw);
       }
       Instant instant = Instant.ofEpochSecond(Long.parseLong(parts[0]), Long.parseLong(parts[1]));
+      if (instant.isBefore(MIN) || instant.isAfter(MAX)) {
+        throw new IllegalArgumentException(raw);
+      }
       return new CreatedAtCursor(
           OffsetDateTime.ofInstant(instant, ZoneOffset.UTC), Long.parseLong(parts[2]));
-    } catch (IllegalArgumentException | DateTimeException e) {
+    } catch (IllegalArgumentException | DateTimeException | ArithmeticException e) {
+      // 数字でない・日時が範囲外・ナノ秒が大きすぎて計算があふれた（ArithmeticException）など。どれも作り変えられたカーソル
       throw ApiException.badRequest(List.of(new ApiError.FieldError("cursor", "カーソルの形式が正しくありません")));
     }
   }
