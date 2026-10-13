@@ -1,137 +1,52 @@
-// API のレスポンスの型（docs/api.md・バックエンドの UserResponse / AuthResponse / ApiError と同じ形）
+// API のリクエスト・レスポンスの型。
+//
+// 形は手で書かず、API 仕様書（docs/openapi.yaml）から自動で作る schema.ts の型を使う。ここでは画面のコードで使う名前を付けるだけ。
+// バックエンドの API が変わったら、npm run gen:api で schema.ts を作り直す。形がずれていれば型チェック（npm run build）で気づける
+// （docs/api.md「フロントの型の自動生成」）
+import type * as Schema from './schema'
 
-export interface UserSummary {
-  id: number
-  username: string
-  displayName: string
-  iconUrl: string | null
-}
+/** ユーザーの基本情報（ログイン中のユーザー、投稿・コメントの投稿者） */
+export type UserSummary = Schema.UserResponse
 
-export interface AuthResponse {
-  /** アクセストークン（有効期限15分）。リフレッシュトークンは HttpOnly Cookie で届くので、ここには含まれない */
-  accessToken: string
-  user: UserSummary
-}
+/** 新規登録・ログイン・再発行の結果。リフレッシュトークンは HttpOnly Cookie で届くので、ここには含まれない */
+export type AuthResponse = Schema.AuthResponse
 
-export interface FieldErrorBody {
-  field: string
-  message: string
-}
+export type FieldErrorBody = Schema.FieldError
 
-/**
- * エラーの種類（docs/api.md「エラーレスポンス」・バックエンドの ErrorCode と同じ名前）。
- * 画面の分岐はステータスや文言ではなく、この code で行う
- */
-export type ApiErrorCode =
-  | 'VALIDATION_FAILED'
-  | 'MALFORMED_REQUEST'
-  | 'CANNOT_FOLLOW_SELF'
-  | 'UNAUTHENTICATED'
-  | 'INVALID_CREDENTIALS'
-  | 'SESSION_EXPIRED'
-  | 'FORBIDDEN'
-  | 'POST_NOT_FOUND'
-  | 'COMMENT_NOT_FOUND'
-  | 'USER_NOT_FOUND'
-  | 'RESOURCE_NOT_FOUND'
-  | 'METHOD_NOT_ALLOWED'
-  | 'ALREADY_REGISTERED'
-  | 'PAYLOAD_TOO_LARGE'
-  | 'UNSUPPORTED_MEDIA_TYPE'
-  | 'INTERNAL_ERROR'
-  | 'IMAGE_UPLOAD_FAILED'
-  | 'SERVICE_UNAVAILABLE'
+/** エラーの種類（バックエンドの ErrorCode と同じ名前）。画面の分岐はステータスや文言ではなく、この code で行う */
+export type ApiErrorCode = Schema.ApiError['code']
 
-export interface ApiErrorBody {
-  status: number
-  code: ApiErrorCode
-  /** 利用者にそのまま見せてよい文言 */
-  message: string
-  errors: FieldErrorBody[]
-}
+export type ApiErrorBody = Schema.ApiError
 
-export interface SignupInput {
-  username: string
-  displayName: string
-  email: string
-  password: string
-}
+export type SignupInput = Schema.SignupRequest
 
-export interface LoginInput {
-  email: string
-  password: string
-}
+export type LoginInput = Schema.LoginRequest
 
-export interface PostImage {
-  url: string
-  sortOrder: number
-}
+export type PostImage = Schema.PostImageResponse
 
 /** 投稿（docs/api.md「Post（投稿）」） */
-export interface Post {
-  id: number
-  content: string
-  /** 投稿の画像（0〜4枚、表示順） */
-  images: PostImage[]
-  author: UserSummary
-  likeCount: number
-  /** ログイン中のユーザーがいいね済みか（ハートの色） */
-  likedByMe: boolean
-  commentCount: number
-  /** 本文を編集した日時。null なら未編集 */
-  editedAt: string | null
-  createdAt: string
-  /** ログイン中のユーザーの投稿か（「…」メニューを出すかどうか） */
-  mine: boolean
-}
+export type Post = Schema.PostResponse
 
 /** いいね・取り消し（A-40・A-41）の結果。投稿の likeCount・likedByMe をこの値で上書きする */
-export type LikeState = Pick<Post, 'likeCount' | 'likedByMe'>
+export type LikeState = Schema.LikeResponse
 
 /** プロフィール（A-60） */
-export interface Profile extends UserSummary {
-  bio: string | null
-  followingCount: number
-  followerCount: number
-  /** ログイン中の自分がこのユーザーをフォローしているか */
-  followedByMe: boolean
-  /** 自分のプロフィールか（「プロフィールを編集」とフォローボタンのどちらを出すか） */
-  me: boolean
-}
+export type Profile = Schema.ProfileResponse
 
 /** ユーザー一覧の1行（A-52・A-53 フォロー中・フォロワー一覧、A-70 ユーザー検索） */
-export interface UserListItem extends UserSummary {
-  bio: string | null
-  /** ログイン中の自分がこの人をフォローしているか（一覧を見ている相手ではなく、自分から見た状態） */
-  followedByMe: boolean
-  /** 自分自身か（フォローボタンを出さない） */
-  me: boolean
-}
+export type UserListItem = Schema.UserListItemResponse
 
 /** フォロー・フォロー解除（A-50・A-51）の結果 */
-export interface FollowState {
-  following: boolean
-  /** 相手のフォロワー数 */
-  followerCount: number
-}
+export type FollowState = Schema.FollowResponse
 
 /** コメント（A-30 の items の各要素） */
-export interface Comment {
-  id: number
-  content: string
-  author: UserSummary
-  createdAt: string
-  /** ログイン中のユーザーのコメントか（「削除」を出すかどうか） */
-  mine: boolean
-}
+export type Comment = Schema.CommentResponse
 
 /** コメント投稿（A-31）の結果。投稿後のコメント数も付く */
-export type CreatedComment = Comment & { commentCount: number }
+export type CreatedComment = Schema.CreatedCommentResponse
 
-/** カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」） */
-export interface CursorPage<T> {
-  items: T[]
-  /** 続きを取るときに cursor に渡す値。続きがなければ null */
-  nextCursor: string | null
-  hasNext: boolean
-}
+/**
+ * カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。
+ * 仕様書では中身の型ごとに別の名前（CursorPageResponsePostResponse など）になるので、共通の形を中身の型で受け取る
+ */
+export type CursorPage<T> = Omit<Schema.CursorPageResponsePostResponse, 'items'> & { items: T[] }

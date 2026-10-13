@@ -1,8 +1,11 @@
 package com.okimoto.sns.backend.user;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * プロフィールのレスポンス（A-60）。
  *
+ * @param bio 自己紹介。設定していなければ null
  * @param iconUrl アイコン画像の URL。設定していなければ null（画面は頭文字を表示）
  * @param followedByMe ログイン中のユーザーがこのユーザーをフォローしているか
  * @param me 自分のプロフィールか（「プロフィールを編集」とフォローボタンのどちらを出すか）
@@ -11,8 +14,8 @@ public record ProfileResponse(
     long id,
     String username,
     String displayName,
-    String bio,
-    String iconUrl,
+    @Schema(nullable = true) String bio,
+    @Schema(nullable = true) String iconUrl,
     long followingCount,
     long followerCount,
     boolean followedByMe,

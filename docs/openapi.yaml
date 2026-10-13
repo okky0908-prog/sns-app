@@ -981,6 +981,11 @@ components:
         status:
           type: integer
           format: int32
+      required:
+      - code
+      - errors
+      - message
+      - status
     AuthResponse:
       type: object
       description: |-
@@ -992,6 +997,9 @@ components:
           type: string
         user:
           $ref: "#/components/schemas/UserResponse"
+      required:
+      - accessToken
+      - user
     CommentCountResponse:
       type: object
       description: コメント削除（A-32）のレスポンス。削除後のその投稿のコメント数。
@@ -999,6 +1007,8 @@ components:
         commentCount:
           type: integer
           format: int64
+      required:
+      - commentCount
     CommentRequest:
       type: object
       description: コメント投稿（A-31）のリクエスト。本文は前後の空白・改行を除いて1〜280文字（数え方は投稿と同じ）。
@@ -1007,6 +1017,8 @@ components:
           type: string
           maxLength: 280
           minLength: 1
+      required:
+      - content
     CommentResponse:
       type: object
       description: コメントのレスポンス（A-30 の items の各要素）。
@@ -1024,6 +1036,12 @@ components:
         mine:
           type: boolean
           description: ログイン中のユーザーのコメントか（画面に「削除」を出すかどうか）
+      required:
+      - author
+      - content
+      - createdAt
+      - id
+      - mine
     CreatedCommentResponse:
       type: object
       description: コメント投稿（A-31）のレスポンス。コメントの中身に加えて、画面でコメント数をすぐ更新できるよう投稿後のコメント数も返す。
@@ -1044,6 +1062,13 @@ components:
           format: int64
         mine:
           type: boolean
+      required:
+      - author
+      - commentCount
+      - content
+      - createdAt
+      - id
+      - mine
     CursorPageResponseCommentResponse:
       type: object
       description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
@@ -1057,8 +1082,14 @@ components:
           items:
             $ref: "#/components/schemas/CommentResponse"
         nextCursor:
-          type: string
+          type:
+          - string
+          - "null"
           description: 続きを取るときに `?cursor=` に渡す値。続きがなければ null
+      required:
+      - hasNext
+      - items
+      - nextCursor
     CursorPageResponsePostResponse:
       type: object
       description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
@@ -1072,8 +1103,14 @@ components:
           items:
             $ref: "#/components/schemas/PostResponse"
         nextCursor:
-          type: string
+          type:
+          - string
+          - "null"
           description: 続きを取るときに `?cursor=` に渡す値。続きがなければ null
+      required:
+      - hasNext
+      - items
+      - nextCursor
     CursorPageResponseUserListItemResponse:
       type: object
       description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
@@ -1087,8 +1124,14 @@ components:
           items:
             $ref: "#/components/schemas/UserListItemResponse"
         nextCursor:
-          type: string
+          type:
+          - string
+          - "null"
           description: 続きを取るときに `?cursor=` に渡す値。続きがなければ null
+      required:
+      - hasNext
+      - items
+      - nextCursor
     FieldError:
       type: object
       properties:
@@ -1096,6 +1139,9 @@ components:
           type: string
         message:
           type: string
+      required:
+      - field
+      - message
     FollowResponse:
       type: object
       description: フォロー・フォロー解除のレスポンス（A-50・A-51）。画面は押した直後に表示を変え、この値で上書きする。
@@ -1107,6 +1153,9 @@ components:
         following:
           type: boolean
           description: ログイン中のユーザーが相手をフォローしているか
+      required:
+      - followerCount
+      - following
     LikeResponse:
       type: object
       description: いいね・取り消しのレスポンス（A-40・A-41）。画面は押した直後に表示を変え、この値で上書きする（その間のほかの人のいいねも反映するため）。
@@ -1118,6 +1167,9 @@ components:
         likedByMe:
           type: boolean
           description: ログイン中のユーザーがいいね済みか
+      required:
+      - likeCount
+      - likedByMe
     LoginRequest:
       type: object
       description: ログインのリクエスト（A-02）。
@@ -1138,6 +1190,8 @@ components:
         count:
           type: integer
           format: int32
+      required:
+      - count
     PostImageResponse:
       type: object
       properties:
@@ -1146,6 +1200,9 @@ components:
           format: int32
         url:
           type: string
+      required:
+      - sortOrder
+      - url
     PostRequest:
       type: object
       description: |-
@@ -1175,7 +1232,9 @@ components:
           type: string
           format: date-time
         editedAt:
-          type: string
+          type:
+          - string
+          - "null"
           format: date-time
           description: 本文を編集した日時。null なら未編集（画面に「編集済み」を出すかどうか）
         id:
@@ -1195,12 +1254,26 @@ components:
         mine:
           type: boolean
           description: ログイン中のユーザーの投稿か（画面に「…」メニューを出すかどうか）
+      required:
+      - author
+      - commentCount
+      - content
+      - createdAt
+      - editedAt
+      - id
+      - images
+      - likeCount
+      - likedByMe
+      - mine
     ProfileResponse:
       type: object
       description: プロフィールのレスポンス（A-60）。
       properties:
         bio:
-          type: string
+          type:
+          - string
+          - "null"
+          description: 自己紹介。設定していなければ null
         displayName:
           type: string
         followedByMe:
@@ -1213,7 +1286,9 @@ components:
           type: integer
           format: int64
         iconUrl:
-          type: string
+          type:
+          - string
+          - "null"
           description: アイコン画像の URL。設定していなければ null（画面は頭文字を表示）
         id:
           type: integer
@@ -1223,6 +1298,16 @@ components:
           description: 自分のプロフィールか（「プロフィールを編集」とフォローボタンのどちらを出すか）
         username:
           type: string
+      required:
+      - bio
+      - displayName
+      - followedByMe
+      - followerCount
+      - followingCount
+      - iconUrl
+      - id
+      - me
+      - username
     SignupRequest:
       type: object
       description: 新規登録のリクエスト（A-01）。チェック内容とメッセージは docs/feature-specs/01_auth.md のとおり。
@@ -1242,6 +1327,7 @@ components:
           type: string
           pattern: "^[A-Za-z0-9_]{4,15}$"
       required:
+      - displayName
       - email
       - password
       - username
@@ -1250,14 +1336,19 @@ components:
       description: ユーザー一覧の1行（A-52・A-53 フォロー中・フォロワー一覧、A-70 ユーザー検索で共通）。
       properties:
         bio:
-          type: string
+          type:
+          - string
+          - "null"
+          description: 自己紹介。設定していなければ null
         displayName:
           type: string
         followedByMe:
           type: boolean
           description: ログイン中の自分がこのユーザーをフォローしているか（一覧を見ている相手ではなく、自分から見た状態）
         iconUrl:
-          type: string
+          type:
+          - string
+          - "null"
           description: アイコン画像の URL。設定していなければ null（画面は頭文字を表示）
         id:
           type: integer
@@ -1267,19 +1358,35 @@ components:
           description: 自分自身か（フォローボタンを出さない）
         username:
           type: string
+      required:
+      - bio
+      - displayName
+      - followedByMe
+      - iconUrl
+      - id
+      - me
+      - username
     UserResponse:
       type: object
-      description: ログイン中のユーザーの情報（A-01〜A-03 のレスポンスの user）。
+      description: ログイン中のユーザーの情報（A-01〜A-03 のレスポンスの user）。投稿・コメントの投稿者（author）にも使う。
       properties:
         displayName:
           type: string
         iconUrl:
-          type: string
+          type:
+          - string
+          - "null"
+          description: アイコン画像の URL。設定していなければ null（画面は頭文字を表示）
         id:
           type: integer
           format: int64
         username:
           type: string
+      required:
+      - displayName
+      - iconUrl
+      - id
+      - username
   securitySchemes:
     bearerAuth:
       bearerFormat: JWT

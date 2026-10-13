@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.post;
 
 import com.okimoto.sns.backend.auth.UserResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -23,7 +24,7 @@ public record PostResponse(
     long likeCount,
     boolean likedByMe,
     long commentCount,
-    OffsetDateTime editedAt,
+    @Schema(nullable = true) OffsetDateTime editedAt,
     OffsetDateTime createdAt,
     boolean mine) {
 

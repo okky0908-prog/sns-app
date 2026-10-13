@@ -27,6 +27,20 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
 
+  # API 仕様書からフロントの型を作るツール（openapi-typescript）。TypeScript 5 が前提なので、フロント本体とは分けている
+  - package-ecosystem: npm
+    directory: /frontend/tools/openapi-typescript
+    schedule:
+      interval: monthly
+    ignore:
+      # openapi-typescript が TypeScript 6 以降に対応したら、この除外を外す（docs/tech-stack.md）
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    groups:
+      openapi-typescript:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -1,0 +1,12 @@
+{
+  "name": "openapi-typescript-tool",
+  "private": true,
+  "description": "API 仕様書（docs/openapi.yaml）から、フロントの型（src/api/schema.ts）を作る。openapi-typescript は TypeScript 5 が前提でフロントの TypeScript 7 では動かないため、このフォルダーに分けている（docs/api.md「フロントの型の自動生成」）",
+  "scripts": {
+    "generate": "openapi-typescript ../../../docs/openapi.yaml --output ../../src/api/schema.ts --root-types --root-types-no-schema-prefix"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9.3"
+  }
+}

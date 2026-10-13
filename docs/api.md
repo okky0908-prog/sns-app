@@ -23,6 +23,20 @@
   - コントローラーのメソッドの Javadoc は「A-xx 名前。説明」の形で書く。最初の「。」まで（括弧の中の「。」は除く）が Swagger UI の一覧に出る概要になる
   - コントローラーを増やしたら `@Tag(name = "分類名")` を付け、`OpenApiConfig` の `TAG_ORDER` にも分類名を足す
   - `ResponseEntity` でステータスを決める API は、`@ApiResponse(responseCode = "201", ...)` のように仕様書用にステータスを書く（`@ResponseStatus` を使う API は不要）
+  - レスポンスの record で null を返すことがある項目には `@Schema(nullable = true)` を付ける（付けないと、フロントの型が null を許さない）。レスポンスの項目は、`OpenApiConfig` がすべて必須（required）にする
+
+### フロントの型の自動生成
+
+フロントの API の型は手で書かず、openapi.yaml から [openapi-typescript](https://openapi-ts.dev/) で `frontend/src/api/schema.ts` を作る。バックエンドとフロントで項目名や null の扱いがずれていれば、フロントの型チェック（`npm run build`）で気づける。
+
+```
+コントローラー・record ──(OpenApiSpecTest)──▶ docs/openapi.yaml ──(npm run gen:api)──▶ frontend/src/api/schema.ts
+             CI：openapi.yaml に差分がないか          CI：schema.ts に差分がないか
+```
+
+- 画面のコードは `schema.ts` を直接使わず、`src/api/types.ts` の名前（`Post`・`Profile` など）で使う。types.ts は schema.ts の型に名前を付けるだけで、形は書かない
+- API を変えたら、`./gradlew test`（openapi.yaml を作り直す）→ `npm run gen:api`（schema.ts を作り直す）→ `npm run build`（型のずれを確かめる）の順に実行し、openapi.yaml と schema.ts を一緒にコミットする
+- openapi-typescript は TypeScript 5 が前提で、フロントの TypeScript 7 では動かない。そのため、型を作るツールだけ `frontend/tools/openapi-typescript/`（専用の package.json と lockfile）に分けている。初回は `npm ci --prefix tools/openapi-typescript` でインストールする
 
 ## 共通ルール
 
@@ -78,7 +92,7 @@
 | 500 | `IMAGE_UPLOAD_FAILED` | 画像を S3 に保存できなかった（ほかの項目も更新しない） |
 | 503 | `SERVICE_UNAVAILABLE` | DB につながらないなど、一時的に処理できない |
 
-- 種類はバックエンドの `ErrorCode`（列挙型）で一元管理する。増やすときは `ErrorCode`・この表・フロントの `ApiErrorCode` の3か所に同じ名前を追加する。一度使い始めた名前は変えない
+- 種類はバックエンドの `ErrorCode`（列挙型）で一元管理する。増やすときは `ErrorCode` とこの表に同じ名前を追加する。フロントの `ApiErrorCode` は、API 仕様書から自動で作られる（[フロントの型の自動生成](#フロントの型の自動生成)）。一度使い始めた名前は変えない
 - 機能を追加して「〇〇が見つからない」などの種類が増えるときは、`USER_NOT_FOUND` のように個別の `code` を追加する
 - 500・503 のときは、サーバーのログにリクエスト（メソッド・URL）とスタックトレースを出す
 - 画面側では、通信そのものに失敗したときは `NETWORK_ERROR`、API の形式でないエラーが返ったときは `UNKNOWN` として扱う（フロントの `ApiError.code`）
