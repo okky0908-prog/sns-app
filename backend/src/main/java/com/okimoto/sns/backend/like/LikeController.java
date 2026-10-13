@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.like;
 
 import com.okimoto.sns.backend.auth.AuthenticatedUser;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** いいねの API（docs/api.md の A-40・A-41）。ログイン（アクセストークン）が必要。 */
 @RestController
+@Tag(name = "いいね")
 public class LikeController {
 
   private final LikeService likeService;

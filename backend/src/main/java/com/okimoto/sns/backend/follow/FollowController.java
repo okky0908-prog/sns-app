@@ -3,6 +3,7 @@ package com.okimoto.sns.backend.follow;
 import com.okimoto.sns.backend.auth.AuthenticatedUser;
 import com.okimoto.sns.backend.user.UserListItemResponse;
 import com.okimoto.sns.backend.web.CursorPageResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** フォローの API（docs/api.md の A-50〜A-53）。ログイン（アクセストークン）が必要。 */
 @RestController
+@Tag(name = "フォロー")
 public class FollowController {
 
   private final FollowService followService;

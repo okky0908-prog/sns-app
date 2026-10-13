@@ -40,6 +40,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | [非機能要件](docs/non-functional-requirements.md) | 性能・可用性・セキュリティ・保守性・ユーザビリティ・互換性・データ永続性 |
 | [データ構造・ER図](docs/database.md) | ER図・テーブル定義・インデックス・集計 SQL・マイグレーション |
 | [API設計](docs/api.md) | REST API の一覧とリクエスト・レスポンス |
+| [API 仕様書（OpenAPI）](docs/openapi.yaml) | コードから自動で作る API 仕様書。ブラウザでは Swagger UI で見る（[API設計](docs/api.md)） |
 | [技術スタック](docs/tech-stack.md) | 使う技術とバージョン |
 | [インフラ構成](docs/infrastructure.md) | AWS の構成図（暫定案） |
 | [機能定義書](docs/feature-specs/README.md) | 機能分類ごとの処理の流れ・エラー時の動き・受け入れ条件（8本） |
@@ -116,6 +117,8 @@ curl -s -H 'Content-Type: application/json' \
   http://localhost:8080/api/auth/signup
 ```
 
+API 仕様書（Swagger UI）は http://localhost:8080/swagger-ui.html で見られる。右上の「Authorize」に、上の新規登録やログインで返る `accessToken` を入れると、ログインが必要な API もその画面から試せる（[API設計](docs/api.md)「API 仕様書（OpenAPI）」）。
+
 ### 4. フロントエンドを起動する（別のターミナル）
 
 ```bash
@@ -150,7 +153,7 @@ npm run lint    # oxlint
 
 PR と main への push のたびに、[.github/workflows/ci.yml](.github/workflows/ci.yml) で次を自動で実行する。マージは CI が通ってから行う。
 
-- バックエンド：`./gradlew check`（PostgreSQL と LocalStack は `docker-compose.yml` で起動する）
+- バックエンド：`./gradlew check`（PostgreSQL と LocalStack は `docker-compose.yml` で起動する）と、API 仕様書 `docs/openapi.yaml` が最新か（テストで書き出したものとコミットしたものが同じか）の確認
 - フロントエンド：`npm ci`・`npm run lint`・`npm run build`
 
 ### ライブラリの脆弱性・更新（Dependabot）

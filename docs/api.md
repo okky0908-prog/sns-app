@@ -2,6 +2,28 @@
 
 [要件定義書](./requirements.md) の詳細ドキュメント。React（フロントエンド）から Spring Boot（バックエンド）を呼び出す REST API（JSON）をまとめる。
 
+## API 仕様書（OpenAPI）
+
+各 API のリクエスト・レスポンスの項目は、コードから自動で作る API 仕様書（OpenAPI 3.1）にもまとまっている。
+
+| 見たいもの | 場所 |
+|---|---|
+| 仕様書のファイル | [openapi.yaml](./openapi.yaml)（リポジトリで管理。API の変更は PR の差分で読める） |
+| ブラウザで見る・試す | バックエンドを起動して http://localhost:8080/swagger-ui.html （ローカル開発でだけ開く。本番は閉じる） |
+
+- このファイル（api.md）は、共通のルール・エラーの code の使い分け・画面との対応など「考え方」を、openapi.yaml は各 API の「形」を受け持つ
+- 仕様書は springdoc-openapi が、コントローラー・record と、その Javadoc から作る。自動で載らないこのアプリの決まり（JWT 認証・ログインなしで呼べる API・エラー形式・`@TextLength` の文字数など）は `OpenApiConfig` で補っている
+- Swagger UI でログインが必要な API を試すときは、ログイン（A-02）か新規登録（A-01）の `accessToken` を右上の「Authorize」に入れる
+
+### 仕様書の更新と CI
+
+- `./gradlew check`（または `test`）を実行すると、`OpenApiSpecTest` が `docs/openapi.yaml` を書き出す。API を変えたら、テストを実行して openapi.yaml も一緒にコミットする
+- CI は、テストのあとに openapi.yaml に差分が出ないかを確かめる。コミットし忘れると CI が落ちる
+- API を追加・変更するときの決まり
+  - コントローラーのメソッドの Javadoc は「A-xx 名前。説明」の形で書く。最初の「。」まで（括弧の中の「。」は除く）が Swagger UI の一覧に出る概要になる
+  - コントローラーを増やしたら `@Tag(name = "分類名")` を付け、`OpenApiConfig` の `TAG_ORDER` にも分類名を足す
+  - `ResponseEntity` でステータスを決める API は、`@ApiResponse(responseCode = "201", ...)` のように仕様書用にステータスを書く（`@ResponseStatus` を使う API は不要）
+
 ## 共通ルール
 
 | 項目 | 内容 |

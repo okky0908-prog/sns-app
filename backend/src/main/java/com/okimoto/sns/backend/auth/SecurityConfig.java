@@ -29,6 +29,16 @@ import tools.jackson.databind.ObjectMapper;
 @Configuration
 public class SecurityConfig {
 
+  /** ログインなしで呼べる API（すべて POST）。API 仕様書でも、この API だけ認証なしとして載せる（OpenApiConfig） */
+  public static final String[] PUBLIC_POST_PATHS = {
+    "/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"
+  };
+
+  /** API 仕様書と Swagger UI。本番では springdoc の設定（SPRINGDOC_ENABLED=false）で URL ごと無くなり、ここを開けても 404 になる */
+  private static final String[] API_DOCS_PATHS = {
+    "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/**"
+  };
+
   @Bean
   SecurityFilterChain securityFilterChain(
       HttpSecurity http, JwtService jwtService, ObjectMapper objectMapper) throws Exception {
@@ -40,14 +50,11 @@ public class SecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(
-                        HttpMethod.POST,
-                        "/api/auth/signup",
-                        "/api/auth/login",
-                        "/api/auth/refresh",
-                        "/api/auth/logout")
+                auth.requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS)
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/health")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, API_DOCS_PATHS)
                     .permitAll()
                     .requestMatchers("/error")
                     .permitAll()

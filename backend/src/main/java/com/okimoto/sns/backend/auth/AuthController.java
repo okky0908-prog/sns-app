@@ -2,6 +2,8 @@ package com.okimoto.sns.backend.auth;
 
 import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.ErrorCode;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>アクセストークンは JSON で返し、リフレッシュトークンは HttpOnly Cookie で返す。Cookie は /api/auth の下（再発行・ログアウト）にだけ送られる。
  */
 @RestController
+@Tag(name = "認証")
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -37,6 +40,8 @@ public class AuthController {
   }
 
   /** A-01 新規登録。登録後はそのままログイン状態にするため、トークンも返す。 */
+  // ResponseEntity でステータスを決めているので、API 仕様書には 201 を明示する（以下の 204 も同じ）
+  @ApiResponse(responseCode = "201", description = "Created", useReturnTypeSchema = true)
   @PostMapping("/signup")
   public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
     return withRefreshToken(HttpStatus.CREATED, authService.signup(request));
@@ -54,7 +59,11 @@ public class AuthController {
     return authService.me(user.id());
   }
 
-  /** A-04 アクセストークンの再発行。リフレッシュトークンも新しいものに交換する。 */
+  /**
+   * A-04 アクセストークンの再発行。リフレッシュトークンも新しいものに交換する。
+   *
+   * @param refreshToken リフレッシュトークン（HttpOnly Cookie。ログイン・新規登録のときに届き、ブラウザが自動で送る）
+   */
   @PostMapping("/refresh")
   public ResponseEntity<AuthResponse> refresh(
       @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
@@ -64,7 +73,12 @@ public class AuthController {
     return withRefreshToken(HttpStatus.OK, authService.refresh(refreshToken));
   }
 
-  /** A-05 ログアウト。リフレッシュトークンを無効にし、Cookie を消す。 */
+  /**
+   * A-05 ログアウト。リフレッシュトークンを無効にし、Cookie を消す。
+   *
+   * @param refreshToken リフレッシュトークン（HttpOnly Cookie。なくてもエラーにしない）
+   */
+  @ApiResponse(responseCode = "204", description = "No Content")
   @PostMapping("/logout")
   public ResponseEntity<Void> logout(
       @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {

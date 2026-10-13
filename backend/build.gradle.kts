@@ -22,6 +22,8 @@ repositories {
 val mybatisVersion = "4.1.0"
 val jjwtVersion = "0.13.0"
 val awsSdkVersion = "2.55.14"
+val springdocVersion = "3.1.1"
+val therapiVersion = "0.15.0"
 
 // Spring Boot 4.1.1 が使う版には脆弱性があるため、直った版を個別に指定する（Dependabot alerts。Issue #63）。
 // Spring Boot を次に上げるときに、Spring Boot の版がこれ以上になっていれば、この2行は消す（docs/tech-stack.md）
@@ -45,6 +47,11 @@ dependencies {
     implementation("software.amazon.awssdk:s3") {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
+    // API 仕様書（OpenAPI）の自動生成と Swagger UI（docs/api.md「API 仕様書（OpenAPI）」）。Spring Boot 4 には v3 系が対応する
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
+    // コントローラー・record の Javadoc を、仕様書の説明文として使う（コンパイル時に Javadoc を残しておく）
+    implementation("com.github.therapi:therapi-runtime-javadoc:$therapiVersion")
+    annotationProcessor("com.github.therapi:therapi-runtime-javadoc-scribe:$therapiVersion")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
@@ -55,8 +62,15 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Javadoc を残す対象（therapi-runtime-javadoc）。指定しないと @RetainJavadoc を付けたクラスだけになる
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("-Ajavadoc.packages=com.okimoto.sns.backend")
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
+    // OpenApiSpecTest が API 仕様書を書き出す。消したときにもテストをやり直すよう、出力として登録する
+    outputs.file("../docs/openapi.yaml")
 }
 
 spotless {

@@ -40,6 +40,16 @@ jobs:
         working-directory: backend
         run: ./gradlew check
 
+      # テスト（OpenApiSpecTest）が書き出した API 仕様書が、コミットされたものと同じかを確かめる。
+      # 違えば、API を変えたのに docs/openapi.yaml をコミットし忘れている（docs/api.md「API 仕様書（OpenAPI）」）
+      - name: API 仕様書（docs/openapi.yaml）が最新か確認
+        run: |
+          if [ -n "$(git status --porcelain docs/openapi.yaml)" ]; then
+            git diff docs/openapi.yaml
+            echo "::error file=docs/openapi.yaml::API 仕様書が最新ではありません。backend で ./gradlew test を実行し、docs/openapi.yaml をコミットしてください"
+            exit 1
+          fi
+
       - name: テスト結果を保存（失敗したときの確認用）
         if: failure()
         uses: actions/upload-artifact@v7
