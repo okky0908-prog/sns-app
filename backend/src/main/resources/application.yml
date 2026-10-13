@@ -23,6 +23,19 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
+# API 仕様書（OpenAPI）と Swagger UI（docs/api.md「API 仕様書（OpenAPI）」）。
+# ローカル開発でだけ開く。本番では API の一覧を外に見せないよう、環境変数 SPRINGDOC_ENABLED=false で閉じる（docs/infrastructure.md）
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:true}
+  # 仕様書に載せるのはアプリの API だけ（/error などは載せない）
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  # 出力の順番を毎回同じにする（docs/openapi.yaml の差分を CI で確認するため）
+  writer-with-order-by-keys: true
+
 management:
   endpoints:
     web:

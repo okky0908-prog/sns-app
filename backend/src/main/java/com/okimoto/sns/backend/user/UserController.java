@@ -4,7 +4,9 @@ import com.okimoto.sns.backend.auth.AuthenticatedUser;
 import com.okimoto.sns.backend.post.PostResponse;
 import com.okimoto.sns.backend.post.PostService;
 import com.okimoto.sns.backend.web.CursorPageResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /** プロフィール・ユーザー検索の API（docs/api.md の A-60〜A-62・A-70）。ログイン（アクセストークン）が必要。 */
 @RestController
+@Tag(name = "プロフィール・ユーザー検索")
 public class UserController {
 
   private final UserService userService;
@@ -57,7 +60,7 @@ public class UserController {
   @PutMapping(path = "/api/users/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ProfileResponse update(
       @AuthenticationPrincipal AuthenticatedUser user,
-      @Valid @ModelAttribute ProfileUpdateRequest request,
+      @Valid @ParameterObject @ModelAttribute ProfileUpdateRequest request,
       @RequestParam(required = false) MultipartFile icon) {
     return profileEditService.update(user.id(), request, icon);
   }

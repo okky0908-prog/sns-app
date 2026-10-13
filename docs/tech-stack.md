@@ -40,6 +40,8 @@
 | バリデーション | spring-boot-starter-validation | ○ | 文字数・形式のチェック |
 | ヘルスチェック | spring-boot-starter-actuator | ○ | ALB のヘルスチェック用。Actuator の health を `/api/health` で公開する（`management.endpoints.web.base-path` などで設定） |
 | テスト | JUnit 5 + Spring Boot Test（MockMvc） | ○ | |
+| API 仕様書 | springdoc-openapi 3.1.1（`springdoc-openapi-starter-webmvc-ui`。Swagger UI を含む） | 新規 | コントローラーから OpenAPI 3.1 の仕様書を作る。Spring Boot 4 に対応するのは v3 系（Spring Boot 3 は v2 系）。3.1.1 は Spring Boot 4.1.0 を前提に作られている。Spring Boot を上げるときは、springdoc の対応する版も確認する |
+| Javadoc の読み取り | therapi-runtime-javadoc 0.15.0 | 新規 | コンパイル時に Javadoc を残し、springdoc が仕様書の説明文に使う（`@Operation` などの注釈で説明を書き直さなくて済む） |
 | コード整形 | Spotless 8.10.3（Google Java Format） | 更新 | `./gradlew check` で整形崩れを検出 |
 | 認証 | spring-boot-starter-security（Spring Boot 4.1.1 が管理するバージョン） | 新規 | 前回はログイン機能がなかった |
 | JWT | JJWT 0.13.0（`jjwt-api`・`jjwt-impl`・`jjwt-gson`） | 新規 | トークンの発行と検証。JSON の処理には Gson を使う（`jjwt-jackson` は Jackson 2 に依存し、Spring Boot 4 が使う Jackson 3 と混ざるため。Gson のバージョンは Spring Boot が管理） |

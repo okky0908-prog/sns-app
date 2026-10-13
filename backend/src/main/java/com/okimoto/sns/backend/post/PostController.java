@@ -2,6 +2,7 @@ package com.okimoto.sns.backend.post;
 
 import com.okimoto.sns.backend.auth.AuthenticatedUser;
 import com.okimoto.sns.backend.web.CursorPageResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /** 投稿とタイムラインの API（docs/api.md の A-10〜A-17）。すべてログイン（アクセストークン）が必要。 */
 @RestController
+@Tag(name = "投稿・タイムライン")
 public class PostController {
 
   private final PostService postService;

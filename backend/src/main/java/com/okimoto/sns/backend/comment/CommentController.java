@@ -2,6 +2,7 @@ package com.okimoto.sns.backend.comment;
 
 import com.okimoto.sns.backend.auth.AuthenticatedUser;
 import com.okimoto.sns.backend.web.CursorPageResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** コメントの API（docs/api.md の A-30〜A-32）。ログイン（アクセストークン）が必要。 */
 @RestController
+@Tag(name = "コメント")
 public class CommentController {
 
   private final CommentService commentService;

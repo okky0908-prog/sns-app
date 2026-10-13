@@ -1,0 +1,1288 @@
+openapi: 3.1.0
+info:
+  description: |-
+    X風SNSアプリの REST API。共通のルール（日時の形式・ページング・エラーの code の使い分け）と、画面との対応は docs/api.md を参照。
+
+    ログインが必要な API は、右上の「Authorize」にアクセストークン（ログイン・新規登録の accessToken）を入れてから試す。
+  title: SNSアプリ API
+  version: v1
+servers:
+- description: この API を動かしているサーバー
+  url: /
+security:
+- bearerAuth: []
+tags:
+- name: 認証
+- name: 投稿・タイムライン
+- name: コメント
+- name: いいね
+- name: フォロー
+- name: プロフィール・ユーザー検索
+paths:
+  /api/auth/login:
+    post:
+      description: A-02 ログイン。
+      operationId: authLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      security: []
+      summary: A-02 ログイン
+      tags:
+      - 認証
+  /api/auth/logout:
+    post:
+      description: A-05 ログアウト。リフレッシュトークンを無効にし、Cookie を消す。
+      operationId: authLogout
+      parameters:
+      - description: リフレッシュトークン（HttpOnly Cookie。なくてもエラーにしない）
+        in: cookie
+        name: refresh_token
+        required: false
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      security: []
+      summary: A-05 ログアウト
+      tags:
+      - 認証
+  /api/auth/me:
+    get:
+      description: A-03 ログイン中のユーザー情報（アクセストークンが必要）。
+      operationId: authMe
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-03 ログイン中のユーザー情報（アクセストークンが必要）
+      tags:
+      - 認証
+  /api/auth/refresh:
+    post:
+      description: A-04 アクセストークンの再発行。リフレッシュトークンも新しいものに交換する。
+      operationId: authRefresh
+      parameters:
+      - description: リフレッシュトークン（HttpOnly Cookie。ログイン・新規登録のときに届き、ブラウザが自動で送る）
+        in: cookie
+        name: refresh_token
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      security: []
+      summary: A-04 アクセストークンの再発行
+      tags:
+      - 認証
+  /api/auth/signup:
+    post:
+      description: A-01 新規登録。登録後はそのままログイン状態にするため、トークンも返す。
+      operationId: authSignup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          description: Created
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      security: []
+      summary: A-01 新規登録
+      tags:
+      - 認証
+  /api/comments/{commentId}:
+    delete:
+      description: A-32 コメント削除（本人だけ）。削除後のコメント数を返す。
+      operationId: commentDelete
+      parameters:
+      - in: path
+        name: commentId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentCountResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-32 コメント削除（本人だけ）
+      tags:
+      - コメント
+  /api/posts:
+    post:
+      description: |-
+        A-11 投稿作成（multipart/form-data）。本文（content）と画像（images、4枚まで）のどちらか一方は必要。
+
+        入力のチェックは PostService で行う（本文と画像を合わせて判定するため）。
+      operationId: postCreate
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+          description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-11 投稿作成（multipart/form-data）
+      tags:
+      - 投稿・タイムライン
+  /api/posts/{postId}:
+    delete:
+      description: A-14 投稿削除（本人だけ）。
+      operationId: postDelete
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-14 投稿削除（本人だけ）
+      tags:
+      - 投稿・タイムライン
+    get:
+      description: A-12 投稿詳細。
+      operationId: postGet
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-12 投稿詳細
+      tags:
+      - 投稿・タイムライン
+    put:
+      description: A-13 投稿編集（本文のみ。本人だけ）。
+      operationId: postUpdate
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-13 投稿編集（本文のみ。本人だけ）
+      tags:
+      - 投稿・タイムライン
+  /api/posts/{postId}/comments:
+    get:
+      description: A-30 コメント一覧（古い順）。続きは前回の nextCursor を cursor に渡す。
+      operationId: commentList
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponseCommentResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-30 コメント一覧（古い順）
+      tags:
+      - コメント
+    post:
+      description: A-31 コメント投稿。投稿後のコメント数も返す。
+      operationId: commentCreate
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedCommentResponse"
+          description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-31 コメント投稿
+      tags:
+      - コメント
+  /api/posts/{postId}/likes:
+    delete:
+      description: A-41 いいねを取り消す（いいねしていなくてもエラーにしない）。
+      operationId: likeUnlike
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-41 いいねを取り消す（いいねしていなくてもエラーにしない）
+      tags:
+      - いいね
+    post:
+      description: A-40 いいねする（いいね済みでもエラーにしない）。
+      operationId: likeLike
+      parameters:
+      - in: path
+        name: postId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-40 いいねする（いいね済みでもエラーにしない）
+      tags:
+      - いいね
+  /api/timeline:
+    get:
+      description: A-10 フォロー中タイムライン（自分＋フォロー中の人の投稿）。続きは前回の nextCursor を cursor に渡す。
+      operationId: postFollowingTimeline
+      parameters:
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponsePostResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-10 フォロー中タイムライン（自分＋フォロー中の人の投稿）
+      tags:
+      - 投稿・タイムライン
+  /api/timeline/all:
+    get:
+      description: A-15 全体タイムライン（全ユーザーの投稿）。続きは前回の nextCursor を cursor に渡す。
+      operationId: postAllTimeline
+      parameters:
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponsePostResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-15 全体タイムライン（全ユーザーの投稿）
+      tags:
+      - 投稿・タイムライン
+  /api/timeline/all/new-count:
+    get:
+      description: A-17 全体タイムラインの新しい投稿の件数。
+      operationId: postAllNewCount
+      parameters:
+      - in: query
+        name: since
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewPostCountResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-17 全体タイムラインの新しい投稿の件数
+      tags:
+      - 投稿・タイムライン
+  /api/timeline/new-count:
+    get:
+      description: A-16 フォロー中タイムラインの新しい投稿の件数。since は画面が最後に取った一番新しい投稿の ID。
+      operationId: postFollowingNewCount
+      parameters:
+      - in: query
+        name: since
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewPostCountResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-16 フォロー中タイムラインの新しい投稿の件数
+      tags:
+      - 投稿・タイムライン
+  /api/users/me:
+    put:
+      description: |-
+        A-62 自分のプロフィールの編集（multipart/form-data）。表示名・自己紹介と、送ったときだけアイコン画像を差し替える。
+
+        URL にユーザー名を入れず me にしているのは、ログイン中のユーザー以外を更新する方法をなくすため。
+      operationId: userUpdate
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                bio:
+                  type: string
+                  description: 自己紹介（160文字まで。空でもよい）
+                  maxLength: 160
+                displayName:
+                  type: string
+                  description: 表示名（1〜50文字）
+                  maxLength: 50
+                  minLength: 1
+                icon:
+                  type: string
+                  format: binary
+              required:
+              - displayName
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-62 自分のプロフィールの編集（multipart/form-data）
+      tags:
+      - プロフィール・ユーザー検索
+  /api/users/search:
+    get:
+      description: |-
+        A-70 ユーザー検索。q が空なら最近参加したユーザー。続きは前回の nextCursor を cursor に渡す。
+
+        URL の形が A-60（/api/users/{username}）と同じだが、Spring は文字どおりの /search を優先する。 そのため search
+         というユーザー名は新規登録で使えないようにしている（AuthService）。
+      operationId: userSearch
+      parameters:
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponseUserListItemResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-70 ユーザー検索
+      tags:
+      - プロフィール・ユーザー検索
+  /api/users/{username}:
+    get:
+      description: A-60 プロフィール。
+      operationId: userProfile
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-60 プロフィール
+      tags:
+      - プロフィール・ユーザー検索
+  /api/users/{username}/follow:
+    delete:
+      description: A-51 フォローを解除する（フォローしていなくてもエラーにしない）。
+      operationId: followUnfollow
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-51 フォローを解除する（フォローしていなくてもエラーにしない）
+      tags:
+      - フォロー
+    post:
+      description: A-50 フォローする（フォロー済みでもエラーにしない。自分自身は 400）。
+      operationId: followFollow
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-50 フォローする（フォロー済みでもエラーにしない。自分自身は 400）
+      tags:
+      - フォロー
+  /api/users/{username}/followers:
+    get:
+      description: A-53 フォロワー一覧（フォローされた日時の新しい順）。
+      operationId: followFollowers
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponseUserListItemResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-53 フォロワー一覧（フォローされた日時の新しい順）
+      tags:
+      - フォロー
+  /api/users/{username}/following:
+    get:
+      description: A-52 フォロー中一覧（フォローした日時の新しい順）。続きは前回の nextCursor を cursor に渡す。
+      operationId: followFollowing
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponseUserListItemResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-52 フォロー中一覧（フォローした日時の新しい順）
+      tags:
+      - フォロー
+  /api/users/{username}/posts:
+    get:
+      description: A-61 そのユーザーの投稿一覧（新しい順）。続きは前回の nextCursor を cursor に渡す。
+      operationId: userPosts
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageResponsePostResponse"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "アクセストークンがない・無効・期限切れ（code: UNAUTHENTICATED）。A-04 で再発行して1回だけ\
+            やり直す"
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      summary: A-61 そのユーザーの投稿一覧（新しい順）
+      tags:
+      - プロフィール・ユーザー検索
+components:
+  schemas:
+    ApiError:
+      type: object
+      description: |-
+        エラーレスポンスの共通形式（docs/api.md「エラーレスポンス」）。
+
+        ```
+        { "status": 400, "code": "VALIDATION_FAILED", "message": "入力内容に誤りがあります",
+           "errors": [{ "field": "...", "message": "..." }] }
+        ```
+      properties:
+        code:
+          type: string
+          description: |-
+            エラーの種類。画面側はステータスや文言ではなく、これで見分ける
+
+            | code | ステータス | 標準の文言 |
+            |---|---|---|
+            | `VALIDATION_FAILED` | 400 | 入力内容に誤りがあります |
+            | `MALFORMED_REQUEST` | 400 | リクエストの形式が正しくありません |
+            | `CANNOT_FOLLOW_SELF` | 400 | 自分自身はフォローできません |
+            | `UNAUTHENTICATED` | 401 | ログインが必要です |
+            | `INVALID_CREDENTIALS` | 401 | メールアドレスまたはパスワードが正しくありません |
+            | `SESSION_EXPIRED` | 401 | ログインの有効期限が切れました。もう一度ログインしてください |
+            | `FORBIDDEN` | 403 | この操作は実行できません |
+            | `POST_NOT_FOUND` | 404 | この投稿は見つかりません |
+            | `COMMENT_NOT_FOUND` | 404 | このコメントは見つかりません |
+            | `USER_NOT_FOUND` | 404 | このアカウントは存在しません |
+            | `RESOURCE_NOT_FOUND` | 404 | 指定された URL は存在しません |
+            | `METHOD_NOT_ALLOWED` | 405 | この URL では、この操作はできません |
+            | `ALREADY_REGISTERED` | 409 | すでに登録されています |
+            | `PAYLOAD_TOO_LARGE` | 413 | 送信するデータが大きすぎます |
+            | `UNSUPPORTED_MEDIA_TYPE` | 415 | リクエストの形式（Content-Type）に対応していません |
+            | `INTERNAL_ERROR` | 500 | サーバーでエラーが発生しました。時間をおいてもう一度お試しください |
+            | `IMAGE_UPLOAD_FAILED` | 500 | 画像のアップロードに失敗しました。時間をおいてもう一度お試しください |
+            | `SERVICE_UNAVAILABLE` | 503 | ただいまサービスを利用できません。時間をおいてもう一度お試しください |
+          enum:
+          - VALIDATION_FAILED
+          - MALFORMED_REQUEST
+          - CANNOT_FOLLOW_SELF
+          - UNAUTHENTICATED
+          - INVALID_CREDENTIALS
+          - SESSION_EXPIRED
+          - FORBIDDEN
+          - POST_NOT_FOUND
+          - COMMENT_NOT_FOUND
+          - USER_NOT_FOUND
+          - RESOURCE_NOT_FOUND
+          - METHOD_NOT_ALLOWED
+          - ALREADY_REGISTERED
+          - PAYLOAD_TOO_LARGE
+          - UNSUPPORTED_MEDIA_TYPE
+          - INTERNAL_ERROR
+          - IMAGE_UPLOAD_FAILED
+          - SERVICE_UNAVAILABLE
+        errors:
+          type: array
+          description: 項目ごとの入力エラー。なければ空
+          items:
+            $ref: "#/components/schemas/FieldError"
+        message:
+          type: string
+          description: 利用者にそのまま見せてよい文言
+        status:
+          type: integer
+          format: int32
+    AuthResponse:
+      type: object
+      description: |-
+        新規登録・ログイン・再発行のレスポンス（A-01・A-02・A-04）。
+
+        リフレッシュトークンは JavaScript から読めないよう、JSON には入れず HttpOnly Cookie で返す。
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserResponse"
+    CommentCountResponse:
+      type: object
+      description: コメント削除（A-32）のレスポンス。削除後のその投稿のコメント数。
+      properties:
+        commentCount:
+          type: integer
+          format: int64
+    CommentRequest:
+      type: object
+      description: コメント投稿（A-31）のリクエスト。本文は前後の空白・改行を除いて1〜280文字（数え方は投稿と同じ）。
+      properties:
+        content:
+          type: string
+          maxLength: 280
+          minLength: 1
+    CommentResponse:
+      type: object
+      description: コメントのレスポンス（A-30 の items の各要素）。
+      properties:
+        author:
+          $ref: "#/components/schemas/UserResponse"
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        mine:
+          type: boolean
+          description: ログイン中のユーザーのコメントか（画面に「削除」を出すかどうか）
+    CreatedCommentResponse:
+      type: object
+      description: コメント投稿（A-31）のレスポンス。コメントの中身に加えて、画面でコメント数をすぐ更新できるよう投稿後のコメント数も返す。
+      properties:
+        author:
+          $ref: "#/components/schemas/UserResponse"
+        commentCount:
+          type: integer
+          format: int64
+          description: 投稿後のその投稿のコメント数
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        mine:
+          type: boolean
+    CursorPageResponseCommentResponse:
+      type: object
+      description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+      properties:
+        hasNext:
+          type: boolean
+          description: 続きがあるか
+        items:
+          type: array
+          description: 取得した中身（新しい順）
+          items:
+            $ref: "#/components/schemas/CommentResponse"
+        nextCursor:
+          type: string
+          description: 続きを取るときに `?cursor=` に渡す値。続きがなければ null
+    CursorPageResponsePostResponse:
+      type: object
+      description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+      properties:
+        hasNext:
+          type: boolean
+          description: 続きがあるか
+        items:
+          type: array
+          description: 取得した中身（新しい順）
+          items:
+            $ref: "#/components/schemas/PostResponse"
+        nextCursor:
+          type: string
+          description: 続きを取るときに `?cursor=` に渡す値。続きがなければ null
+    CursorPageResponseUserListItemResponse:
+      type: object
+      description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+      properties:
+        hasNext:
+          type: boolean
+          description: 続きがあるか
+        items:
+          type: array
+          description: 取得した中身（新しい順）
+          items:
+            $ref: "#/components/schemas/UserListItemResponse"
+        nextCursor:
+          type: string
+          description: 続きを取るときに `?cursor=` に渡す値。続きがなければ null
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    FollowResponse:
+      type: object
+      description: フォロー・フォロー解除のレスポンス（A-50・A-51）。画面は押した直後に表示を変え、この値で上書きする。
+      properties:
+        followerCount:
+          type: integer
+          format: int64
+          description: 相手のフォロワー数
+        following:
+          type: boolean
+          description: ログイン中のユーザーが相手をフォローしているか
+    LikeResponse:
+      type: object
+      description: いいね・取り消しのレスポンス（A-40・A-41）。画面は押した直後に表示を変え、この値で上書きする（その間のほかの人のいいねも反映するため）。
+      properties:
+        likeCount:
+          type: integer
+          format: int64
+          description: いいね数
+        likedByMe:
+          type: boolean
+          description: ログイン中のユーザーがいいね済みか
+    LoginRequest:
+      type: object
+      description: ログインのリクエスト（A-02）。
+      properties:
+        email:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - password
+    NewPostCountResponse:
+      type: object
+      description: 新しい投稿の件数（A-16・A-17）。PostService.NEW_COUNT_LIMIT 件で打ち切る。
+      properties:
+        count:
+          type: integer
+          format: int32
+    PostImageResponse:
+      type: object
+      properties:
+        sortOrder:
+          type: integer
+          format: int32
+        url:
+          type: string
+    PostRequest:
+      type: object
+      description: |-
+        投稿の編集（A-13）のリクエスト（JSON）。作成（A-11）は画像も送るので multipart で受け取る（PostController）。
+
+        本文は前後の空白・改行を除いて280文字まで（絵文字も1文字と数える）。空にできるのは画像のある投稿だけ（PostService で確かめる）。
+      properties:
+        content:
+          type: string
+          maxLength: 280
+    PostResponse:
+      type: object
+      description: |-
+        投稿のレスポンス（docs/api.md「Post（投稿）」）。
+
+        画像（images）は表示順（sortOrder 1〜4）に並ぶ。画像がなければ空。
+      properties:
+        author:
+          $ref: "#/components/schemas/UserResponse"
+        commentCount:
+          type: integer
+          format: int64
+          description: コメント数
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          description: 本文を編集した日時。null なら未編集（画面に「編集済み」を出すかどうか）
+        id:
+          type: integer
+          format: int64
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostImageResponse"
+        likeCount:
+          type: integer
+          format: int64
+          description: いいね数
+        likedByMe:
+          type: boolean
+          description: ログイン中のユーザーがいいね済みか（ハートの色）
+        mine:
+          type: boolean
+          description: ログイン中のユーザーの投稿か（画面に「…」メニューを出すかどうか）
+    ProfileResponse:
+      type: object
+      description: プロフィールのレスポンス（A-60）。
+      properties:
+        bio:
+          type: string
+        displayName:
+          type: string
+        followedByMe:
+          type: boolean
+          description: ログイン中のユーザーがこのユーザーをフォローしているか
+        followerCount:
+          type: integer
+          format: int64
+        followingCount:
+          type: integer
+          format: int64
+        iconUrl:
+          type: string
+          description: アイコン画像の URL。設定していなければ null（画面は頭文字を表示）
+        id:
+          type: integer
+          format: int64
+        me:
+          type: boolean
+          description: 自分のプロフィールか（「プロフィールを編集」とフォローボタンのどちらを出すか）
+        username:
+          type: string
+    SignupRequest:
+      type: object
+      description: 新規登録のリクエスト（A-01）。チェック内容とメッセージは docs/feature-specs/01_auth.md のとおり。
+      properties:
+        displayName:
+          type: string
+          maxLength: 50
+          minLength: 1
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+        password:
+          type: string
+        username:
+          type: string
+          pattern: "^[A-Za-z0-9_]{4,15}$"
+      required:
+      - email
+      - password
+      - username
+    UserListItemResponse:
+      type: object
+      description: ユーザー一覧の1行（A-52・A-53 フォロー中・フォロワー一覧、A-70 ユーザー検索で共通）。
+      properties:
+        bio:
+          type: string
+        displayName:
+          type: string
+        followedByMe:
+          type: boolean
+          description: ログイン中の自分がこのユーザーをフォローしているか（一覧を見ている相手ではなく、自分から見た状態）
+        iconUrl:
+          type: string
+          description: アイコン画像の URL。設定していなければ null（画面は頭文字を表示）
+        id:
+          type: integer
+          format: int64
+        me:
+          type: boolean
+          description: 自分自身か（フォローボタンを出さない）
+        username:
+          type: string
+    UserResponse:
+      type: object
+      description: ログイン中のユーザーの情報（A-01〜A-03 のレスポンスの user）。
+      properties:
+        displayName:
+          type: string
+        iconUrl:
+          type: string
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      description: アクセストークン（有効期限15分）。期限が切れたら A-04 で再発行する
+      scheme: bearer
+      type: http
