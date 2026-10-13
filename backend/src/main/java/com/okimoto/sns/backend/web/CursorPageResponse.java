@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.web;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.function.Function;
 
@@ -10,7 +11,8 @@ import java.util.function.Function;
  * @param nextCursor 続きを取るときに {@code ?cursor=} に渡す値。続きがなければ null
  * @param hasNext 続きがあるか
  */
-public record CursorPageResponse<T>(List<T> items, String nextCursor, boolean hasNext) {
+public record CursorPageResponse<T>(
+    List<T> items, @Schema(nullable = true) String nextCursor, boolean hasNext) {
 
   /**
    * 1ページの件数より1件多く取った結果（rows）を、1ページ分と「続きがあるか」に分けてレスポンスにする。 余分の1件があれば「続きあり」とする（件数を数える SQL

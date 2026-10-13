@@ -7,7 +7,8 @@ import org.springframework.http.HttpStatusCode;
  * エラーの種類（docs/api.md「エラーレスポンス」）。レスポンスの {@code code} にこの名前がそのまま入る。
  *
  * <p>画面側は文言（message）ではなく code でエラーを見分ける（文言を変えても画面の動きが変わらないように）。 エラーの種類を増やすときは、ここに追加し、docs/api.md
- * とフロントの {@code ApiErrorCode} にも同じ名前を追加する。 一度使い始めた名前は変えない。
+ * の表にも同じ名前を追加する。フロントの {@code ApiErrorCode} は API 仕様書から自動で作られる（docs/api.md「フロントの型の自動生成」）。
+ * 一度使い始めた名前は変えない。
  */
 public enum ErrorCode {
 

@@ -16,10 +16,15 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.OperationCustomizer;
@@ -107,7 +112,17 @@ public class OpenApiConfig {
         Arrays.stream(type.getCtxAnnotations())
             .filter(TextLength.class::isInstance)
             .findFirst()
-            .ifPresent(length -> applyTextLength(property, (TextLength) length));
+            .ifPresent(
+                annotation -> {
+                  TextLength length = (TextLength) annotation;
+                  applyTextLength(property, length);
+                  // 1文字以上なら null も通らないので、必須にする（例：新規登録の displayName）
+                  if (length.min() > 0
+                      && type.getParent() != null
+                      && type.getPropertyName() != null) {
+                    type.getParent().addRequiredItem(type.getPropertyName());
+                  }
+                });
       }
       return property;
     };
@@ -152,6 +167,7 @@ public class OpenApiConfig {
                                 method == PathItem.HttpMethod.POST && publicPaths.contains(path);
                             customizeOperation(operation, isPublic);
                           }));
+      requireResponseProperties(openApi);
       openApi.getComponents().getSchemas().values().forEach(OpenApiConfig::cleanSchema);
       // 一覧がないと Swagger UI は URL の順（/api/comments が先）に並べるので、明示する。
       // コントローラーを増やしたときは TAG_ORDER にも足す（足し忘れても、そのタグは最後に並ぶだけ）
@@ -181,6 +197,40 @@ public class OpenApiConfig {
     operation.setSummary(summaryOf(description));
     if (operation.getTags() != null) {
       operation.setTags(operation.getTags().stream().distinct().toList());
+    }
+  }
+
+  /**
+   * レスポンスに使うスキーマ（入れ子のものと ApiError も含む）は、すべての項目を必須（required）にする。
+   *
+   * <p>レスポンスの JSON には、null の項目も含めて record の項目がすべて入る。必須にしないと、仕様書から作るフロントの型がすべて省略可能（{@code id?:
+   * number}）になる。null になりうる項目は、record で {@code @Schema(nullable = true)}
+   * を付けて示す。リクエストのスキーマは、入力チェックの注釈から springdoc が決めたままにする。
+   */
+  private static void requireResponseProperties(OpenAPI openApi) {
+    Deque<Schema<?>> pending = new ArrayDeque<>();
+    openApi.getPaths().values().stream()
+        .flatMap(item -> item.readOperations().stream())
+        .flatMap(operation -> operation.getResponses().values().stream())
+        .filter(response -> response.getContent() != null)
+        .flatMap(response -> response.getContent().values().stream())
+        .forEach(media -> pending.add(media.getSchema()));
+    Set<String> visited = new HashSet<>();
+    while (!pending.isEmpty()) {
+      Schema<?> schema = pending.pop();
+      if (schema.getItems() != null) {
+        pending.add(schema.getItems());
+      }
+      if (schema.get$ref() == null) {
+        continue;
+      }
+      String name = schema.get$ref().substring(schema.get$ref().lastIndexOf('/') + 1);
+      Schema<?> component = openApi.getComponents().getSchemas().get(name);
+      if (!visited.add(name) || component == null || component.getProperties() == null) {
+        continue;
+      }
+      component.setRequired(new ArrayList<>(new TreeSet<>(component.getProperties().keySet())));
+      component.getProperties().values().forEach(pending::add);
     }
   }
 

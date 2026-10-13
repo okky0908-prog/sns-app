@@ -75,8 +75,23 @@ jobs:
         with:
           node-version-file: frontend/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/tools/openapi-typescript/package-lock.json
 
       - run: npm ci
+
+      # API 仕様書（docs/openapi.yaml）から型（src/api/schema.ts）を作り直し、コミットされたものと同じかを確かめる。
+      # 違えば、仕様書を変えたのに型を作り直し忘れている（docs/api.md「フロントの型の自動生成」）
+      - name: API の型（src/api/schema.ts）が最新か確認
+        run: |
+          npm ci --prefix tools/openapi-typescript
+          npm run gen:api
+          if [ -n "$(git status --porcelain src/api/schema.ts)" ]; then
+            git diff src/api/schema.ts
+            echo "::error file=frontend/src/api/schema.ts::API の型が最新ではありません。frontend で npm run gen:api を実行し、src/api/schema.ts をコミットしてください"
+            exit 1
+          fi
+
       - run: npm run lint
       - run: npm run build

@@ -22,6 +22,7 @@
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
 | Lint | oxlint 1.87.0 | 更新 | 前回は 1.79.0 |
 | 型定義 | `@types/react` 19.3.0、`@types/react-dom` 19.3.0、`@types/node` 24.13.3 | 更新 | `@types/react`・`@types/react-dom` は React 19.3 に合わせて更新。`@types/node` は Node.js 24 系に合わせ、メジャーは上げない（Dependabot で除外） |
+| API の型の自動生成 | openapi-typescript 7.13.0（TypeScript 5.9.3 と一緒に `frontend/tools/openapi-typescript/` に入れる） | 新規 | API 仕様書（`docs/openapi.yaml`）から `src/api/schema.ts` を作る。openapi-typescript は TypeScript 5 の API で型を書き出すため、その API がない TypeScript 7 のフロント本体とはフォルダー（package.json・lockfile）を分けている。**openapi-typescript が TypeScript 7 に対応したら、フロント本体の devDependencies に移す** |
 | 状態管理 | React 標準（useState / useContext 等） | ○ | ログインユーザーの情報は Context で共有する。外部の状態管理ライブラリは使わない |
 | サーバー通信 | 標準の fetch API | ○ | JWT を付ける・401 でログイン画面へ移動する、といった共通処理は自前の小さな関数にまとめる |
 | スタイリング | CSS Modules | ○ | 追加ライブラリに依存しない |

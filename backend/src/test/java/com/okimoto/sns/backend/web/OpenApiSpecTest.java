@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.web;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
@@ -109,7 +110,47 @@ class OpenApiSpecTest {
         .andExpect(
             jsonPath("$.components.schemas.PostRequest.properties.content.maxLength").value(280))
         .andExpect(
-            jsonPath("$.components.schemas.CommentRequest.properties.content.minLength").value(1));
+            jsonPath("$.components.schemas.CommentRequest.properties.content.minLength").value(1))
+        // 1文字以上の TextLength は必須（新規登録の displayName）。上限だけなら必須にしない（投稿編集の content）
+        .andExpect(jsonPath("$.components.schemas.SignupRequest.required", hasItem("displayName")))
+        .andExpect(jsonPath("$.components.schemas.PostRequest", not(hasKey("required"))));
+  }
+
+  /** フロントの型（frontend/src/api/schema.ts）を正しく作れるよう、レスポンスの項目の「必ず入るか」「null になりうるか」を載せる */
+  @Test
+  void レスポンスの項目は必須でnullになりうる項目だけnullを許す() throws Exception {
+    String post = "$.components.schemas.PostResponse";
+    mockMvc
+        .perform(get("/v3/api-docs"))
+        // 入れ子のスキーマ（author）・一覧の中身・エラーも含めて、レスポンスの項目はすべて必須
+        .andExpect(
+            jsonPath(
+                post + ".required",
+                containsInAnyOrder(
+                    "id",
+                    "content",
+                    "images",
+                    "author",
+                    "likeCount",
+                    "likedByMe",
+                    "commentCount",
+                    "editedAt",
+                    "createdAt",
+                    "mine")))
+        .andExpect(jsonPath("$.components.schemas.UserResponse.required", hasItem("iconUrl")))
+        .andExpect(jsonPath("$.components.schemas.UserListItemResponse.required", hasItem("bio")))
+        .andExpect(jsonPath("$.components.schemas.ApiError.required", hasItem("errors")))
+        // null になりうる項目（@Schema(nullable = true)）だけ、型に null が入る
+        .andExpect(jsonPath(post + ".properties.editedAt.type", contains("string", "null")))
+        .andExpect(jsonPath(post + ".properties.createdAt.type").value("string"))
+        .andExpect(
+            jsonPath(
+                "$.components.schemas.CursorPageResponsePostResponse.properties.nextCursor.type",
+                contains("string", "null")))
+        .andExpect(
+            jsonPath(
+                "$.components.schemas.ProfileResponse.properties.bio.type",
+                contains("string", "null")));
   }
 
   @Test
