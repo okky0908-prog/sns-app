@@ -47,6 +47,7 @@
 | 認証 | spring-boot-starter-security（Spring Boot 4.1.1 が管理するバージョン） | 新規 | 前回はログイン機能がなかった |
 | JWT | JJWT 0.13.0（`jjwt-api`・`jjwt-impl`・`jjwt-gson`） | 新規 | トークンの発行と検証。JSON の処理には Gson を使う（`jjwt-jackson` は Jackson 2 に依存し、Spring Boot 4 が使う Jackson 3 と混ざるため。Gson のバージョンは Spring Boot が管理） |
 | JSON | Jackson 3.1.7（Spring Boot が使うもの） | 更新 | Spring Boot 4.1.1 が使う 3.1.5 には脆弱性があるため、`build.gradle.kts` で 3.1.7 を指定している。**Spring Boot を次に上げるとき、その版が 3.1.7 以上ならこの指定を消す** |
+| JSON（Jackson 2） | Jackson 2.21.7（springdoc が使うもの） | 新規 | Spring Boot 本体は Jackson 3 だが、springdoc（API 仕様書の生成。内部の swagger-core）は Jackson 2 を使う。Spring Boot 4.1.1 が決める 2.21.5 には脆弱性があるため、`build.gradle.kts` の `jackson-2-bom.version` で 2.21.7 を指定している（Issue #70）。**Spring Boot を次に上げるとき、その版の Jackson 2 が 2.21.7 以上ならこの指定を消す** |
 | パスワードのハッシュ化 | BCrypt（Spring Security に含まれる `BCryptPasswordEncoder`） | 新規 | 追加のライブラリは不要 |
 | S3 | AWS SDK for Java v2 2.55.14（`software.amazon.awssdk:bom` で S3 モジュールを使う） | 新規 | 画像のアップロード・削除。同期のクライアントだけを使うので、非同期用の Netty は除外する |
 
