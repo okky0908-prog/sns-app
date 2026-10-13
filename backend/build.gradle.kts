@@ -25,10 +25,12 @@ val awsSdkVersion = "2.55.14"
 val springdocVersion = "3.1.1"
 val therapiVersion = "0.15.0"
 
-// Spring Boot 4.1.1 が使う版には脆弱性があるため、直った版を個別に指定する（Dependabot alerts。Issue #63）。
-// Spring Boot を次に上げるときに、Spring Boot の版がこれ以上になっていれば、この2行は消す（docs/tech-stack.md）
+// Spring Boot 4.1.1 が使う版には脆弱性があるため、直った版を個別に指定する（Dependabot alerts。Issue #63・#70）。
+// Spring Boot を次に上げるときに、Spring Boot の版がこれ以上になっていれば、この3行は消す（docs/tech-stack.md）
 extra["tomcat.version"] = "11.0.26"
 extra["jackson-bom.version"] = "3.1.7"
+// Jackson 2 は springdoc（API 仕様書の生成。内部の swagger-core）だけが使う。Spring Boot 本体は Jackson 3
+extra["jackson-2-bom.version"] = "2.21.7"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
