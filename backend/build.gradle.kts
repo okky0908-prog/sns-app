@@ -1,3 +1,16 @@
+// ビルド用プラグイン（Spring Boot の Gradle プラグイン 4.1.1）が中で使う版にも脆弱性があるため、直った版を指定する（Issue #76）。
+// ビルドのときにだけ動き、アプリの jar には入らない。アプリ側の指定（下の extra）と同じ版にそろえる。
+// Spring Boot を次に上げるときに、プラグインの使う版がこれ以上になっていれば、この指定は消す（docs/tech-stack.md）
+buildscript {
+    dependencies {
+        constraints {
+            classpath("tools.jackson.core:jackson-core:3.1.7")
+            classpath("tools.jackson.core:jackson-databind:3.1.7")
+            classpath("org.apache.commons:commons-lang3:3.20.0")
+        }
+    }
+}
+
 plugins {
     java
     id("org.springframework.boot") version "4.1.1"
