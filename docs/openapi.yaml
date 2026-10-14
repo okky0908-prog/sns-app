@@ -1071,7 +1071,7 @@ components:
       - mine
     CursorPageResponseCommentResponse:
       type: object
-      description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+      description: カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。
       properties:
         hasNext:
           type: boolean
@@ -1092,7 +1092,7 @@ components:
       - nextCursor
     CursorPageResponsePostResponse:
       type: object
-      description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+      description: カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。
       properties:
         hasNext:
           type: boolean
@@ -1113,7 +1113,7 @@ components:
       - nextCursor
     CursorPageResponseUserListItemResponse:
       type: object
-      description: カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+      description: カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。
       properties:
         hasNext:
           type: boolean
