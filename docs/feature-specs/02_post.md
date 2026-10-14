@@ -128,7 +128,7 @@ sequenceDiagram
 | A-13 | PUT | `/api/posts/{postId}` | `{ content }`。200 で更新後の Post を返す |
 | A-14 | DELETE | `/api/posts/{postId}` | 204 |
 
-Post の形は [API設計「共通のデータ形式」](../api.md#共通のデータ形式) を参照。
+Post の形は [API 仕様書](../openapi.yaml) の `PostResponse` を参照（[API設計「共通のデータ形式」](../api.md#共通のデータ形式)）。
 
 ## 8. 使うテーブル
 

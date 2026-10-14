@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。
+ * カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。
  *
  * @param items 取得した中身（新しい順）
  * @param nextCursor 続きを取るときに {@code ?cursor=} に渡す値。続きがなければ null

@@ -4,7 +4,7 @@
 
 ## API 仕様書（OpenAPI）
 
-各 API のリクエスト・レスポンスの項目は、コードから自動で作る API 仕様書（OpenAPI 3.1）にもまとまっている。
+各 API のリクエスト・レスポンスの形（項目・型・必須か・null になりうるか・文字数）は、コードから自動で作る API 仕様書（OpenAPI 3.1）にまとまっている。このファイルには形を書かず、形からは分からない決まりと動きだけを書く（同じことを2か所に手で書くと、片方だけ直し忘れてずれるため）。
 
 | 見たいもの | 場所 |
 |---|---|
@@ -147,274 +147,103 @@ DB には S3 のオブジェクトキー（例: `posts/2026/09/3f2a...jpg`）だ
 
 ## 共通のデータ形式
 
-フロントエンドでは、API のレスポンスと同じ形の TypeScript の型を定義して使う。
+レスポンスの形は、API 仕様書の `components.schemas`（Swagger UI の下の「Schemas」）にある。フロントでは、そこから自動で作る `frontend/src/api/schema.ts` の型を、`src/api/types.ts` の名前で使う（[フロントの型の自動生成](#フロントの型の自動生成)）。
 
-```ts
-type UserSummary = {
-  id: number;
-  username: string;      // @の後ろ
-  displayName: string;
-  iconUrl: string | null;
-};
+| 画面のコードでの名前（types.ts） | 仕様書のスキーマ | 使う API |
+|---|---|---|
+| `UserSummary` | `UserResponse` | ログイン中のユーザー（A-01〜A-04）、投稿・コメントの投稿者（`author`） |
+| `Post` | `PostResponse` | A-10〜A-13・A-15・A-61 |
+| `Comment` / `CreatedComment` | `CommentResponse` / `CreatedCommentResponse` | A-30 / A-31 |
+| `Profile` | `ProfileResponse` | A-60・A-62 |
+| `UserListItem` | `UserListItemResponse` | A-52・A-53・A-70 |
+| `CursorPage<T>` | `CursorPageResponse〇〇`（中身の型ごとに別の名前） | 一覧系の API（下の「ページングのレスポンス」） |
 
-type Post = {
-  id: number;
-  content: string;
-  images: { url: string; sortOrder: number }[];
-  author: UserSummary;
-  likeCount: number;
-  commentCount: number;
-  likedByMe: boolean;
-  editedAt: string | null; // null なら未編集
-  createdAt: string;       // ISO 8601
-  mine: boolean;           // 自分の投稿か
-};
-
-type UserListItem = UserSummary & {
-  bio: string | null;
-  followedByMe: boolean;
-  me: boolean;             // 自分自身か
-};
-
-type CursorPage<T> = {
-  items: T[];
-  nextCursor: string | null; // 続きを読むときに ?cursor= に渡す。続きがなければ null
-  hasNext: boolean;
-};
-```
+- `iconUrl` は、アイコンを設定していなければ `null`（画面は表示名の頭文字を出す）。投稿者・コメントした人・一覧・プロフィール・ログイン中のユーザーのどれでも同じ
+- null になりうる項目は、仕様書では型に `null` が入っている（`iconUrl`・`bio`・`editedAt`・`nextCursor`）。それ以外の項目は、レスポンスに必ず入る
 
 ### Post（投稿）
 
-A-10, A-11, A-12, A-13, A-15, A-61 で返す。
-
-
-```json
-{
-  "id": 101,
-  "content": "今日はSpring Bootの勉強をしました。",
-  "images": [
-    { "url": "https://dxxxxxxxx.cloudfront.net/posts/2026/09/3f2a...jpg", "sortOrder": 1 }
-  ],
-  "author": {
-    "id": 1,
-    "username": "yamada",
-    "displayName": "山田太郎",
-    "iconUrl": "https://dxxxxxxxx.cloudfront.net/icons/8c1d...png"
-  },
-  "likeCount": 12,
-  "commentCount": 3,
-  "likedByMe": true,
-  "editedAt": "2026-09-30T10:20:00+09:00",
-  "createdAt": "2026-09-30T10:15:00+09:00",
-  "mine": true
-}
-```
-
-| キー | 説明 |
-|---|---|
-| likeCount | いいね数 |
-| commentCount | コメント数 |
-| likedByMe | ログイン中の自分がいいね済みか。ハートの色に使う |
-| editedAt | 編集した日時。`null` なら未編集。`null` でなければ「編集済み」を表示 |
-| mine | 自分の投稿か。`…` メニュー（編集・削除）を出すかどうかに使う |
-
-インプレッション数やリツイート数のキーは持たない。
+- 画面の表示に使う値（`likedByMe` でハートの色、`editedAt` が null でなければ「編集済み」、`mine` で `…` メニューを出す）もサーバーが返す。画面側で計算しない
+- インプレッション数やリツイート数のキーは持たない（X との差別化。[要件定義書](./requirements.md)）
 
 ### ページングのレスポンス
 
-一覧系の API（A-10, A-15, A-30, A-52, A-53, A-61, A-70）は次の形で返す。
+一覧系の API（A-10, A-15, A-30, A-52, A-53, A-61, A-70）は、`items`（中身の配列）・`nextCursor`・`hasNext` の形で返す。1回20件。
 
-```json
-{
-  "items": [ /* Post などの配列 */ ],
-  "nextCursor": "MTc1OTE5NDkwMDoxMjM0NTY3ODk6MTAx",
-  "hasNext": true
-}
-```
-
-- 続きは `nextCursor` をそのまま `?cursor=` に付けて呼ぶ。中身は画面側で解釈しない（サーバーが「どこまで返したか」を入れた文字列）
+- 続きは `nextCursor` をそのまま `?cursor=` に付けて呼ぶ。中身は画面側で解釈しない（サーバーが「どこまで返したか」を入れた文字列）。続きがなければ `null`
 - ページ番号（OFFSET）方式と違い、読んでいる途中で新しい投稿が増えても、同じものが2回返ったり抜けたりしない
 - `cursor` の形式が違えば 400
 - タイムライン（A-10・A-15）のカーソルには、最後に返した投稿の投稿日時と ID が入っている（「それより古いもの」を次に返す）
 
 ## 各 API の詳細
 
+リクエスト・レスポンスの形とステータスコードは、API 仕様書（Swagger UI では API ごとの欄）を見る。ここには、形からは分からない動き（エラーになる条件・並び順・何回呼んでも同じ結果になること など）を書く。
+
 ### A-01 新規登録
 
-`POST /api/auth/signup`
-
-```json
-// リクエスト
-{
-  "username": "yamada",
-  "displayName": "山田太郎",
-  "email": "yamada@example.com",
-  "password": "password123"
-}
-
-// レスポンス 201 Created
-{
-  "accessToken": "eyJhbGciOi...",
-  "user": { "id": 1, "username": "yamada", "displayName": "山田太郎", "iconUrl": null }
-}
-```
-
-```
-Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; SameSite=Strict（本番は Secure も付ける）
-```
-
-- リフレッシュトークンは JSON には入れず、Cookie でだけ返す
-- ユーザー名・メールアドレスが登録済みなら 409
+- 登録後はそのままログイン状態にするため、アクセストークンも返す
+- リフレッシュトークンは JSON には入れず、Cookie でだけ返す：`Set-Cookie: refresh_token=...; Path=/api/auth; Max-Age=1209600（14日）; HttpOnly; SameSite=Strict`（本番は `Secure` も付ける）
+- ユーザー名・メールアドレスが登録済みなら 409（`ALREADY_REGISTERED`。どの項目かは `errors` に入る）
+- 入力のチェック内容とメッセージは [認証の機能定義書](feature-specs/01_auth.md) を参照
 
 ### A-02 ログイン
 
-`POST /api/auth/login`
-
-```json
-// リクエスト
-{ "email": "yamada@example.com", "password": "password123" }
-
-// レスポンス 200 OK（A-01 と同じ形。リフレッシュトークンの Cookie も返す）
-{ "accessToken": "eyJhbGciOi...", "user": { ... } }
-```
-
-- メールアドレスかパスワードが違えば 401（どちらが違うかは返さない）
+- A-01 と同じく、アクセストークンを JSON で、リフレッシュトークンを Cookie で返す
+- メールアドレスかパスワードが違えば 401（`INVALID_CREDENTIALS`。どちらが違うかは返さない）
 
 ### A-04 アクセストークンの再発行
 
-`POST /api/auth/refresh`（リクエストの本文はなし。リフレッシュトークンの Cookie をブラウザが自動で付ける）
-
-```json
-// レスポンス 200 OK（A-01 と同じ形。新しいリフレッシュトークンの Cookie も返す）
-{ "accessToken": "eyJhbGciOi...", "user": { ... } }
-
-// レスポンス 401（Cookie がない・知らないトークン・期限切れ・使用済みのトークン）
-{ "status": 401, "code": "SESSION_EXPIRED", "message": "ログインの有効期限が切れました。もう一度ログインしてください", "errors": [] }
-```
-
+- リクエストの本文はなし。リフレッシュトークンの Cookie をブラウザが自動で付ける
 - 使ったリフレッシュトークンは無効にし、新しいものを Cookie で返す（ローテーション）
+- Cookie がない・知らないトークン・期限切れ・使用済みのトークンなら 401（`SESSION_EXPIRED`）。画面はログイン画面に戻す
 - 使用済みのリフレッシュトークンがもう一度使われたら、そのユーザーのリフレッシュトークンをすべて無効にして 401 を返す
 - ただし、交換から10秒以内の再利用（2つのタブが同時に再発行した等）は、同時のリクエストとみなして 200 で新しいトークンを返す
 - 画面を開いたときにも呼び、ログイン状態を復元する（レスポンスの `user` を使う）
 
 ### A-05 ログアウト
 
-`POST /api/auth/logout`（リクエストの本文はなし）
-
-- レスポンス 204 No Content。`Set-Cookie: refresh_token=; Max-Age=0` で Cookie を消す
-- リフレッシュトークンを無効にする。Cookie がない（すでにログアウト済み）ときも 204
+- リクエストの本文はなし。リフレッシュトークンを無効にし、`Set-Cookie: refresh_token=; Max-Age=0` で Cookie を消す
+- Cookie がない（すでにログアウト済み）ときもエラーにせず 204
 
 ### A-11 投稿作成
 
-`POST /api/posts`（`multipart/form-data`）
-
-| パート名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| content | テキスト | △ | 本文。280文字まで |
-| images | ファイル（複数可） | △ | 4枚まで。jpg / png / gif、1枚5MBまで |
-
-- content と images のどちらか一方は必須（どちらもなければ 400「本文を入力するか、画像を選択してください」）
+- `multipart/form-data` で、本文（`content`）と画像（`images`）を送る。どちらか一方は必須（どちらもなければ 400「本文を入力するか、画像を選択してください」）
 - 本文は前後の空白・改行を除いて280文字まで。改行はブラウザがフォームで送る `\r\n` を `\n` にそろえる
-- 画像の形式はファイルの中身（先頭のバイト列）で判定する。違反は 400（`field` は `images`）
+- 画像は4枚まで。jpg / png / gif、1枚5MBまで。形式はファイルの中身（先頭のバイト列）で判定する。違反は 400（`field` は `images`）
 - 画像は S3 の `posts/{年}/{月}/{UUID}.{拡張子}`（年月は UTC）に保存してから DB に保存する。DB の保存が失敗したら保存した画像を削除する。S3 に保存できなければ 500（`IMAGE_UPLOAD_FAILED`）で、投稿も作らない
-- レスポンス 201 Created。作成した Post を返す（`images` は選んだ順。`sortOrder` は 1〜4）
+- 作成した Post を返す（`images` は選んだ順。`sortOrder` は 1〜4）
 
 ### A-13 投稿編集
-
-`PUT /api/posts/{postId}`
-
-```json
-// リクエスト
-{ "content": "今日はSpring Bootの勉強をしました。（追記）" }
-```
 
 - 本文だけ変更できる（画像の追加・削除はできない）。`edited_at` に現在日時を入れる
 - 画像のある投稿は本文を空にしてもよい。画像のない投稿を空にすると 400「画像のない投稿は本文を空にできません」
 - 他人の投稿なら 403
-- レスポンス 200 OK。更新後の Post を返す
 
 ### A-14 投稿削除
 
-`DELETE /api/posts/{postId}`
-
 - 他人の投稿なら 403
-- レスポンス 204 No Content
 - 画像ファイルも S3 から削除する（DB のコミット後に行う。詳しくは [データ構造・ER図「参照整合性・カスケード削除について」](database.md#参照整合性カスケード削除について)）
 
 ### A-16 / A-17 新しい投稿の件数
 
-`GET /api/timeline/new-count?since=123`（フォロー中）／`GET /api/timeline/all/new-count?since=123`（全体）
-
-| パラメータ | 必須 | 説明 |
-|---|---|---|
-| since | ○ | 画面が最後に A-10 / A-15 の1ページ目で取った、一番新しい投稿の ID。0件だったときは 0 |
-
-```json
-// レスポンス 200 OK
-{ "count": 3 }
-```
-
+- `since` には、画面が最後に A-10 / A-15 の1ページ目で取った、一番新しい投稿の ID を渡す（0件だったときは 0）。`since` がない・数字でなければ 400
 - `since` より ID が大きい（＝後から投稿された）投稿の件数を返す。投稿 ID は登録順に振られる
 - 自分の投稿は数えない（投稿した時点で画面に出ているため）。フォロー中（A-16）は、フォロー中の人の投稿だけを数える
 - 100件で数えるのをやめる（画面では99件を超えたら「99+」と出すので、全部は数えない）
 - 画面は60秒ごとに呼ぶ。編集・削除は数えない（取り直したときに反映される）
-- `since` がない・数字でなければ 400
 
 ### A-30 コメント一覧
 
-`GET /api/posts/{postId}/comments?cursor=`
-
-```json
-// レスポンス 200 OK（ページングのレスポンス）
-{
-  "items": [
-    {
-      "id": 55,
-      "content": "わかりやすいです！",
-      "author": { "id": 2, "username": "sato", "displayName": "佐藤花子", "iconUrl": null },
-      "createdAt": "2026-09-30T10:30:00+09:00",
-      "mine": false
-    }
-  ],
-  "nextCursor": null,
-  "hasNext": false
-}
-```
-
-- 古い順に20件。続きは `nextCursor` を `?cursor=` に渡す（カーソルには最後に返したコメントの日時と ID が入っていて、それより新しいものを返す）
+- 古い順に20件。続きはカーソル方式（カーソルには最後に返したコメントの日時と ID が入っていて、それより新しいものを返す）
 - `mine` は自分のコメントか（「削除」を出すかどうか）
 - 投稿が存在しなければ 404（`POST_NOT_FOUND`）
 
 ### A-31 コメント投稿
 
-`POST /api/posts/{postId}/comments`
-
-```json
-// リクエスト
-{ "content": "わかりやすいです！" }
-
-// レスポンス 201 Created
-{
-  "id": 55,
-  "content": "わかりやすいです！",
-  "author": { "id": 2, "username": "sato", "displayName": "佐藤花子", "iconUrl": null },
-  "createdAt": "2026-09-30T10:30:00+09:00",
-  "mine": true,
-  "commentCount": 4
-}
-```
-
 - 画面でコメント数をすぐ更新できるように、投稿後のコメント数（`commentCount`）も返す
 - 本文は前後の空白・改行を除いて1〜280文字（数え方は投稿と同じ）。違反は 400（`VALIDATION_FAILED`）。投稿が存在しなければ 404（`POST_NOT_FOUND`）
 
 ### A-32 コメント削除
-
-`DELETE /api/comments/{commentId}`
-
-```json
-// レスポンス 200 OK
-{ "commentCount": 3 }
-```
 
 - 削除できるのはコメントした本人だけ。他人のコメントは 403（`FORBIDDEN`。投稿者でも消せない）
 - コメントがなければ 404（`COMMENT_NOT_FOUND`）
@@ -422,26 +251,13 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 
 ### A-40 / A-41 いいね・いいね取り消し
 
-`POST /api/posts/{postId}/likes` / `DELETE /api/posts/{postId}/likes`
-
-```json
-// レスポンス 200 OK（どちらも同じ形）
-{ "likeCount": 13, "likedByMe": true }
-```
-
 - **何回呼んでも結果が同じ**になるようにする
   - すでにいいね済みで POST しても、エラーにせず今の状態を返す
   - いいねしていない状態で DELETE しても、エラーにせず今の状態を返す
 - ボタンの連打や通信の再送があっても、数がずれたりエラー画面になったりしないようにするため
+- 画面は押した直後に表示を変え、返ってきた値（ほかの人のいいねも反映した数）で上書きする
 
 ### A-50 / A-51 フォロー・フォロー解除
-
-`POST /api/users/{username}/follow` / `DELETE /api/users/{username}/follow`
-
-```json
-// レスポンス 200 OK
-{ "following": true, "followerCount": 9 }
-```
 
 - 自分自身をフォローしようとしたら 400（`CANNOT_FOLLOW_SELF`）。ユーザーがいなければ 404（`USER_NOT_FOUND`）
 - いいねと同じく、何回呼んでも結果が同じになるようにする
@@ -449,54 +265,15 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 
 ### A-60 プロフィール
 
-`GET /api/users/{username}`
-
-```json
-{
-  "id": 1,
-  "username": "yamada",
-  "displayName": "山田太郎",
-  "bio": "Javaを勉強中の受講生です。",
-  "iconUrl": "https://dxxxxxxxx.cloudfront.net/icons/8c1d...png",
-  "followingCount": 12,
-  "followerCount": 8,
-  "followedByMe": false,
-  "me": false
-}
-```
-
-| キー | 説明 |
-|---|---|
-| followedByMe | ログイン中の自分がこのユーザーをフォローしているか |
-| me | 自分のプロフィールか。「プロフィールを編集」と「フォローする」のどちらを出すかに使う |
-
+- `me` は自分のプロフィールか。「プロフィールを編集」と「フォローする」のどちらを出すかに使う
 - ユーザーがいなければ 404（`USER_NOT_FOUND`）
-- `iconUrl` はアイコンを設定していなければ `null`（画面は表示名の頭文字を出す）。他の API の `iconUrl`（投稿者・コメントした人・一覧・ログイン中のユーザー）も同じ
 
 ### A-61 そのユーザーの投稿一覧
-
-`GET /api/users/{username}/posts?cursor=`
 
 - 中身はタイムライン（A-10・A-15）と同じ Post の一覧。新しい順に20件、続きはカーソル方式
 - ユーザーがいなければ 404（`USER_NOT_FOUND`）
 
 ### A-52 / A-53 フォロー中・フォロワー一覧
-
-`GET /api/users/{username}/following?cursor=` / `GET /api/users/{username}/followers?cursor=`
-
-`items` の中身は次の形。
-
-```json
-{
-  "id": 2,
-  "username": "sato",
-  "displayName": "佐藤花子",
-  "bio": "Reactが好きです",
-  "iconUrl": null,
-  "followedByMe": true,
-  "me": false
-}
-```
 
 - フォローした日時（フォロワー一覧ならフォローされた日時）の新しい順に20件。続きはカーソル方式（カーソルにはフォローした日時と follows の ID が入っている）
 - `followedByMe` は、一覧を見ている相手ではなく **ログイン中の自分** がその人をフォローしているか。`me` は自分自身の行か（フォローボタンを出さない）
@@ -504,52 +281,20 @@ Set-Cookie: refresh_token=Xb3k...; Path=/api/auth; Max-Age=1209600; HttpOnly; Sa
 
 ### A-62 プロフィール編集
 
-`PUT /api/users/me`（`multipart/form-data`）
-
-| パート名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| displayName | テキスト | ○ | 1〜50文字 |
-| bio | テキスト | | 160文字まで |
-| icon | ファイル | | 送ったときだけアイコンを差し替える。jpg / png / gif、5MBまで |
-
-- レスポンス 200 OK。A-60 と同じ形で更新後のプロフィールを返す
+- `multipart/form-data` で、表示名（`displayName`、必須、1〜50文字）・自己紹介（`bio`、160文字まで）・アイコン画像（`icon`）を送る。アイコンは送ったときだけ差し替える
+- A-60 と同じ形で更新後のプロフィールを返す
 - 表示名・自己紹介は前後の空白・改行を除いて数える（絵文字も1文字）。改行はブラウザがフォームで送る `\r\n` を `\n` にそろえてから数える。自己紹介を空にすると `null` になる
-- アイコンの形式は、ファイル名や Content-Type ではなく **ファイルの中身（先頭のバイト列）** で判定する。保存先は S3 の `icons/{UUID}.{拡張子}`
+- アイコンは jpg / png / gif、5MBまで。形式は、ファイル名や Content-Type ではなく **ファイルの中身（先頭のバイト列）** で判定する。保存先は S3 の `icons/{UUID}.{拡張子}`
 - 入力エラーは 400（`VALIDATION_FAILED`。`errors` の `field` は `displayName`・`bio`・`icon`）。S3 に保存できなければ 500（`IMAGE_UPLOAD_FAILED`）で、表示名・自己紹介も更新しない
 - アイコンを差し替えたら、DB の更新がコミットされたあとに古いアイコンを S3 から削除する（失敗してもログに残すだけ）。DB の更新が失敗したら、保存したばかりの新しいアイコンを削除する
 - 1回のリクエストの上限は 25MB（`spring.servlet.multipart`）。超えると 413（`PAYLOAD_TOO_LARGE`）
 
 ### A-70 ユーザー検索
 
-`GET /api/users/search?q=yama&cursor=`
-
-| パラメータ | 必須 | 説明 |
-|---|---|---|
-| q | | 検索キーワード。最大50文字。前後の空白と先頭の `@` はサーバー側で取り除く。空または省略なら「最近参加したユーザー」を返す |
-| cursor | | 前回のレスポンスの `nextCursor`。省略すると先頭から |
-
-```json
-// レスポンス 200 OK
-{
-  "items": [
-    {
-      "id": 1,
-      "username": "yamada",
-      "displayName": "山田太郎",
-      "bio": "Javaを勉強中の受講生です。",
-      "iconUrl": "https://dxxxxxxxx.cloudfront.net/icons/8c1d...png",
-      "followedByMe": true,
-      "me": false
-    }
-  ],
-  "nextCursor": null,
-  "hasNext": false
-}
-```
-
+- `q`（検索キーワード）は最大50文字。前後の空白と先頭の `@` はサーバー側で取り除いてから探す（文字数も取り除いてから数える）。51文字以上なら 400（`VALIDATION_FAILED`、`field` は `q`）
+- `q` が空または省略なら、「最近参加したユーザー」を新しい順に返す
 - `items` の形は A-52 / A-53 と同じ（フロントで同じ部品を使える）
 - 並び順: ユーザー名が完全一致 → ユーザー名が前方一致 → それ以外。同じ順位の中ではユーザー名の昇順
-- `q` が51文字以上なら 400（`VALIDATION_FAILED`、`field` は `q`）。文字数は前後の空白・先頭の `@` を取り除いてから数える
 - 0件でもエラーにせず、`items` を空の配列で返す
 - `%` `_` `\` は普通の文字として探す（LIKE のエスケープ）
 - 続きはカーソル方式。キーワードありのカーソルには「一致の度合い・ユーザー名（小文字）」、キーワードなし（最近参加したユーザー）のカーソルには「登録日時・ID」が入っている。形式が違えば 400

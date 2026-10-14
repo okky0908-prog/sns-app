@@ -541,7 +541,7 @@ export interface components {
             id: number;
             mine: boolean;
         };
-        /** @description カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。 */
+        /** @description カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。 */
         CursorPageResponseCommentResponse: {
             /** @description 続きがあるか */
             hasNext: boolean;
@@ -550,7 +550,7 @@ export interface components {
             /** @description 続きを取るときに `?cursor=` に渡す値。続きがなければ null */
             nextCursor: string | null;
         };
-        /** @description カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。 */
+        /** @description カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。 */
         CursorPageResponsePostResponse: {
             /** @description 続きがあるか */
             hasNext: boolean;
@@ -559,7 +559,7 @@ export interface components {
             /** @description 続きを取るときに `?cursor=` に渡す値。続きがなければ null */
             nextCursor: string | null;
         };
-        /** @description カーソル方式の一覧 API のレスポンス（docs/api.md「カーソル方式のページング」）。 */
+        /** @description カーソル方式の一覧 API のレスポンス（docs/api.md「ページングのレスポンス」）。 */
         CursorPageResponseUserListItemResponse: {
             /** @description 続きがあるか */
             hasNext: boolean;
