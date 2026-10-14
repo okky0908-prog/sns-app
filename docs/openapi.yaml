@@ -1323,6 +1323,8 @@ components:
           minLength: 0
         password:
           type: string
+          maxLength: 72
+          minLength: 8
         username:
           type: string
           pattern: "^[A-Za-z0-9_]{4,15}$"

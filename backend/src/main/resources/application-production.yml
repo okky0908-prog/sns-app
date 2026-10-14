@@ -7,3 +7,11 @@ app:
     # CloudFront の URL。指定がなければ空にして、StorageProperties の入力チェックで起動時にエラーにする。
     # （${IMAGE_BASE_URL} のように既定値を書かないと、解決できなかったときに「${IMAGE_BASE_URL}」という文字のまま入り、チェックを通ってしまう）
     image-base-url: ${IMAGE_BASE_URL:}
+
+# API 仕様書と Swagger UI は、本番では既定で閉じる（API の一覧を外に見せない）。
+# application.yml の既定値（開く）のままだと、環境変数を設定し忘れたときに公開されてしまうため、ここで安全側に倒す
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}

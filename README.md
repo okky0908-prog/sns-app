@@ -169,3 +169,4 @@ PR と main への push のたびに、[.github/workflows/ci.yml](.github/workfl
 - 使っているライブラリに脆弱性が見つかると、GitHub の Security タブ（Dependabot alerts）に表示され、直すための PR が自動で作られる
 - 普通の更新は、月1回まとめて PR が作られる（[.github/dependabot.yml](.github/dependabot.yml)）。メジャーバージョンが上がるものは動作確認をしてから取り込む
 - バックエンドは、間接的に使っているライブラリも調べられるよう、main への push のたびに依存関係を GitHub に送る（[.github/workflows/dependency-submission.yml](.github/workflows/dependency-submission.yml)）
+- springdoc（バックエンド）や openapi-typescript（`frontend/tools/openapi-typescript`）を上げる PR では、生成物（`docs/openapi.yaml`・`frontend/src/api/schema.ts`）の出力が変わることがある。Dependabot は生成物を作り直さないので、その場合は CI の「最新か確認」で落ちる。PR のブランチで `./gradlew test`（backend）と `npm run gen:api`（frontend）を実行し、生成物をコミットして push する

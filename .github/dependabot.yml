@@ -33,7 +33,9 @@ updates:
     schedule:
       interval: monthly
     ignore:
-      # openapi-typescript が TypeScript 6 以降に対応したら、この除外を外す（docs/tech-stack.md）
+      # openapi-typescript は TypeScript 5 が前提（peerDependencies が ^5.x）なので、TypeScript のメジャーは上げない。
+      # openapi-typescript が TypeScript 6 以降も受け付けるようになったら、この除外を外す。
+      # TypeScript 7 で動くようになったら、このフォルダーごとフロント本体の devDependencies に移す（docs/tech-stack.md）
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
     groups:

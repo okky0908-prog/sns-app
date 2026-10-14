@@ -23,9 +23,11 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.customizers.ParameterCustomizer;
@@ -155,7 +157,7 @@ public class OpenApiConfig {
   OpenApiCustomizer apiConventionsCustomizer() {
     return openApi -> {
       addErrorSchemas(openApi);
-      Set<String> publicPaths = Set.of(SecurityConfig.PUBLIC_POST_PATHS);
+      Set<String> publicPaths = Set.copyOf(SecurityConfig.PUBLIC_POST_PATHS);
       openApi
           .getPaths()
           .forEach(
@@ -218,8 +220,16 @@ public class OpenApiConfig {
     Set<String> visited = new HashSet<>();
     while (!pending.isEmpty()) {
       Schema<?> schema = pending.pop();
+      // 配列の中身・組み合わせ（null になりうる入れ子の record は oneOf になる）・Map の値の先もたどる
       if (schema.getItems() != null) {
         pending.add(schema.getItems());
+      }
+      Stream.of(schema.getAllOf(), schema.getOneOf(), schema.getAnyOf())
+          .filter(Objects::nonNull)
+          .flatMap(List::stream)
+          .forEach(pending::add);
+      if (schema.getAdditionalProperties() instanceof Schema<?> values) {
+        pending.add(values);
       }
       if (schema.get$ref() == null) {
         continue;
@@ -270,6 +280,9 @@ public class OpenApiConfig {
    * multipart の API で、{@code @RequestParam} のテキストの項目（例：投稿作成の content）を、クエリではなくフォームのパートとして載せる。
    *
    * <p>Spring は multipart のパートも @RequestParam で受け取れるが、springdoc はクエリパラメータとして載せてしまうため。
+   *
+   * <p>multipart の API では、クエリパラメータを使わないことが前提（あれば、それもフォームの項目として載ってしまう）。テキストの項目を {@code @RequestPart}
+   * で受ければこの処理は要らないが、パートに Content-Type がないときの文字コードの扱いが変わり、日本語が化けるおそれがあるので使わない。
    */
   private static void moveQueryParametersIntoForm(Operation operation) {
     if (operation.getRequestBody() == null
@@ -322,12 +335,17 @@ public class OpenApiConfig {
         .strip();
   }
 
-  /** 説明の最初の文（括弧の外の「。」まで）。「A-11 投稿作成（multipart/form-data）。本文と…」なら「A-11 投稿作成（multipart/form-data）」 */
+  /**
+   * 説明の最初の文（括弧の外の「。」まで）。「A-11 投稿作成（multipart/form-data）。本文と…」なら「A-11 投稿作成（multipart/form-data）」。
+   *
+   * <p>Javadoc は長い文を途中で折り返すので、最初の段落の行をつないでから探す。google-java-format
+   * は空白の位置でだけ折り返すので、「改行＋行頭の空白」は空白1つに戻す。
+   */
   static String summaryOf(String description) {
     if (description == null) {
       return null;
     }
-    String firstLine = description.lines().findFirst().orElse("");
+    String firstLine = description.split("\\n\\s*\\n", 2)[0].replaceAll("\\n[ \\t]*", " ").strip();
     // 括弧の中の「。」（例：「A-13 投稿編集（本文のみ。本人だけ）。」）では区切らない
     int depth = 0;
     for (int i = 0; i < firstLine.length(); i++) {

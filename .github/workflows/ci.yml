@@ -46,7 +46,7 @@ jobs:
         run: |
           if [ -n "$(git status --porcelain docs/openapi.yaml)" ]; then
             git diff docs/openapi.yaml
-            echo "::error file=docs/openapi.yaml::API 仕様書が最新ではありません。backend で ./gradlew test を実行し、docs/openapi.yaml をコミットしてください"
+            echo "::error file=docs/openapi.yaml::API 仕様書が最新ではありません。backend で ./gradlew test を実行し、docs/openapi.yaml をコミットしてください（Dependabot の PR で springdoc などを上げたときも、出力が変わるとここで落ちる。PR のブランチで同じ手順を行って push する）"
             exit 1
           fi
 
@@ -89,7 +89,7 @@ jobs:
           npm run gen:api
           if [ -n "$(git status --porcelain src/api/schema.ts)" ]; then
             git diff src/api/schema.ts
-            echo "::error file=frontend/src/api/schema.ts::API の型が最新ではありません。frontend で npm run gen:api を実行し、src/api/schema.ts をコミットしてください"
+            echo "::error file=frontend/src/api/schema.ts::API の型が最新ではありません。frontend で npm run gen:api を実行し、src/api/schema.ts をコミットしてください（Dependabot の PR で openapi-typescript を上げたときも、出力が変わるとここで落ちる。PR のブランチで同じ手順を行って push する）"
             exit 1
           fi
 
