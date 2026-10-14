@@ -37,6 +37,7 @@
 | フレームワーク | Spring Boot 4.1.1（Spring Framework 7.0.9） | 更新 | 前回は 4.1.0。4.1.0 が使う Spring MVC・Tomcat・Jackson などに脆弱性があったため更新 |
 | ビルドツール | Gradle 9.8.1（Kotlin DSL） | 更新 | 前回は 9.5.1 |
 | 依存関係の管理 | `io.spring.dependency-management` 1.1.7 | ○ | |
+| ビルド用プラグインの依存 | Jackson 3.1.7・commons-lang3 3.20.0（Spring Boot の Gradle プラグインが中で使うもの） | 新規 | Spring Boot の Gradle プラグイン 4.1.1 は、jar や Docker イメージを作るときに Jackson 3.1.5・commons-lang3 3.16.0 を使い、どちらも脆弱性がある。アプリの jar には入らないが、Dependabot alerts に残るので、`build.gradle.kts` の `buildscript` で直った版を指定している（Issue #76）。**Spring Boot を次に上げるとき、`./gradlew buildEnvironment` でプラグインの使う版を確かめ、これ以上ならこの指定を消す** |
 | Web / API | spring-boot-starter-webmvc（組み込み Tomcat 11.0.26） | 更新 | Spring Boot 4.1.1 が使う 11.0.24 には脆弱性があるため、`build.gradle.kts` で 11.0.26 を指定している。**Spring Boot を次に上げるとき、その版が 11.0.26 以上ならこの指定を消す** |
 | バリデーション | spring-boot-starter-validation | ○ | 文字数・形式のチェック |
 | ヘルスチェック | spring-boot-starter-actuator | ○ | ALB のヘルスチェック用。Actuator の health を `/api/health` で公開する（`management.endpoints.web.base-path` などで設定） |
