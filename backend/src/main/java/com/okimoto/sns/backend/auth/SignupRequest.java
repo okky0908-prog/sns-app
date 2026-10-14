@@ -1,6 +1,7 @@
 package com.okimoto.sns.backend.auth;
 
 import com.okimoto.sns.backend.web.TextLength;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,9 +18,11 @@ public record SignupRequest(
         @Email(regexp = ".+@.+\\..+", message = EMAIL_MESSAGE)
         @Size(max = 255, message = EMAIL_MESSAGE)
         String email,
+    // 下限と上限で文言を分けるため @Size を2つ重ねている。重ねると springdoc が文字数を読めないので、API 仕様書用に @Schema でも書く
     @NotNull(message = PASSWORD_MIN_MESSAGE)
         @Size(min = 8, message = PASSWORD_MIN_MESSAGE)
         @Size(max = 72, message = "パスワードは72文字以内で入力してください")
+        @Schema(minLength = 8, maxLength = 72)
         String password) {
 
   static final String USERNAME_MESSAGE = "ユーザー名は半角英数字と_で4〜15文字で入力してください";

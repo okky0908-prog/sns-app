@@ -24,7 +24,8 @@ mybatis:
     map-underscore-to-camel-case: true
 
 # API 仕様書（OpenAPI）と Swagger UI（docs/api.md「API 仕様書（OpenAPI）」）。
-# ローカル開発でだけ開く。本番では API の一覧を外に見せないよう、環境変数 SPRINGDOC_ENABLED=false で閉じる（docs/infrastructure.md）
+# ローカル開発でだけ開く。本番では API の一覧を外に見せないよう、application-production.yml で既定を閉じている（docs/infrastructure.md）。
+# 環境変数 SPRINGDOC_ENABLED（true / false）で、どちらの環境でも切り替えられる
 springdoc:
   api-docs:
     enabled: ${SPRINGDOC_ENABLED:true}

@@ -21,8 +21,8 @@
 | ビルド・開発サーバー | Vite 8.3.4（`@vitejs/plugin-react` 6.1.2） | 更新 | 前回は Vite 8.2.1・plugin-react 6.0.5。 開発時は Vite のプロキシで `/api` を Spring Boot に中継する |
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
 | Lint | oxlint 1.87.0 | 更新 | 前回は 1.79.0 |
-| 型定義 | `@types/react` 19.3.0、`@types/react-dom` 19.3.0、`@types/node` 24.13.3 | 更新 | `@types/react`・`@types/react-dom` は React 19.3 に合わせて更新。`@types/node` は Node.js 24 系に合わせ、メジャーは上げない（Dependabot で除外） |
-| API の型の自動生成 | openapi-typescript 7.13.0（TypeScript 5.9.3 と一緒に `frontend/tools/openapi-typescript/` に入れる） | 新規 | API 仕様書（`docs/openapi.yaml`）から `src/api/schema.ts` を作る。openapi-typescript は TypeScript 5 の API で型を書き出すため、その API がない TypeScript 7 のフロント本体とはフォルダー（package.json・lockfile）を分けている。**openapi-typescript が TypeScript 7 に対応したら、フロント本体の devDependencies に移す** |
+| 型定義 | `@types/react` 19.3.0、`@types/react-dom` 19.3.0、`@types/node` 24.19.2 | 更新 | `@types/react`・`@types/react-dom` は React 19.3 に合わせて更新。`@types/node` は Node.js 24 系に合わせ、メジャーは上げない（Dependabot で除外） |
+| API の型の自動生成 | openapi-typescript 7.13.0（TypeScript 5.9.3 と一緒に `frontend/tools/openapi-typescript/` に入れる） | 新規 | API 仕様書（`docs/openapi.yaml`）から `src/api/schema.ts` を作る。openapi-typescript は TypeScript 5 の API で型を書き出すため、その API がない TypeScript 7 のフロント本体とはフォルダー（package.json・lockfile）を分けている。**openapi-typescript が TypeScript 7 で動くようになったら、フロント本体の devDependencies に移す**。それまでは、ツール用の TypeScript のメジャー更新を Dependabot で除外している（openapi-typescript が TypeScript 6 以降も受け付けるようになったら、除外を外す） |
 | 状態管理 | React 標準（useState / useContext 等） | ○ | ログインユーザーの情報は Context で共有する。外部の状態管理ライブラリは使わない |
 | サーバー通信 | 標準の fetch API | ○ | JWT を付ける・401 でログイン画面へ移動する、といった共通処理は自前の小さな関数にまとめる |
 | スタイリング | CSS Modules | ○ | 追加ライブラリに依存しない |
@@ -44,7 +44,7 @@
 | テスト | JUnit 5 + Spring Boot Test（MockMvc） | ○ | |
 | API 仕様書 | springdoc-openapi 3.1.1（`springdoc-openapi-starter-webmvc-ui`。Swagger UI を含む） | 新規 | コントローラーから OpenAPI 3.1 の仕様書を作る。Spring Boot 4 に対応するのは v3 系（Spring Boot 3 は v2 系）。3.1.1 は Spring Boot 4.1.0 を前提に作られている。Spring Boot を上げるときは、springdoc の対応する版も確認する |
 | Javadoc の読み取り | therapi-runtime-javadoc 0.15.0 | 新規 | コンパイル時に Javadoc を残し、springdoc が仕様書の説明文に使う（`@Operation` などの注釈で説明を書き直さなくて済む） |
-| コード整形 | Spotless 8.10.3（Google Java Format） | 更新 | `./gradlew check` で整形崩れを検出 |
+| コード整形 | Spotless 8.10.4（Google Java Format） | 更新 | `./gradlew check` で整形崩れを検出 |
 | 認証 | spring-boot-starter-security（Spring Boot 4.1.1 が管理するバージョン） | 新規 | 前回はログイン機能がなかった |
 | JWT | JJWT 0.13.0（`jjwt-api`・`jjwt-impl`・`jjwt-gson`） | 新規 | トークンの発行と検証。JSON の処理には Gson を使う（`jjwt-jackson` は Jackson 2 に依存し、Spring Boot 4 が使う Jackson 3 と混ざるため。Gson のバージョンは Spring Boot が管理） |
 | JSON | Jackson 3.1.7（Spring Boot が使うもの） | 更新 | Spring Boot 4.1.1 が使う 3.1.5 には脆弱性があるため、`build.gradle.kts` で 3.1.7 を指定している。**Spring Boot を次に上げるとき、その版が 3.1.7 以上ならこの指定を消す** |

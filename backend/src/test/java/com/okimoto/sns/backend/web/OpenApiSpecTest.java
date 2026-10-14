@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -113,7 +114,21 @@ class OpenApiSpecTest {
             jsonPath("$.components.schemas.CommentRequest.properties.content.minLength").value(1))
         // 1文字以上の TextLength は必須（新規登録の displayName）。上限だけなら必須にしない（投稿編集の content）
         .andExpect(jsonPath("$.components.schemas.SignupRequest.required", hasItem("displayName")))
-        .andExpect(jsonPath("$.components.schemas.PostRequest", not(hasKey("required"))));
+        .andExpect(jsonPath("$.components.schemas.PostRequest", not(hasKey("required"))))
+        // @Size を重ねたパスワードの文字数（@Schema で補っている）
+        .andExpect(
+            jsonPath("$.components.schemas.SignupRequest.properties.password.minLength").value(8))
+        .andExpect(
+            jsonPath("$.components.schemas.SignupRequest.properties.password.maxLength").value(72));
+  }
+
+  @Test
+  void 概要はJavadocの1文目が折り返されていても途中で切らない() {
+    // Javadoc の折り返しは「改行＋行頭の空白」で届く
+    assertThat(OpenApiConfig.summaryOf("A-99 とても長い名前の\n API の説明（補足。括弧の中）。続きの文。"))
+        .isEqualTo("A-99 とても長い名前の API の説明（補足。括弧の中）");
+    assertThat(OpenApiConfig.summaryOf("A-98 名前\n 続き。\n\n次の段落。")).isEqualTo("A-98 名前 続き");
+    assertThat(OpenApiConfig.summaryOf("A-97 句点のない説明")).isEqualTo("A-97 句点のない説明");
   }
 
   /** フロントの型（frontend/src/api/schema.ts）を正しく作れるよう、レスポンスの項目の「必ず入るか」「null になりうるか」を載せる */
@@ -172,12 +187,19 @@ class OpenApiSpecTest {
         .andExpect(jsonPath(profileForm + ".required", hasItem("displayName")));
   }
 
-  /** 本番の設定（SPRINGDOC_ENABLED=false）では、仕様書も Swagger UI も開けない */
+  /**
+   * 本番の設定（application-production.yml）では、環境変数 SPRINGDOC_ENABLED を設定しなくても、仕様書も Swagger UI も開けない。
+   *
+   * <p>本番の設定は、画像の配信元（IMAGE_BASE_URL）がないと起動しないので、テスト用の値を渡す。S3 はテストと同じ LocalStack を使う。
+   */
   @Nested
   @SpringBootTest(
-      properties = {"springdoc.api-docs.enabled=false", "springdoc.swagger-ui.enabled=false"})
+      properties = {
+        "app.storage.image-base-url=http://localhost:4566/sns-app-images",
+        "app.storage.endpoint=http://localhost:4566"
+      })
   @AutoConfigureMockMvc
-  @ActiveProfiles("test")
+  @ActiveProfiles({"test", "production"})
   class 本番の設定 {
 
     @Autowired private MockMvc mockMvc;
