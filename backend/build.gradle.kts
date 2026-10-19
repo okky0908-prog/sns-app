@@ -73,6 +73,11 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    // テストは、使い捨ての PostgreSQL と LocalStack のコンテナで動かす（開発用の DB に書き込まない。Issue #89）。
+    // 版は Spring Boot が管理する
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-localstack")
     testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:$mybatisVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

@@ -42,6 +42,7 @@
 | バリデーション | spring-boot-starter-validation | ○ | 文字数・形式のチェック |
 | ヘルスチェック | spring-boot-starter-actuator | ○ | ALB のヘルスチェック用。Actuator の health を `/api/health` で公開する（`management.endpoints.web.base-path` などで設定） |
 | テスト | JUnit 5 + Spring Boot Test（MockMvc） | ○ | |
+| テスト用の DB・S3 | Testcontainers 2.0.5（`testcontainers-postgresql`・`testcontainers-localstack`。Spring Boot 4.1.1 が管理するバージョン） | 新規 | テストのたびに使い捨ての PostgreSQL 17 と LocalStack 4.14.0 のコンテナを立ち上げる（開発用の DB に書き込まない。Issue #89）。H2 は、SQL が PostgreSQL 特有の書き方（`ON CONFLICT`・`ILIKE`・`TIMESTAMPTZ` など）を使っており、本番と同じ動きを確かめられないので使わない |
 | API 仕様書 | springdoc-openapi 3.1.1（`springdoc-openapi-starter-webmvc-ui`。Swagger UI を含む） | 新規 | コントローラーから OpenAPI 3.1 の仕様書を作る。Spring Boot 4 に対応するのは v3 系（Spring Boot 3 は v2 系）。3.1.1 は Spring Boot 4.1.0 を前提に作られている。Spring Boot を上げるときは、springdoc の対応する版も確認する |
 | Javadoc の読み取り | therapi-runtime-javadoc 0.15.0 | 新規 | コンパイル時に Javadoc を残し、springdoc が仕様書の説明文に使う（`@Operation` などの注釈で説明を書き直さなくて済む） |
 | コード整形 | Spotless 8.10.4（Google Java Format） | 更新 | `./gradlew check` で整形崩れを検出 |

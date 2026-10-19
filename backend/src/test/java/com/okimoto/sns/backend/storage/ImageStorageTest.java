@@ -3,6 +3,7 @@ package com.okimoto.sns.backend.storage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -12,19 +13,14 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 
 /**
- * 画像の保存・削除・URL の組み立てのテスト。docker compose の LocalStack（http://localhost:4566、バケット sns-app-images）に
- * 実際に保存して確かめるので、テストの前に {@code docker compose up -d localstack} で起動しておくこと。
+ * 画像の保存・削除・URL の組み立てのテスト。Testcontainers の LocalStack（TestcontainersConfiguration）に実際に保存して確かめる。
  *
  * <p>キーにはテストごとに UUID を付け、最後に削除するので、バケットにファイルは残らない。
  */
 class ImageStorageTest {
 
   private static final StorageProperties LOCALSTACK =
-      new StorageProperties(
-          "sns-app-images",
-          "ap-northeast-1",
-          "http://localhost:4566",
-          "http://localhost:4566/sns-app-images");
+      TestcontainersConfiguration.storageProperties();
 
   private final S3Client s3Client = new S3Config().s3Client(LOCALSTACK);
   private final ImageStorage storage = new ImageStorage(s3Client, LOCALSTACK);
@@ -43,7 +39,7 @@ class ImageStorageTest {
 
     storage.upload(key, bytes, "image/png");
     String url = storage.urlOf(key);
-    assertThat(url).isEqualTo("http://localhost:4566/sns-app-images/" + key);
+    assertThat(url).isEqualTo(LOCALSTACK.imageBaseUrl() + "/" + key);
 
     HttpResponse<byte[]> response = get(url);
     assertThat(response.statusCode()).isEqualTo(200);

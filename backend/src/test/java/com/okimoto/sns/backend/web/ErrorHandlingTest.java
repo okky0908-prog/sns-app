@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.okimoto.sns.backend.auth.JwtService;
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import jakarta.servlet.RequestDispatcher;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
@@ -38,10 +39,10 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>業務上のエラー（投稿が見つからない など）は、それぞれの API のテストで確かめる。
  */
+@Import({TestcontainersConfiguration.class, ErrorHandlingTest.FailingController.class})
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(ErrorHandlingTest.FailingController.class)
 class ErrorHandlingTest {
 
   /** 想定していないエラーを起こすための、テスト用の API */

@@ -23,11 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # テストは実際の PostgreSQL と LocalStack（S3 の代わり）を使うので、ローカルと同じ docker-compose.yml で起動する。
-      # --wait で、ヘルスチェック（LocalStack はバケットを作り終えるまで）が通るのを待つ
-      - name: PostgreSQL と LocalStack を起動
-        run: docker compose up -d --wait postgres localstack
-
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -35,7 +30,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      # JWT の署名鍵などは src/test/resources/application-test.yml にテスト用の値があるので、.env は要らない
+      # テストは、Testcontainers が使い捨ての PostgreSQL と LocalStack のコンテナを立ち上げて使う（docker compose は要らない。Issue #89）。
+      # JWT の署名鍵などは src/test/resources/application-test.yml にテスト用の値があるので、.env も要らない
       - name: ./gradlew check
         working-directory: backend
         run: ./gradlew check
@@ -56,10 +52,6 @@ jobs:
         with:
           name: backend-test-reports
           path: backend/build/reports/tests/
-
-      - name: コンテナのログ（失敗したときの確認用）
-        if: failure()
-        run: docker compose logs
 
   frontend:
     name: フロントエンド（lint・型チェック・ビルド）

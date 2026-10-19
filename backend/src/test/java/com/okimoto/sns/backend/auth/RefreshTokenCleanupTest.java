@@ -2,6 +2,7 @@ package com.okimoto.sns.backend.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
 import java.time.Clock;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.config.CronTask;
 import org.springframework.scheduling.config.ScheduledTask;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>「今」を固定するため、サービスは固定の時計を渡して作る。
  */
+@Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @Transactional
 @ActiveProfiles("test")

@@ -39,6 +39,7 @@ Claude Codeはこのリポジトリで作業する際、以下のワークフロ
 3. **Refactor**：テストが通ったまま、重複・名前・構造を整理する。整理のあとにもテストを実行する
 
 - 不具合の修正は、先にその不具合を再現するテストを書いて失敗させてから直す
+- バックエンドの `@SpringBootTest` のテストには `@Import(TestcontainersConfiguration.class)` を付ける（使い捨ての PostgreSQL・LocalStack のコンテナを使い、開発用の DB に書き込まない。H2 は使わない）
 - テストの結果は、キャッシュではなく実際に実行したもので確かめる（Gradle は `--tests` で対象を絞るか、`--rerun-tasks` を付ける）
 - PR の本文に、Red → Green の記録（最初に失敗したテストと、そのときの失敗の内容）を書く
 
