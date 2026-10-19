@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>springdoc が作る仕様書を docs/openapi.yaml に書き出す。CI はこのあと docs/openapi.yaml に差分がないかを確かめるので、API
  * を変えたのに仕様書をコミットし忘れると CI が落ちる（docs/api.md「API 仕様書（OpenAPI）」）。
  */
+@Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -190,14 +193,11 @@ class OpenApiSpecTest {
   /**
    * 本番の設定（application-production.yml）では、環境変数 SPRINGDOC_ENABLED を設定しなくても、仕様書も Swagger UI も開けない。
    *
-   * <p>本番の設定は、画像の配信元（IMAGE_BASE_URL）がないと起動しないので、テスト用の値を渡す。S3 はテストと同じ LocalStack を使う。
+   * <p>本番の設定は、画像の配信元（IMAGE_BASE_URL）がないと起動しない。DB と画像の保存先は、ほかのテストと同じく TestcontainersConfiguration
+   * のコンテナを使う（外側のクラスの @Import を引き継ぐ）。
    */
   @Nested
-  @SpringBootTest(
-      properties = {
-        "app.storage.image-base-url=http://localhost:4566/sns-app-images",
-        "app.storage.endpoint=http://localhost:4566"
-      })
+  @SpringBootTest
   @AutoConfigureMockMvc
   @ActiveProfiles({"test", "production"})
   class 本番の設定 {

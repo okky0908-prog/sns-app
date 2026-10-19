@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.okimoto.sns.backend.auth.JwtService;
 import com.okimoto.sns.backend.storage.ImageStorage;
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>古いアイコンはコミットされてから消すので、このテストはロールバックせずに実際にコミットする。テストの最後に、作ったユーザー（と残ったアイコン）を削除する。
  */
+@Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

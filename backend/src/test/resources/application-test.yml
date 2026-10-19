@@ -1,5 +1,15 @@
 # テスト用の設定（@ActiveProfiles("test")）。.env がなくてもテストが動くように、テスト専用の署名鍵を置く
+
+# DB と画像の保存先は、Testcontainers の使い捨てのコンテナを使う（support/TestcontainersConfiguration が上書きする）。
+# ここでは、わざと存在しない宛先（.invalid は名前解決されない）にしておく。
+# @Import(TestcontainersConfiguration.class) を付け忘れたテストは、開発用の DB（localhost:5432）に書き込まずに、ここで失敗する
+spring:
+  datasource:
+    url: jdbc:postgresql://testcontainers-not-imported.invalid:5432/sns
 app:
+  storage:
+    endpoint: http://testcontainers-not-imported.invalid:4566
+    image-base-url: http://testcontainers-not-imported.invalid:4566/sns-app-images
   jwt:
     secret: test-secret-key-for-unit-tests-only-0123456789
     expiration: 15m

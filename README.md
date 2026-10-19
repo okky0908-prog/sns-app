@@ -139,7 +139,10 @@ JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradle
 JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew spotlessApply   # 整形を自動で直す
 ```
 
-テストはローカルの PostgreSQL と LocalStack（`docker compose up -d postgres localstack`）を使う。各テストは終了時にロールバックされ、データは残らない。
+テストは、Testcontainers が**使い捨ての PostgreSQL と LocalStack のコンテナ**を立ち上げて使う（Docker が動いていればよく、`docker compose up` は要らない）。開発用の DB や LocalStack のバケットには書き込まない。コンテナはテストの実行全体で1回だけ立ち上げ、終わると自動で消える。
+
+- `@SpringBootTest` のテストには、必ず `@Import(TestcontainersConfiguration.class)` を付ける。付け忘れると、開発用の DB に書き込まずに接続エラーで失敗する（テスト用の設定の接続先を、わざと存在しない宛先にしてある）
+- H2 は使わない。SQL が PostgreSQL 特有の書き方（`ON CONFLICT`・`ILIKE` など）を使っているため、本番と同じ PostgreSQL で確かめる
 
 フロントエンドの型チェック・ビルドと lint：
 
@@ -162,7 +165,7 @@ npm run gen:api                            # docs/openapi.yaml から src/api/sc
 
 PR と main への push のたびに、[.github/workflows/ci.yml](.github/workflows/ci.yml) で次を自動で実行する。マージは CI が通ってから行う。
 
-- バックエンド：`./gradlew check`（PostgreSQL と LocalStack は `docker-compose.yml` で起動する）と、API 仕様書 `docs/openapi.yaml` が最新か（テストで書き出したものとコミットしたものが同じか）の確認
+- バックエンド：`./gradlew check`（PostgreSQL と LocalStack は Testcontainers が立ち上げる）と、API 仕様書 `docs/openapi.yaml` が最新か（テストで書き出したものとコミットしたものが同じか）の確認
 - フロントエンド：`npm ci`・`npm run lint`・`npm test`・`npm run build` と、API の型 `src/api/schema.ts` が最新か（`docs/openapi.yaml` から作り直したものとコミットしたものが同じか）の確認
 
 ### ライブラリの脆弱性・更新（Dependabot）

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.okimoto.sns.backend.auth.JwtService;
 import com.okimoto.sns.backend.support.SqlCounter;
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
 import java.time.OffsetDateTime;
@@ -34,11 +35,11 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>いいね・コメント・画像などを追加して SQL の数そのものが増えるのはよい（件数によって変わらなければよい）。
  */
+@Import({TestcontainersConfiguration.class, SqlCounter.Config.class})
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
-@Import(SqlCounter.Config.class)
 class PostQueryCountTest {
 
   @Autowired private MockMvc mockMvc;

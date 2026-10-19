@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.okimoto.sns.backend.auth.JwtService;
 import com.okimoto.sns.backend.storage.ImageStorage;
+import com.okimoto.sns.backend.storage.StorageProperties;
 import com.okimoto.sns.backend.storage.UploadedImage;
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
 import java.net.URI;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,6 +52,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>テストごとにロールバックするので DB にデータは残らない。保存した画像も、ロールバックのときに PostService が削除する。 コミット後に削除した投稿の画像が消えることは
  * PostImageDeleteTest で確かめる。
  */
+@Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -65,6 +69,7 @@ class PostImageTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private StorageProperties storageProperties;
   @Autowired private UserMapper userMapper;
   @Autowired private JwtService jwtService;
   @Autowired private JdbcTemplate jdbcTemplate;
@@ -127,8 +132,8 @@ class PostImageTest {
     OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
     String folder =
         String.format(
-            "http://localhost:4566/sns-app-images/posts/%04d/%02d/",
-            now.getYear(), now.getMonthValue());
+            "%s/posts/%04d/%02d/",
+            storageProperties.imageBaseUrl(), now.getYear(), now.getMonthValue());
     assertThat(images.get(0).get("url").asString()).startsWith(folder).endsWith(".png");
     assertThat(images.get(0).get("sortOrder").asInt()).isEqualTo(1);
     assertThat(images.get(1).get("url").asString()).endsWith(".gif");
@@ -201,7 +206,7 @@ class PostImageTest {
         .andExpect(jsonPath("$.code").value("IMAGE_UPLOAD_FAILED"));
     assertThat(postRows()).isZero();
     assertThat(uploadedKeys).hasSize(1);
-    assertThat(statusOf("http://localhost:4566/sns-app-images/" + uploadedKeys.getFirst()))
+    assertThat(statusOf(storageProperties.imageBaseUrl() + "/" + uploadedKeys.getFirst()))
         .isEqualTo(404);
   }
 

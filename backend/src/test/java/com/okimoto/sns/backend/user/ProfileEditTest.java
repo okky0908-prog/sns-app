@@ -12,7 +12,9 @@ import com.okimoto.sns.backend.auth.JwtService;
 import com.okimoto.sns.backend.post.Post;
 import com.okimoto.sns.backend.post.PostMapper;
 import com.okimoto.sns.backend.storage.ImageStorage;
+import com.okimoto.sns.backend.storage.StorageProperties;
 import com.okimoto.sns.backend.storage.UploadedImage;
+import com.okimoto.sns.backend.support.TestcontainersConfiguration;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockMultipartFile;
@@ -43,6 +46,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>テストごとにロールバックするので DB にデータは残らない。保存したアイコンも、ロールバックのときに ProfileEditService が削除する。
  * コミット後に古いアイコンが消えることは ProfileIconReplaceTest で確かめる。
  */
+@Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -61,6 +65,7 @@ class ProfileEditTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private StorageProperties storageProperties;
   @Autowired private UserMapper userMapper;
   @Autowired private PostMapper postMapper;
   @Autowired private JwtService jwtService;
@@ -167,7 +172,9 @@ class ProfileEditTest {
             .getResponse()
             .getContentAsString();
     String iconUrl = objectMapper.readTree(json).get("iconUrl").asString();
-    assertThat(iconUrl).matches("http://localhost:4566/sns-app-images/icons/[0-9a-f-]{36}\\.png");
+    assertThat(iconUrl)
+        .startsWith(storageProperties.imageBaseUrl() + "/icons/")
+        .matches(".*/icons/[0-9a-f-]{36}\\.png");
     assertThat(statusOf(iconUrl)).isEqualTo(200);
 
     // ログイン中のユーザー（A-03）・投稿者（A-12）・プロフィール（A-60）にも同じ URL が出る
