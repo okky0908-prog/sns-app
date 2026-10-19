@@ -59,6 +59,8 @@ app:
     cookie-secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
     # 2つのタブが同時に再発行したときなどに、使い回しと誤判定してログアウトさせないための猶予時間
     reuse-grace: 10s
+    # 期限切れの行を削除する定期処理の実行時刻（cron 式。秒 分 時 日 月 曜日。日本時間）。毎日 4:00（RefreshTokenCleanupJob）
+    cleanup-cron: "0 0 4 * * *"
   # 画像の保存先（S3）。既定値はローカル開発の LocalStack（docker-compose）に合わせてある
   storage:
     bucket: ${S3_BUCKET:sns-app-images}

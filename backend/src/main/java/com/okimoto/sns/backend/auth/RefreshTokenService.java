@@ -108,6 +108,22 @@ public class RefreshTokenService {
         .ifPresent(found -> refreshTokenMapper.revoke(found.getId(), OffsetDateTime.now(clock)));
   }
 
+  /**
+   * 期限切れのリフレッシュトークンを削除する（RefreshTokenCleanupJob が毎日呼ぶ）。
+   *
+   * <ul>
+   *   <li>期限ちょうども期限切れとする（{@link #rotate} と同じ基準）
+   *   <li>無効にした行も、期限が切れたら削除する。期限内の無効にした行は、使い回しの検知に使うので残す
+   *   <li>削除したあとで期限切れのトークンが使われても、「知らないトークン」として再発行できないだけ（全トークンの無効化は起きない）。
+   *       期限切れのトークンはどのみち使えず、ブラウザも期限を過ぎた Cookie は送らないので、問題にならない
+   * </ul>
+   *
+   * @return 削除した件数
+   */
+  public int deleteExpired() {
+    return refreshTokenMapper.deleteExpired(OffsetDateTime.now(clock));
+  }
+
   /** トークンの SHA-256 ハッシュ（16進数64文字） */
   static String hash(String token) {
     try {
