@@ -4,9 +4,9 @@
 buildscript {
     dependencies {
         constraints {
-            classpath("tools.jackson.core:jackson-core:3.1.7")
-            classpath("tools.jackson.core:jackson-databind:3.1.7")
-            classpath("org.apache.commons:commons-lang3:3.20.0")
+            classpath("tools.jackson.core:jackson-core:3.2.3")
+            classpath("tools.jackson.core:jackson-databind:3.2.3")
+            classpath("org.apache.commons:commons-lang3:3.21.0")
         }
     }
 }
