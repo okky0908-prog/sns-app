@@ -21,6 +21,7 @@
 | ビルド・開発サーバー | Vite 8.3.4（`@vitejs/plugin-react` 6.1.2） | 更新 | 前回は Vite 8.2.1・plugin-react 6.0.5。 開発時は Vite のプロキシで `/api` を Spring Boot に中継する |
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
 | Lint | oxlint 1.87.0 | 更新 | 前回は 1.79.0 |
+| テスト | Vitest 5.0.3 | 新規 | フロントの自動テスト（`npm test`）。Vite の設定（`vite.config.ts`）をそのまま使える。日付の表示を確かめるため、テストのタイムゾーンは日本時間に固定している。公開から2週間以上たった版のうち最新を選んだ |
 | 型定義 | `@types/react` 19.3.0、`@types/react-dom` 19.3.0、`@types/node` 24.19.2 | 更新 | `@types/react`・`@types/react-dom` は React 19.3 に合わせて更新。`@types/node` は Node.js 24 系に合わせ、メジャーは上げない（Dependabot で除外） |
 | API の型の自動生成 | openapi-typescript 7.13.0（TypeScript 5.9.3 と一緒に `frontend/tools/openapi-typescript/` に入れる） | 新規 | API 仕様書（`docs/openapi.yaml`）から `src/api/schema.ts` を作る。openapi-typescript は TypeScript 5 の API で型を書き出すため、その API がない TypeScript 7 のフロント本体とはフォルダー（package.json・lockfile）を分けている。**openapi-typescript が TypeScript 7 で動くようになったら、フロント本体の devDependencies に移す**。それまでは、ツール用の TypeScript のメジャー更新を Dependabot で除外している（openapi-typescript が TypeScript 6 以降も受け付けるようになったら、除外を外す） |
 | 状態管理 | React 標準（useState / useContext 等） | ○ | ログインユーザーの情報は Context で共有する。外部の状態管理ライブラリは使わない |
