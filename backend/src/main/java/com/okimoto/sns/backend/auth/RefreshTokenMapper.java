@@ -29,4 +29,11 @@ public interface RefreshTokenMapper {
 
   /** ユーザーの有効なリフレッシュトークンをすべて無効にする。 */
   int revokeAllByUserId(@Param("userId") long userId, @Param("now") OffsetDateTime now);
+
+  /**
+   * 期限切れの行を削除する。
+   *
+   * @return 削除した件数
+   */
+  int deleteExpired(@Param("now") OffsetDateTime now);
 }
