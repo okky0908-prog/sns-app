@@ -150,6 +150,7 @@ JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradle
 cd frontend
 npm run build   # TypeScript の型チェック + ビルド
 npm run lint    # oxlint
+npm test        # テスト（Vitest）。テストは対象のファイルの隣に 〇〇.test.ts で置く
 ```
 
 API を変えたときは、API 仕様書からフロントの型（`src/api/schema.ts`）を作り直す（[API設計](docs/api.md)「フロントの型の自動生成」）：
@@ -165,7 +166,7 @@ npm run gen:api                            # docs/openapi.yaml から src/api/sc
 PR と main への push のたびに、[.github/workflows/ci.yml](.github/workflows/ci.yml) で次を自動で実行する。マージは CI が通ってから行う。
 
 - バックエンド：`./gradlew check`（PostgreSQL と LocalStack は Testcontainers が立ち上げる）と、API 仕様書 `docs/openapi.yaml` が最新か（テストで書き出したものとコミットしたものが同じか）の確認
-- フロントエンド：`npm ci`・`npm run lint`・`npm run build` と、API の型 `src/api/schema.ts` が最新か（`docs/openapi.yaml` から作り直したものとコミットしたものが同じか）の確認
+- フロントエンド：`npm ci`・`npm run lint`・`npm test`・`npm run build` と、API の型 `src/api/schema.ts` が最新か（`docs/openapi.yaml` から作り直したものとコミットしたものが同じか）の確認
 
 ### ライブラリの脆弱性・更新（Dependabot）
 

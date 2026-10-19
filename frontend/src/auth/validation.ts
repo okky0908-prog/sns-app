@@ -1,5 +1,6 @@
 // 新規登録の入力チェック（docs/feature-specs/01_auth.md）。
 // サーバー側でも同じチェックをしており、そちらが正。ここでは送信前に早めに知らせるために使う
+import { countChars } from '../lib/format'
 
 export interface SignupForm {
   username: string
@@ -10,9 +11,6 @@ export interface SignupForm {
 }
 
 export type SignupErrors = Partial<Record<keyof SignupForm, string>>
-
-/** 見た目の文字数で数える（絵文字も1文字。サーバーの codePointCount と同じ） */
-const countChars = (text: string) => [...text].length
 
 export function validateSignup(form: SignupForm): SignupErrors {
   const errors: SignupErrors = {}

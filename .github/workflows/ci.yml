@@ -54,7 +54,7 @@ jobs:
           path: backend/build/reports/tests/
 
   frontend:
-    name: フロントエンド（lint・型チェック・ビルド）
+    name: フロントエンド（lint・テスト・型チェック・ビルド）
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -86,4 +86,5 @@ jobs:
           fi
 
       - run: npm run lint
+      - run: npm test
       - run: npm run build
