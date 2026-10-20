@@ -138,6 +138,8 @@ http://localhost:5173 を開くとログイン画面が表示される。「新�
 cd backend
 JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew check   # Spotless の整形チェック + テスト
 JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home ./gradlew spotlessApply   # 整形を自動で直す
+# テストのあとに、カバレッジのレポート（build/reports/jacoco/test/html/index.html）ができる
+# 層ごとの表：（リポジトリ直下で）python3 scripts/coverage-summary.py backend/build/reports/jacoco/test/jacocoTestReport.csv
 ```
 
 テストは、Testcontainers が**使い捨ての PostgreSQL と LocalStack のコンテナ**を立ち上げて使う（Docker が動いていればよく、`docker compose up` は要らない）。開発用の DB や LocalStack のバケットには書き込まない。コンテナはテストの実行全体で1回だけ立ち上げ、終わると自動で消える。
@@ -152,6 +154,7 @@ cd frontend
 npm run build   # TypeScript の型チェック + ビルド
 npm run lint    # oxlint
 npm test        # テスト（Vitest）。テストは対象のファイルの隣に 〇〇.test.ts で置く
+npm run test:coverage   # テストとカバレッジ。frontend/coverage/index.html で、通っていない分岐が分かる
 ```
 
 API を変えたときは、API 仕様書からフロントの型（`src/api/schema.ts`）を作り直す（[API設計](docs/api.md)「フロントの型の自動生成」）：

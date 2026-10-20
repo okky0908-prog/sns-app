@@ -14,6 +14,7 @@ buildscript {
 
 plugins {
     java
+    jacoco
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.10.4"
@@ -92,6 +93,22 @@ tasks.withType<Test> {
     useJUnitPlatform()
     // OpenApiSpecTest が API 仕様書を書き出す。消したときにもテストをやり直すよう、出力として登録する
     outputs.file("../docs/openapi.yaml")
+    // テストのあとに、カバレッジ（どの行・分岐をテストが通ったか）のレポートを作る
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+// テストのカバレッジ（docs/test-plan.md「ホワイトボックステスト」）。Java 25 のクラスを読めるよう、0.8.14 以上を使う
+jacoco {
+    toolVersion = "0.8.15"
+}
+
+// レポートは build/reports/jacoco/test/ に作る（html：ブラウザで見る、xml・csv：CI や集計に使う）
+tasks.jacocoTestReport {
+    reports {
+        html.required = true
+        xml.required = true
+        csv.required = true
+    }
 }
 
 spotless {

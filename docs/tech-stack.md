@@ -22,6 +22,7 @@
 | 実行環境 | Node.js 24系（`.nvmrc` で固定） | ○ | |
 | Lint | oxlint 1.87.0 | 更新 | 前回は 1.79.0 |
 | テスト | Vitest 5.0.3 | 新規 | フロントの自動テスト（`npm test`）。Vite の設定（`vite.config.ts`）をそのまま使える。日付の表示を確かめるため、テストのタイムゾーンは日本時間に固定している。公開から2週間以上たった版のうち最新を選んだ |
+| カバレッジ（フロント） | @vitest/coverage-v8 5.0.3 | 新規 | `npm run test:coverage`。Vitest と同じ版にそろえる必要がある（docs/test-plan.md「ホワイトボックステスト」） |
 | 型定義 | `@types/react` 19.3.0、`@types/react-dom` 19.3.0、`@types/node` 24.19.2 | 更新 | `@types/react`・`@types/react-dom` は React 19.3 に合わせて更新。`@types/node` は Node.js 24 系に合わせ、メジャーは上げない（Dependabot で除外） |
 | API の型の自動生成 | openapi-typescript 7.13.0（TypeScript 5.9.3 と一緒に `frontend/tools/openapi-typescript/` に入れる） | 新規 | API 仕様書（`docs/openapi.yaml`）から `src/api/schema.ts` を作る。openapi-typescript は TypeScript 5 の API で型を書き出すため、その API がない TypeScript 7 のフロント本体とはフォルダー（package.json・lockfile）を分けている。**openapi-typescript が TypeScript 7 で動くようになったら、フロント本体の devDependencies に移す**。それまでは、ツール用の TypeScript のメジャー更新を Dependabot で除外している（openapi-typescript が TypeScript 6 以降も受け付けるようになったら、除外を外す） |
 | 状態管理 | React 標準（useState / useContext 等） | ○ | ログインユーザーの情報は Context で共有する。外部の状態管理ライブラリは使わない |
@@ -44,6 +45,7 @@
 | ヘルスチェック | spring-boot-starter-actuator | ○ | ALB のヘルスチェック用。Actuator の health を `/api/health` で公開する（`management.endpoints.web.base-path` などで設定） |
 | テスト | JUnit 5 + Spring Boot Test（MockMvc） | ○ | |
 | テスト用の DB・S3 | Testcontainers 2.0.5（`testcontainers-postgresql`・`testcontainers-localstack`。Spring Boot 4.1.1 が管理するバージョン） | 新規 | テストのたびに使い捨ての PostgreSQL 17 と LocalStack 4.14.0 のコンテナを立ち上げる（開発用の DB に書き込まない。Issue #89）。H2 は、SQL が PostgreSQL 特有の書き方（`ON CONFLICT`・`ILIKE`・`TIMESTAMPTZ` など）を使っており、本番と同じ動きを確かめられないので使わない |
+| カバレッジ（バックエンド） | JaCoCo 0.8.15（Gradle の `jacoco` プラグイン） | 新規 | `./gradlew test` のあとにレポートを作る。Java 25 のクラスを読むには 0.8.14 以上が必要（docs/test-plan.md「ホワイトボックステスト」） |
 | API 仕様書 | springdoc-openapi 3.1.1（`springdoc-openapi-starter-webmvc-ui`。Swagger UI を含む） | 新規 | コントローラーから OpenAPI 3.1 の仕様書を作る。Spring Boot 4 に対応するのは v3 系（Spring Boot 3 は v2 系）。3.1.1 は Spring Boot 4.1.0 を前提に作られている。Spring Boot を上げるときは、springdoc の対応する版も確認する |
 | Javadoc の読み取り | therapi-runtime-javadoc 0.15.0 | 新規 | コンパイル時に Javadoc を残し、springdoc が仕様書の説明文に使う（`@Operation` などの注釈で説明を書き直さなくて済む） |
 | コード整形 | Spotless 8.10.4（Google Java Format） | 更新 | `./gradlew check` で整形崩れを検出 |
