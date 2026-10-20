@@ -3,10 +3,14 @@ package com.okimoto.sns.backend.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Date;
 import org.junit.jupiter.api.Test;
 
 class JwtServiceTest {
@@ -51,6 +55,50 @@ class JwtServiceTest {
   @Test
   void 署名鍵が未設定または32バイト未満なら起動時にエラー() {
     assertThatThrownBy(() -> serviceAt(NOW, "")).hasMessageContaining("JWT_SECRET");
+    // 設定ファイルに署名鍵の項目そのものがないとき
+    assertThatThrownBy(() -> serviceAt(NOW, null)).hasMessageContaining("JWT_SECRET");
     assertThatThrownBy(() -> serviceAt(NOW, "short-secret")).hasMessageContaining("短すぎます");
+  }
+
+  // ===== 境界値・エラー推測（docs/test-plan.md 5.2） =====
+
+  @Test
+  void 有効期限の1秒前までは有効で_1秒後からは無効() {
+    String token = serviceAt(NOW, SECRET).issue(42);
+    Instant expiresAt = NOW.plus(Duration.ofHours(24));
+
+    assertThat(serviceAt(expiresAt.minusSeconds(1), SECRET).parseUserId(token)).contains(42L);
+    assertThat(serviceAt(expiresAt.plusSeconds(1), SECRET).parseUserId(token)).isEmpty();
+  }
+
+  @Test
+  void 署名鍵はちょうど32バイトなら使え_31バイトならエラー() {
+    assertThat(serviceAt(NOW, "a".repeat(32)).issue(1)).isNotBlank();
+    assertThatThrownBy(() -> serviceAt(NOW, "a".repeat(31))).hasMessageContaining("31バイト");
+    // バイトで数える（日本語は1文字3バイト）。11文字＝33バイトなら使える
+    assertThat(serviceAt(NOW, "あ".repeat(11)).issue(1)).isNotBlank();
+  }
+
+  @Test
+  void 正しい鍵で署名されていても_ユーザーIDが数字でなければ無効() {
+    String token =
+        Jwts.builder()
+            .subject("not-a-number")
+            .expiration(Date.from(NOW.plus(Duration.ofHours(1))))
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .compact();
+
+    assertThat(serviceAt(NOW, SECRET).parseUserId(token)).isEmpty();
+  }
+
+  @Test
+  void ユーザーIDのない署名済みトークンは無効() {
+    String token =
+        Jwts.builder()
+            .expiration(Date.from(NOW.plus(Duration.ofHours(1))))
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .compact();
+
+    assertThat(serviceAt(NOW, SECRET).parseUserId(token)).isEmpty();
   }
 }
