@@ -53,6 +53,23 @@ jobs:
           name: backend-test-reports
           path: backend/build/reports/tests/
 
+      # テストのカバレッジ（JaCoCo）を、テスト計画書の層ごとに集計してジョブの概要に出し、HTML のレポートを保存する。
+      # 基準（docs/test-plan.md「完了の基準」）を下回っても、今は CI を落とさない
+      - name: カバレッジを表示
+        if: success() || failure()
+        run: |
+          if [ -f backend/build/reports/jacoco/test/jacocoTestReport.csv ]; then
+            { echo "## バックエンドのカバレッジ"; python3 scripts/coverage-summary.py backend/build/reports/jacoco/test/jacocoTestReport.csv; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: カバレッジのレポートを保存
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: backend/build/reports/jacoco/test/html/
+          if-no-files-found: ignore
+
   frontend:
     name: フロントエンド（lint・テスト・型チェック・ビルド）
     runs-on: ubuntu-latest
@@ -86,5 +103,24 @@ jobs:
           fi
 
       - run: npm run lint
-      - run: npm test
+
+      # テストと、カバレッジ（Vitest の coverage）の計測。基準を下回っても、今は CI を落とさない
+      - run: npm run test:coverage
+
       - run: npm run build
+
+      - name: カバレッジを表示
+        if: success() || failure()
+        working-directory: .
+        run: |
+          if [ -f frontend/coverage/coverage-summary.json ]; then
+            { echo "## フロントエンドのカバレッジ"; python3 scripts/coverage-summary.py frontend/coverage/coverage-summary.json; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: カバレッジのレポートを保存
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: ignore
