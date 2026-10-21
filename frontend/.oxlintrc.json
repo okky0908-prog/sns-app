@@ -13,5 +13,14 @@
     "react/react-in-jsx-scope": "off",
     // フォームを開いた際に最初の入力欄へ意図的にフォーカスしている
     "jsx-a11y/no-autofocus": "off"
-  }
+  },
+  "overrides": [
+    {
+      // テスト用の共通ファイルは、部品と関数を一緒に書き出してよい（画面の自動更新 Fast Refresh の対象ではないため）
+      "files": ["src/test/**"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
 }
