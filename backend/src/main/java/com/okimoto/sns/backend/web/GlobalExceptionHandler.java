@@ -47,9 +47,11 @@ public class GlobalExceptionHandler {
   /** {@code @Valid} による入力チェックのエラー。項目ごとのメッセージを errors に入れる。 */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException e) {
+    // 1つの項目が複数の決まりに同じ文言で違反したとき（例：空のメールアドレスは「空でない」と「形式」の両方に違反する）、同じエラーを2つ返さない
     List<ApiError.FieldError> errors =
         e.getBindingResult().getFieldErrors().stream()
             .map(error -> new ApiError.FieldError(error.getField(), error.getDefaultMessage()))
+            .distinct()
             .toList();
     return respond(ApiError.of(ErrorCode.VALIDATION_FAILED, errors));
   }
