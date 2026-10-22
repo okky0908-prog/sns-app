@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 import { PublicOnly, RequireAuth } from './auth/RouteGuards'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/LoginPage'
@@ -10,8 +10,9 @@ import { ProfileRoute } from './pages/ProfilePage'
 import { SignupPage } from './pages/SignupPage'
 import { TimelinePage } from './pages/TimelinePage'
 
-// 画面の URL は docs/screens.md の画面一覧に合わせる
-export const router = createBrowserRouter([
+// 画面の URL は docs/screens.md の画面一覧に合わせる。
+// 一覧（routes）とブラウザ用の切り替え（router）を分けているのは、テストで同じ一覧から好きな URL で始められるようにするため（routes.test.tsx）
+export const routes: RouteObject[] = [
   {
     // 未ログインの人だけが開ける画面
     element: <PublicOnly />,
@@ -41,4 +42,6 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
-])
+]
+
+export const router = createBrowserRouter(routes)
