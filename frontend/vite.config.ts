@@ -20,6 +20,8 @@ export default defineConfig({
     env: { TZ: 'Asia/Tokyo' },
     // jest-dom の確認方法と、テストのたびの片付け（src/test/setup.ts）
     setupFiles: ['src/test/setup.ts'],
+    // E2E テスト（e2e/。Playwright で動かす）は含めない
+    include: ['src/**/*.test.{ts,tsx}'],
     // カバレッジ（npm run test:coverage。docs/test-plan.md「ホワイトボックステスト」）。
     // テストのないファイルも 0% として数えるよう、src の下をすべて対象にする
     coverage: {
