@@ -24,3 +24,7 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# E2E テスト（Playwright）の結果
+test-results
+playwright-report

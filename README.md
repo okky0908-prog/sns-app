@@ -157,6 +157,18 @@ npm test        # テスト（Vitest）。テストは対象のファイルの�
 npm run test:coverage   # テストとカバレッジ。frontend/coverage/index.html で、通っていない分岐が分かる
 ```
 
+E2E テスト（Playwright。本物のブラウザで、画面 → API → DB まで通す。[テスト計画](docs/test-plan.md)「9.9」）：
+
+```bash
+cd frontend
+npx playwright install chromium   # 初回だけ。テスト用のブラウザを入れる
+npm run test:e2e   # バックエンド（8080）とフロント（5173）を起動してから流れを確かめ、終わったら止める
+```
+
+- バックエンドは `./gradlew bootTestRun` で、**使い捨てのコンテナ**（PostgreSQL・LocalStack）につないで起動する。開発用の DB には書き込まない（Docker が動いていればよい）
+- 開発用のバックエンドが 8080 番で動いていると、起動できずに失敗する（開発用の DB に書き込まないため）。止めてから実行する
+- 使い捨てのコンテナで、画面を手で触って確かめたいときは、`cd backend && ./gradlew bootTestRun` で起動できる（止めるとデータは消える）
+
 API を変えたときは、API 仕様書からフロントの型（`src/api/schema.ts`）を作り直す（[API設計](docs/api.md)「フロントの型の自動生成」）：
 
 ```bash
