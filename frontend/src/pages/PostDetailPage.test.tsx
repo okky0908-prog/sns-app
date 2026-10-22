@@ -54,7 +54,8 @@ describe('PostDetailPage：読み込み（状態遷移）', () => {
     expect(await screen.findByText('詳細の本文')).toBeInTheDocument()
     expect(fetchPost).toHaveBeenCalledWith(10)
     expect(screen.getByRole('region', { name: 'コメント' })).toBeInTheDocument()
-    expect(fetchComments).toHaveBeenCalledWith(10)
+    // コメント欄の読み込みは、表示したあとに始まる（遅い環境では少し遅れる）ので、始まるまで待つ
+    await vi.waitFor(() => expect(fetchComments).toHaveBeenCalledWith(10))
   })
 
   // 同値分割：正の整数 / 0 / 負の数 / 小数 / 数字でない
