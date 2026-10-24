@@ -3,6 +3,10 @@ package com.okimoto.sns.backend.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.okimoto.sns.backend.logging.AuditLog;
+import com.okimoto.sns.backend.support.LogCapture;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -11,9 +15,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 class JwtServiceTest {
+
+  @RegisterExtension final LogCapture logs = new LogCapture();
 
   private static final String SECRET = "test-secret-key-for-unit-tests-only-0123456789";
   private static final Instant NOW = Instant.parse("2026-10-01T00:00:00Z");
@@ -100,5 +108,78 @@ class JwtServiceTest {
             .compact();
 
     assertThat(serviceAt(NOW, SECRET).parseUserId(token)).isEmpty();
+  }
+
+  // ===== 検証に失敗したときのログ（デシジョンテーブル：トークンの状態 × ログ） =====
+
+  /** 検証の失敗を記録した警告 */
+  private List<ILoggingEvent> invalidTokenLogs() {
+    return logs.from(AuditLog.class).stream()
+        .filter(e -> "invalid_token".equals(LogCapture.keyValues(e).get("event.action")))
+        .toList();
+  }
+
+  private void assertInvalidTokenLogged(String reason, String token) {
+    assertThat(invalidTokenLogs()).hasSize(1);
+    ILoggingEvent log = invalidTokenLogs().getFirst();
+    assertThat(log.getLevel()).isEqualTo(Level.WARN);
+    assertThat(LogCapture.keyValues(log)).containsEntry("reason", reason);
+    // トークンそのものは出さない（ほかの人に使われないように）
+    if (!token.isEmpty()) {
+      assertThat(logs.allText()).doesNotContain(token);
+    }
+  }
+
+  @Test
+  void 正しいトークンは記録しない() {
+    JwtService service = serviceAt(NOW, SECRET);
+
+    service.parseUserId(service.issue(42));
+
+    assertThat(logs.events()).isEmpty();
+  }
+
+  @Test
+  void 期限切れのトークンは記録しない() {
+    // アクセストークンは短い期限で必ず切れ、画面が自動で再発行する。毎日たくさん起きるふつうのことなので、警告にしない
+    String token = serviceAt(NOW, SECRET).issue(42);
+
+    serviceAt(NOW.plus(Duration.ofHours(25)), SECRET).parseUserId(token);
+
+    assertThat(invalidTokenLogs()).isEmpty();
+  }
+
+  @Test
+  void 別の鍵で署名されたトークンは_署名が合わないとして警告で記録する() {
+    String token = serviceAt(NOW, "another-secret-key-for-unit-tests-0123456789").issue(42);
+
+    serviceAt(NOW, SECRET).parseUserId(token);
+
+    assertInvalidTokenLogged("signature_invalid", token);
+  }
+
+  @Test
+  void 改ざんされたトークンは_署名が合わないとして警告で記録する() {
+    JwtService service = serviceAt(NOW, SECRET);
+    String token = service.issue(42);
+    String tampered = token.substring(0, token.length() - 2) + (token.endsWith("AA") ? "BB" : "AA");
+
+    service.parseUserId(tampered);
+
+    assertInvalidTokenLogged("signature_invalid", tampered);
+  }
+
+  @Test
+  void JWTの形でない文字列は_形がおかしいとして警告で記録する() {
+    serviceAt(NOW, SECRET).parseUserId("not-a-jwt");
+
+    assertInvalidTokenLogged("malformed", "not-a-jwt");
+  }
+
+  @Test
+  void 空のトークンは_形がおかしいとして警告で記録する() {
+    serviceAt(NOW, SECRET).parseUserId("");
+
+    assertInvalidTokenLogged("malformed", "");
   }
 }

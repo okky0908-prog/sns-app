@@ -1,9 +1,12 @@
 package com.okimoto.sns.backend.auth;
 
+import com.okimoto.sns.backend.logging.AuditLog;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,12 +47,23 @@ public class JwtService {
         .compact();
   }
 
-  /** 署名と有効期限が正しければユーザーIDを返す。改ざん・期限切れ・形式の誤りは空を返す。 */
+  /**
+   * 署名と有効期限が正しければユーザーIDを返す。改ざん・期限切れ・形式の誤りは空を返す。
+   *
+   * <p>署名が合わない・形がおかしいときは、偽造や攻撃の下調べの疑いがあるので警告を残す（docs/observability.md「7.2」）。
+   * 期限切れは、画面が自動で再発行するふつうのことなので残さない
+   */
   public Optional<Long> parseUserId(String token) {
     try {
       String subject = parser.parseSignedClaims(token).getPayload().getSubject();
       return Optional.of(Long.parseLong(subject));
+    } catch (ExpiredJwtException e) {
+      return Optional.empty();
+    } catch (SignatureException e) {
+      AuditLog.invalidToken("signature_invalid");
+      return Optional.empty();
     } catch (JwtException | IllegalArgumentException e) {
+      AuditLog.invalidToken("malformed");
       return Optional.empty();
     }
   }
