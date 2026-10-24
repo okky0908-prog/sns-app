@@ -113,6 +113,7 @@ Spring Boot の `application-production.yml` で、次の値を環境変数か�
 | S3 | `S3_BUCKET`・`AWS_REGION`・`S3_ENDPOINT`（空にする） | バケット名とリージョン。`S3_ENDPOINT` はローカルの LocalStack 用なので、本番では空にする（空なら AWS の S3 に接続する）。アクセスキーは IAM ロールから自動で取得されるため設定しない |
 | 画像の配信元 | `IMAGE_BASE_URL` | CloudFront の URL（例: `https://dxxxxxxxx.cloudfront.net`）。`application-production.yml` では既定値を置かないので、設定し忘れると起動時にエラーになる |
 | API 仕様書（Swagger UI） | `SPRINGDOC_ENABLED`（設定不要） | 本番では仕様書（`/v3/api-docs`）と Swagger UI（`/swagger-ui.html`）を閉じ、API の一覧を外に見せない（404 になる）。`application-production.yml` で既定を閉じているので、環境変数は設定しなくてよい（設定し忘れても公開されない）。ローカル開発（`application.yml`）の既定は開く |
+| ログのバージョン | `APP_VERSION` | ログに入れるリリースの版（例：git のコミットの短いハッシュ）。デプロイのたびに変える。設定しなければ `unknown`。本番のログは JSON（ECS）で出す（[ログ・監視の運用方針](./observability.md)） |
 | アップロードサイズ | `spring.servlet.multipart.max-file-size`・`max-request-size`（`application.yml` に設定済み。環境変数は不要） | 画像は1枚5MBまで（アプリの入力チェックで項目ごとのエラーにする）。multipart の上限は少し大きめに、1ファイル10MB・1回のリクエスト25MB（4枚＋本文）にしてあり、超えると 413 |
 
 - 環境変数は、バックエンドのサーバーの `/opt/sns-app/backend.env`（権限 600）に置き、systemd のサービスから読み込む（本棚アプリと同じ方式）

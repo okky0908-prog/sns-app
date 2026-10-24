@@ -1,5 +1,7 @@
 package com.okimoto.sns.backend.web;
 
+import com.okimoto.sns.backend.logging.AuditLog;
+import com.okimoto.sns.backend.logging.LogFields;
 import jakarta.servlet.http.HttpServletRequest;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
@@ -176,6 +178,10 @@ public class GlobalExceptionHandler {
   }
 
   private static ResponseEntity<ApiError> respond(ApiError body) {
+    LogFields.errorCode(body.code());
+    if (ErrorCode.FORBIDDEN.name().equals(body.code())) {
+      AuditLog.forbidden();
+    }
     return ResponseEntity.status(body.status()).body(body);
   }
 }

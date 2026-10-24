@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.auth;
 
+import com.okimoto.sns.backend.logging.LogFields;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,11 +38,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       jwtService
           .parseUserId(header.substring(BEARER_PREFIX.length()))
           .ifPresent(
-              userId ->
-                  SecurityContextHolder.getContext()
-                      .setAuthentication(
-                          UsernamePasswordAuthenticationToken.authenticated(
-                              new AuthenticatedUser(userId), null, List.of())));
+              userId -> {
+                SecurityContextHolder.getContext()
+                    .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(
+                            new AuthenticatedUser(userId), null, List.of()));
+                LogFields.userId(userId);
+              });
     }
     filterChain.doFilter(request, response);
   }

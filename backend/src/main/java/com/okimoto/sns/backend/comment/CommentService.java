@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.comment;
 
+import com.okimoto.sns.backend.logging.AuditLog;
 import com.okimoto.sns.backend.post.PostMapper;
 import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.web.ApiException;
@@ -72,6 +73,7 @@ public class CommentService {
       throw new ApiException(ErrorCode.FORBIDDEN);
     }
     commentMapper.delete(commentId);
+    AuditLog.commentDeleted(commentId);
     return new CommentCountResponse(commentMapper.countByPostId(comment.getPostId()));
   }
 

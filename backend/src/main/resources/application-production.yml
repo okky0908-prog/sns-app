@@ -15,3 +15,17 @@ springdoc:
     enabled: ${SPRINGDOC_ENABLED:false}
   swagger-ui:
     enabled: ${SPRINGDOC_ENABLED:false}
+
+# ログは1行1つの JSON（ECS 形式）で出す（docs/observability.md「3.2 形式：構造化ログ（JSON）」）。
+# リクエスト ID・ユーザー ID・エラーコード（MDC）と、アクセスログ・監査ログのキーと値も、そのまま JSON の項目になる。
+# ローカル開発は、読みやすいテキストのまま（application.yml では指定しない）
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: sns-backend
+        environment: production
+        # デプロイのときに環境変数で渡す（例：git のコミットの短いハッシュ）。リリースごとにエラーが増えたかを見分けるため
+        version: ${APP_VERSION:unknown}

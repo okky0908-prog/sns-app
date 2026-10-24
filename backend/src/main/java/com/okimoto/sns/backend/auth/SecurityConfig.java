@@ -1,5 +1,7 @@
 package com.okimoto.sns.backend.auth;
 
+import com.okimoto.sns.backend.logging.AuditLog;
+import com.okimoto.sns.backend.logging.LogFields;
 import com.okimoto.sns.backend.web.ApiError;
 import com.okimoto.sns.backend.web.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
@@ -88,6 +90,10 @@ public class SecurityConfig {
 
   private static void writeError(
       HttpServletResponse response, ObjectMapper objectMapper, ErrorCode code) throws IOException {
+    LogFields.errorCode(code.name());
+    if (code == ErrorCode.FORBIDDEN) {
+      AuditLog.forbidden();
+    }
     response.setStatus(code.status().value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");

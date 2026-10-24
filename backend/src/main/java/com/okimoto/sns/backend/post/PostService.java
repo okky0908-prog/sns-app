@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.post;
 
+import com.okimoto.sns.backend.logging.AuditLog;
 import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.storage.UploadedImage;
 import com.okimoto.sns.backend.web.ApiError;
@@ -134,6 +135,7 @@ public class PostService {
     List<String> keys = imageKeysOf(postId);
     postMapper.delete(postId);
     imageStorage.deleteAfterTransaction(keys, List.of());
+    AuditLog.postDeleted(postId);
   }
 
   private List<String> imageKeysOf(long postId) {
