@@ -154,6 +154,7 @@ Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を�
 | A8 | RDS の空き容量 | CloudWatch | 20% を下回る | P2 | テーブルの大きさ |
 | A9 | EC2 のディスク・メモリ | エージェント | ディスク 80%・メモリ 90% を超える | P2 | ログの量、Java のヒープ |
 | A10 | 監視のデータが届かない | 監視の道具（No Data） | 15分間届かない | P2 | エージェントが動いているか |
+| A11 | 正しくないアクセストークンの急増 | セキュリティのログ（`invalid_token`） | 10分間に20件以上 | P3 | 同じ IP からの集中（偽造・総当たりの疑い）。期限切れは数えない |
 
 - 一瞬の山では鳴らさないよう、「◯分間続いたら」と時間の幅を持たせる
 - **A10 は必須**：エージェントが止まると、障害があっても「静か」に見えるため
@@ -230,7 +231,7 @@ flowchart LR
 |---|---|---|
 | リクエスト ID（`X-Amzn-Trace-Id` を使う・なければ作る、応答の `X-Request-Id`）、アクセスログ | `logging/RequestLoggingFilter` | `RequestLoggingTest` |
 | MDC の項目（`request_id`・`user_id`・`error_code`） | `logging/LogFields`（ユーザー ID は `JwtAuthenticationFilter`、エラーコードはエラーの応答を作る3か所で入れる） | `RequestLoggingTest` |
-| 監査ログ・セキュリティのログ | `logging/AuditLog`（各 Service から呼ぶ） | `AuditLogTest` |
+| 監査ログ・セキュリティのログ | `logging/AuditLog`（各 Service と `JwtService` から呼ぶ） | `AuditLogTest`・`JwtServiceTest` |
 | 本番だけ JSON（ECS）で出す、サービス名・環境・バージョン | `application-production.yml`（バージョンは環境変数 `APP_VERSION`） | `ProductionLoggingConfigTest` |
 
 監査ログ・セキュリティのログの `event.action`：
@@ -246,9 +247,121 @@ flowchart LR
 | `comment_delete` | INFO | コメントを削除した | `user_id`・`comment.id` |
 | `profile_update` | INFO | プロフィールを変更した | `user_id` |
 | `forbidden` | WARN | 権限のない操作（403） | `user_id` |
+| `invalid_token` | WARN | アクセストークンの署名が合わない（`reason`=`signature_invalid`）・形がおかしい（`malformed`）。**期限切れは出さない**（画面が自動で再発行するふつうのことなので）。トークンそのものは出さない | `reason` |
 
 - テストは、出力の文字列ではなくログの中身（レベル・MDC・キーと値）を受け取って確かめる（`support/LogCapture`）。出力の形式（テキスト・JSON）に左右されない
 - 登録からログアウトまでの間に、パスワード・トークン・メールアドレス・投稿の本文・検索のキーワードがどのログにも出ないことを確かめている
+
+### 7.3 Datadog の導入手順
+
+段階 3 に進むと決めたときの手順。EC2（[インフラ構成](./infrastructure.md)）に入れる前提。API キーなどの秘密情報はリポジトリに入れない。
+
+**1. アカウントとキー**
+
+- Datadog のアカウントを作り、サイトを選ぶ（日本なら AP1：`ap1.datadoghq.com`）。以降の `DD_SITE` はこの値
+- API キー（Agent がデータを送るためのキー）を作る。サーバーには `/etc/datadog-agent/datadog.yaml`（Agent が作る。権限は Agent だけが読める）にだけ置く
+
+**2. AWS 連携（ALB・RDS・S3・CloudFront のメトリクス）**
+
+- Datadog の画面の Integrations → Amazon Web Services から、案内される CloudFormation で、Datadog が CloudWatch を読むための IAM ロールを作る
+- 取り込むサービスを ALB・RDS・S3・CloudFront・EC2 に絞る（取り込む量で費用が変わるため）
+
+**3. Agent を EC2 に入れる（フロント・バックエンドの両方）**
+
+```bash
+DD_API_KEY=<API キー> DD_SITE="ap1.datadoghq.com" \
+  bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"
+```
+
+`/etc/datadog-agent/datadog.yaml` で、タグとログの収集を有効にする。
+
+```yaml
+env: production
+tags:
+  - team:sns-app
+logs_enabled: true
+```
+
+**4. バックエンドのログを集める（journald から）**
+
+バックエンドは systemd で動かしているので、ログは journald に入る（「4.1 集め方」）。Agent が journald を読めるようにする。
+
+```bash
+sudo usermod -a -G systemd-journal dd-agent
+```
+
+`/etc/datadog-agent/conf.d/sns-backend.d/conf.yaml`：
+
+```yaml
+logs:
+  - type: journald
+    include_units:
+      - sns-backend.service
+    service: sns-backend
+    source: java
+```
+
+- ログは JSON（ECS）なので、Datadog が項目ごとに読み取る（`@http.status`・`@error_code`・`@event.action` などで検索できる）
+- Logs → Pipelines で、レベル（`log.level`）と時刻（`@timestamp`）が Datadog のステータス・日時として読まれているかを確かめ、読まれていなければ Status Remapper・Date Remapper に指定する
+- フロントエンドの nginx のアクセスログも、同じように `/var/log/nginx/access.log` を `type: file` で集められる（必要になったら）
+
+**5. APM（トレース）を付ける**
+
+```bash
+sudo mkdir -p /opt/datadog && sudo wget -O /opt/datadog/dd-java-agent.jar 'https://dtdg.co/latest-java-tracer'
+```
+
+systemd のサービス（`sns-backend.service`）の起動コマンドに Java エージェントを付け、タグ（Unified Service Tagging）を環境変数で渡す。
+
+```ini
+[Service]
+Environment=DD_SERVICE=sns-backend
+Environment=DD_ENV=production
+# APP_VERSION と DD_VERSION は、デプロイのたびに同じ値を backend.env に書く
+EnvironmentFile=/opt/sns-app/backend.env
+Environment=DD_LOGS_INJECTION=true
+ExecStart=/usr/bin/java -javaagent:/opt/datadog/dd-java-agent.jar -jar /opt/sns-app/backend.jar --spring.profiles.active=production
+```
+
+- `DD_LOGS_INJECTION=true` で、ログの MDC にトレース ID（`dd.trace_id`）が入る。ECS のログは MDC をそのまま項目にするので、Datadog でログとトレースを行き来できる
+- `DD_VERSION` は、ログの `service.version` と同じ値（`APP_VERSION`）にする。リリースごとの比較がメトリクス・ログ・トレースでそろう
+
+**6. 費用の設定（7.1「ログの費用」）**
+
+| 設定 | 内容 |
+|---|---|
+| Index | 1つ（`main`）。残す日数は 15日（「4.2 残す期間」の14日に一番近い、Datadog で選べる日数）。監査・セキュリティのログ（`@event.action:*`）を長く残すなら、別の Index で 90日 |
+| Exclusion Filter | 成功したアクセスログ（`@http.status:[200 TO 399] -@event.action:*`）は 10% だけ残す。ヘルスチェックはアプリが出さない |
+| Log-based Metrics | `@http.status` 別の件数、`@error_code` 別の件数、`@event.action` 別の件数。アラートと傾向はこの数値で見る（15か月残る） |
+| Archive | 全量を S3（ログ用のバケット）へ。調べたいときだけ Rehydrate で戻す |
+
+**7. Monitor（「5.2 監視項目」を Datadog で作る）**
+
+| # | 種類 | 条件の例 | 通知 |
+|---|---|---|---|
+| A1 | Synthetics（API テスト：ログイン → タイムライン） | 2か所から2回続けて失敗 | P1 |
+| A2 | Metric | `sum:aws.applicationelb.httpcode_target_5xx{*}.as_count() / sum:aws.applicationelb.request_count{*}.as_count()` が 5分で 5% を超える | P1 |
+| A3 | Log | `service:sns-backend @error_code:SERVICE_UNAVAILABLE` が 5分で3件以上 | P1 |
+| A4 | Metric（APM） | `p95:trace.servlet.request{service:sns-backend}` が 10分 1秒を超える | P2 |
+| A5 | Log | `@error_code:IMAGE_UPLOAD_FAILED` が 10分で5件以上 | P2 |
+| A6 | Log（Anomaly） | `@event.action:login_failed` の件数が普段から大きく外れる | P2 |
+| A7 | Log | `@event.action:refresh_token_reuse` が1件以上 | P3 |
+| A8・A9 | Metric | RDS の `aws.rds.free_storage_space`、Agent の `system.disk.in_use`・`system.mem.pct_usable` | P2 |
+| A10 | Service Check | `datadog.agent.up` が15分届かない | P2 |
+| A11 | Log | `@event.action:invalid_token` が 10分で20件以上 | P3 |
+
+- 本文には「5.3 アラートの書き方」の4つ（何が・影響・最初に見るもの・Runbook）を書き、通知先を `@slack-…`・`@pagerduty-…` で緊急度ごとに分ける
+- Monitor やダッシュボードが増えたら、Terraform の Datadog プロバイダーでコードにして、作り直せるようにする
+
+**8. 確かめる**
+
+- Logs で `service:sns-backend` のログが出ていて、`@request_id`・`@user_id`・`@error_code` で絞り込める
+- APM で `sns-backend` のトレースが出ていて、トレースから同じリクエストのログへ移れる
+- わざとログインに失敗して、`@event.action:login_failed` が数えられ、A6 の Monitor のプレビューに出る
+
+### 7.4 選ばなかったもの
+
+- **アプリから Datadog へ直接メトリクスを送る仕組み（Micrometer の Datadog Registry）**：Agent と APM で、必要なメトリクス（応答時間・件数）は集まる。アプリが送り先（Datadog）を知らなくてよい形（「4.1 集め方」：アプリは標準出力に出すだけ）を保つため、入れない。業務の数値（投稿数など）をメトリクスで見たくなったら、Agent の DogStatsD 経由で送ることを先に検討する
 
 ## 8. 見直し
 

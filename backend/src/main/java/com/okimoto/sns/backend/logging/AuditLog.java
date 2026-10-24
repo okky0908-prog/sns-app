@@ -72,6 +72,18 @@ public final class AuditLog {
     log.atWarn().addKeyValue(ACTION, "forbidden").log("権限のない操作が行われました");
   }
 
+  /**
+   * アクセストークンの署名が合わない・形がおかしい（偽造や攻撃の下調べの疑い）。期限切れはふつうに起きるので、呼び出し側で除く。 トークンそのものは出さない
+   *
+   * @param reason {@code signature_invalid}（署名が合わない）または {@code malformed}（形がおかしい）
+   */
+  public static void invalidToken(String reason) {
+    log.atWarn()
+        .addKeyValue(ACTION, "invalid_token")
+        .addKeyValue("reason", reason)
+        .log("正しくないアクセストークンが使われました（{}）", reason);
+  }
+
   /** メールアドレスの一部を隠す。先頭の1文字と @ 以降だけを残す（a***@example.com）。形がおかしければすべて隠す */
   static String maskEmail(String email) {
     int at = email.indexOf('@');
