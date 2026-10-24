@@ -2,7 +2,7 @@
 
 このアプリのログの出し方、監視とアラート、障害が起きたときの動き方を決める。[非機能要件](./non-functional-requirements.md)・[インフラ構成](./infrastructure.md)の詳細ドキュメント。
 
-> AWS への構築は未定（[インフラ構成](./infrastructure.md)）。この方針は、**どの道具を使っても変わらない部分**（何を測り、何を記録し、いつ人が動くか）を先に決めておくもの。道具（CloudWatch・Datadog）は「7. 道具と段階」で選ぶ。実装は別の Issue で、テスト駆動で進める。
+> AWS への構築は未定（[インフラ構成](./infrastructure.md)）。この方針は、**どの道具を使っても変わらない部分**（何を測り、何を記録し、いつ人が動くか）を先に決めておくもの。道具（CloudWatch・Datadog）は「7. 道具と段階」で選ぶ。アプリ側の準備（段階 1）は実装済み（「7.2 段階 1 の実装」）。
 
 ## 1. 目的と範囲
 
@@ -59,13 +59,14 @@
 本番では、1行1つの JSON で出す。文章のログ（`画像を保存できませんでした: abc.png`）は人には読みやすいが、「この1時間の S3 の失敗の件数」を数えにくいため。ローカル開発では、読みやすい今のテキストのままにする。
 
 ```json
-{"@timestamp":"2026-10-24T03:12:45.123Z","log.level":"ERROR","service.name":"sns-backend",
- "service.environment":"production","service.version":"1.4.0","request_id":"1-6719a3b5-...",
- "user_id":42,"http.method":"POST","url.path":"/api/posts","http.status":502,"duration_ms":1830,
- "error_code":"IMAGE_UPLOAD_FAILED","message":"画像を保存できませんでした"}
+{"@timestamp":"2026-10-24T02:50:46.011Z","log":{"level":"INFO","logger":"com.okimoto.sns.backend.logging.RequestLoggingFilter"},
+ "service":{"name":"sns-backend","environment":"production","version":"a1b2c3d"},
+ "message":"POST /api/auth/login 401 154ms","request_id":"Root=1-6719a3b5-abcdef0123456789abcdef01",
+ "error_code":"INVALID_CREDENTIALS","http":{"method":"POST","status":401},"url":{"path":"/api/auth/login"},
+ "duration_ms":154,"ecs":{"version":"8.11"}}
 ```
 
-Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を、本番の設定（`application-production.yml`）でだけ有効にする。項目名は ECS（Elastic Common Schema）の名前に合わせ、このアプリ独自の項目（`request_id`・`user_id`・`error_code`・`duration_ms`）を足す。
+Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を、本番の設定（`application-production.yml`）でだけ有効にする。項目名は ECS（Elastic Common Schema）の名前に合わせ（`http.method` などは入れ子の形で出る）、このアプリ独自の項目（`request_id`・`user_id`・`error_code`・`duration_ms`）を足す。上の例は、実際にアクセスログを ECS で出したもの（ログインの失敗）。
 
 ### 3.3 必ず入れる項目
 
@@ -194,7 +195,7 @@ flowchart LR
 
 | 段階 | いつ | やること | 道具 |
 |---|---|---|---|
-| **1. アプリの準備** | 今（AWS に構築する前） | 構造化ログ、リクエスト ID、アクセスログ・監査ログ・セキュリティのログ、出さない情報のテスト | Spring Boot の標準の機能 |
+| **1. アプリの準備** | 実装済み（7.2） | 構造化ログ、リクエスト ID、アクセスログ・監査ログ・セキュリティのログ、出さない情報のテスト | Spring Boot の標準の機能 |
 | **2. AWS の標準で監視** | AWS に構築するとき | 4章の収集・保存、5章の監視項目とダッシュボード、外形監視 | CloudWatch Logs・Alarms・Dashboards・Synthetics（Canary）、SNS で通知、ALB のアクセスログ → S3・Athena |
 | **3. 監視サービス** | サービスが増える・チームで見る・トレースで横断して追いたくなったとき | 段階 2 に加え、トレース・フロントの監視 | Datadog（7.1） |
 
@@ -222,6 +223,32 @@ flowchart LR
   - **インデックスは絞る**：ERROR・WARN・監査・セキュリティのログは残す。INFO のアクセスログは一部だけ、ヘルスチェックは**除外フィルター**で捨てる
   - 全量を **S3 にアーカイブ**し、必要なときだけ呼び戻して（Rehydrate）検索する
 - **Monitor の本文**：5.3 のとおり、影響・最初に見るもの・Runbook を書く
+
+### 7.2 段階 1 の実装
+
+| 内容 | 場所 | テスト |
+|---|---|---|
+| リクエスト ID（`X-Amzn-Trace-Id` を使う・なければ作る、応答の `X-Request-Id`）、アクセスログ | `logging/RequestLoggingFilter` | `RequestLoggingTest` |
+| MDC の項目（`request_id`・`user_id`・`error_code`） | `logging/LogFields`（ユーザー ID は `JwtAuthenticationFilter`、エラーコードはエラーの応答を作る3か所で入れる） | `RequestLoggingTest` |
+| 監査ログ・セキュリティのログ | `logging/AuditLog`（各 Service から呼ぶ） | `AuditLogTest` |
+| 本番だけ JSON（ECS）で出す、サービス名・環境・バージョン | `application-production.yml`（バージョンは環境変数 `APP_VERSION`） | `ProductionLoggingConfigTest` |
+
+監査ログ・セキュリティのログの `event.action`：
+
+| `event.action` | レベル | いつ | 主な項目 |
+|---|---|---|---|
+| `signup` | INFO | 新規登録した | `user_id` |
+| `login` | INFO | ログインした | `user_id` |
+| `login_failed` | WARN | ログインに失敗した（パスワード違い・登録されていない） | `user.email`（一部を隠す） |
+| `logout` | INFO | ログアウトした | `user_id` |
+| `refresh_token_reuse` | WARN | 使用済みのリフレッシュトークンが使われ、そのユーザーのトークンをすべて無効にした | `user_id` |
+| `post_delete` | INFO | 投稿を削除した | `user_id`・`post.id` |
+| `comment_delete` | INFO | コメントを削除した | `user_id`・`comment.id` |
+| `profile_update` | INFO | プロフィールを変更した | `user_id` |
+| `forbidden` | WARN | 権限のない操作（403） | `user_id` |
+
+- テストは、出力の文字列ではなくログの中身（レベル・MDC・キーと値）を受け取って確かめる（`support/LogCapture`）。出力の形式（テキスト・JSON）に左右されない
+- 登録からログアウトまでの間に、パスワード・トークン・メールアドレス・投稿の本文・検索のキーワードがどのログにも出ないことを確かめている
 
 ## 8. 見直し
 

@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.auth;
 
+import com.okimoto.sns.backend.logging.AuditLog;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -98,6 +99,7 @@ public class RefreshTokenService {
       return Optional.of(new Rotation(token.getUserId(), issue(token.getUserId())));
     }
     refreshTokenMapper.revokeAllByUserId(token.getUserId(), now);
+    AuditLog.refreshTokenReused(token.getUserId());
     return Optional.empty();
   }
 
@@ -105,7 +107,11 @@ public class RefreshTokenService {
   public void revoke(String token) {
     refreshTokenMapper
         .findByTokenHash(hash(token))
-        .ifPresent(found -> refreshTokenMapper.revoke(found.getId(), OffsetDateTime.now(clock)));
+        .ifPresent(
+            found -> {
+              refreshTokenMapper.revoke(found.getId(), OffsetDateTime.now(clock));
+              AuditLog.loggedOut(found.getUserId());
+            });
   }
 
   /**

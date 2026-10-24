@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.web;
 
+import com.okimoto.sns.backend.logging.LogFields;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -35,6 +36,7 @@ public class ApiErrorController implements ErrorController {
           (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION));
     }
     ApiError body = ApiError.of(code);
+    LogFields.errorCode(body.code());
     return ResponseEntity.status(body.status()).body(body);
   }
 }

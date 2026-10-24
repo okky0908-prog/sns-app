@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.auth;
 
+import com.okimoto.sns.backend.logging.AuditLog;
 import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
@@ -107,20 +108,24 @@ public class AuthService {
                   ? new ApiError.FieldError("email", EMAIL_TAKEN)
                   : new ApiError.FieldError("username", USERNAME_TAKEN)));
     }
+    AuditLog.signedUp(user.getId());
     return issueTokens(user);
   }
 
   @Transactional
   public AuthResult login(LoginRequest request) {
-    Optional<User> user = userMapper.findByEmail(normalizeEmail(request.email()));
+    String email = normalizeEmail(request.email());
+    Optional<User> user = userMapper.findByEmail(email);
     // ユーザーがいなくても同じようにハッシュの照合をして、応答時間から登録済みのメールアドレスを推測されないようにする
     String hash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
     boolean matches =
         fitsBcrypt(request.password()) && passwordEncoder.matches(request.password(), hash);
     if (user.isEmpty() || !matches) {
+      AuditLog.loginFailed(email);
       // どちらが違うかは教えない
       throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
     }
+    AuditLog.loggedIn(user.get().getId());
     return issueTokens(user.get());
   }
 

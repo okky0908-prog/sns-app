@@ -1,5 +1,6 @@
 package com.okimoto.sns.backend.user;
 
+import com.okimoto.sns.backend.logging.AuditLog;
 import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.storage.UploadedImage;
 import com.okimoto.sns.backend.web.ApiException;
@@ -76,6 +77,7 @@ public class ProfileEditService {
         bio.isEmpty() ? null : bio,
         newIconKey,
         OffsetDateTime.now(clock));
+    AuditLog.profileUpdated();
     return userService.profile(me, user.getUsername());
   }
 }
