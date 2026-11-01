@@ -5,8 +5,8 @@
 buildscript {
     dependencies {
         constraints {
-            classpath("tools.jackson.core:jackson-core:3.2.3")
-            classpath("tools.jackson.core:jackson-databind:3.2.3")
+            classpath("tools.jackson.core:jackson-core:3.2.4")
+            classpath("tools.jackson.core:jackson-databind:3.2.4")
             classpath("org.apache.commons:commons-lang3:3.21.0")
         }
     }
@@ -15,7 +15,7 @@ buildscript {
 plugins {
     java
     jacoco
-    id("org.springframework.boot") version "4.1.1"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.10.4"
 }
@@ -36,9 +36,9 @@ repositories {
 
 val mybatisVersion = "4.1.0"
 val jjwtVersion = "0.13.0"
-val awsSdkVersion = "2.55.14"
-val springdocVersion = "3.1.1"
-val therapiVersion = "0.15.0"
+val awsSdkVersion = "2.57.6"
+val springdocVersion = "3.2.0"
+val therapiVersion = "0.16.0"
 
 // Spring Boot 4.1.1 が使う版には脆弱性があるため、直った版を個別に指定する（Dependabot alerts。Issue #63・#70）。
 // Spring Boot を次に上げるときに、Spring Boot の版がこれ以上になっていれば、この3行は消す（docs/tech-stack.md）
