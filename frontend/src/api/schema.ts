@@ -104,6 +104,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A-90 画面で起きたエラーの報告
+         * @description A-90 画面で起きたエラーの報告。ログイン中なら、アクセストークンを付けるとユーザー ID も残る。
+         */
+        post: operations["clientErrorReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/comments/{commentId}": {
         parameters: {
             query?: never;
@@ -506,6 +526,20 @@ export interface components {
             accessToken: string;
             user: components["schemas"]["UserResponse"];
         };
+        /** @description 画面で起きたエラーの報告（A-90）。ログを大きくしすぎないよう、それぞれ長さの上限を決める（画面側で上限まで切ってから送る）。 */
+        ClientErrorReport: {
+            /**
+             * @description どこで拾ったか。render：画面の表示中（React）、error：捕まえ損ねた例外、unhandledrejection：捕まえ損ねた Promise の失敗
+             * @enum {string}
+             */
+            kind: "render" | "error" | "unhandledrejection";
+            /** @description エラーの文言 */
+            message: string;
+            /** @description エラーが起きた画面のパス（URL の検索条件は含めない） */
+            path: string;
+            /** @description スタックトレース（ないこともある） */
+            stack?: string | null;
+        };
         /** @description コメント削除（A-32）のレスポンス。削除後のその投稿のコメント数。 */
         CommentCountResponse: {
             /** Format: int64 */
@@ -708,6 +742,7 @@ export interface components {
 }
 export type ApiError = components['schemas']['ApiError'];
 export type AuthResponse = components['schemas']['AuthResponse'];
+export type ClientErrorReport = components['schemas']['ClientErrorReport'];
 export type CommentCountResponse = components['schemas']['CommentCountResponse'];
 export type CommentRequest = components['schemas']['CommentRequest'];
 export type CommentResponse = components['schemas']['CommentResponse'];
@@ -883,6 +918,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AuthResponse"];
                 };
+            };
+            /** @description エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」） */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    clientErrorReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientErrorReport"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」） */
             default: {

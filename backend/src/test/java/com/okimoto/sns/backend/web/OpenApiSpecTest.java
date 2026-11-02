@@ -96,7 +96,7 @@ class OpenApiSpecTest {
         .andExpect(
             jsonPath(
                 "$.tags[*].name",
-                contains("認証", "投稿・タイムライン", "コメント", "いいね", "フォロー", "プロフィール・ユーザー検索")))
+                contains("認証", "投稿・タイムライン", "コメント", "いいね", "フォロー", "プロフィール・ユーザー検索", "画面のエラー")))
         .andExpect(jsonPath("$.paths['/api/posts/{postId}'].get.summary").value("A-12 投稿詳細"))
         // 括弧の中の「。」では区切らない
         .andExpect(

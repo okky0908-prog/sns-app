@@ -406,3 +406,41 @@ describe('リクエストの組み立て', () => {
     expect(urls()).toEqual(['/api/timeline/new-count?since=30', '/api/timeline/all/new-count?since=30'])
   })
 })
+
+describe('画面のエラーの報告（A-90）', () => {
+  const report = { kind: 'render', message: 'エラー', stack: 'at X', path: '/posts/10' } as const
+
+  test('ログインしていなければ、アクセストークンなしで送る。ページを閉じる途中でも届くようにする', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await client.reportClientError(report)
+
+    expect(call(0).url).toBe('/api/client-errors')
+    expect(call(0).init.method).toBe('POST')
+    expect(call(0).init.keepalive).toBe(true)
+    expect(JSON.parse(String(call(0).init.body))).toEqual(report)
+    expect(call(0).headers['Content-Type']).toBe('application/json')
+    expect(call(0).headers.Authorization).toBeUndefined()
+  })
+
+  test('ログイン中なら、誰の画面で起きたかが分かるようアクセストークンを付ける', async () => {
+    await loginWith('token-1')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+
+    await client.reportClientError(report)
+
+    expect(call(0).headers.Authorization).toBe('Bearer token-1')
+  })
+
+  test.each([
+    ['通信に失敗した', () => fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))],
+    ['サーバーがエラーを返した', () => fetchMock.mockResolvedValueOnce(apiError(500, 'INTERNAL_ERROR'))],
+    ['401 が返った', () => fetchMock.mockResolvedValueOnce(apiError(401, 'UNAUTHENTICATED'))],
+  ])('%s ときも例外にせず、再発行もやり直しもしない（報告の失敗をまた報告しない）', async (_label, arrange) => {
+    await loginWith('token-1')
+    arrange()
+
+    await expect(client.reportClientError(report)).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

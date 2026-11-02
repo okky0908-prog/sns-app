@@ -50,3 +50,6 @@ export type CreatedComment = Schema.CreatedCommentResponse
  * 仕様書では中身の型ごとに別の名前（CursorPageResponsePostResponse など）になるので、共通の形を中身の型で受け取る
  */
 export type CursorPage<T> = Omit<Schema.CursorPageResponsePostResponse, 'items'> & { items: T[] }
+
+/** 画面で起きたエラーの報告（A-90） */
+export type ClientErrorReport = Schema.ClientErrorReport
