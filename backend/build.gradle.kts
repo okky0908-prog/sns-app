@@ -36,7 +36,7 @@ repositories {
 
 val mybatisVersion = "4.1.0"
 val jjwtVersion = "0.13.0"
-val awsSdkVersion = "2.57.6"
+val awsSdkVersion = "2.57.8"
 val springdocVersion = "3.2.0"
 val therapiVersion = "0.16.0"
 
