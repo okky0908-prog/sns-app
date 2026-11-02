@@ -88,11 +88,10 @@ users・posts・post_images・comments・likes・follows と、ログイン状�
 
 ## 10. 未決定事項
 
-- アプリのサーバーを AWS 上に構築するか（構築する場合の構成は 11章）
-- インターネットに公開する場合の HTTPS 化（独自ドメインの取得）
+- 独自ドメインを取得するか（HTTPS は、独自ドメインがなくても CloudFront の URL で用意できる。11章）
 
 ## 11. インフラ構成（AWS）
 
-画像の保存先に S3（配信は CloudFront）を使うことは決定済み。アプリのサーバーを AWS 上に構築する場合は、前回の EC2 + RDS 構成に ALB を加えた構成（ALB + EC2 + RDS for PostgreSQL 17、Terraform で構築）とする。現時点では暫定案。
+画像の保存先に S3（配信は CloudFront）を使う。アプリのサーバーは、前回の EC2 + RDS 構成に ALB を加え、HTTPS の入口として CloudFront を前に置く構成（CloudFront + ALB + EC2 + RDS for PostgreSQL 17）とし、Terraform で構築する（`infra/`）。
 
 → 詳細は [インフラ構成](./infrastructure.md) を参照

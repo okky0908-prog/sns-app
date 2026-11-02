@@ -76,17 +76,19 @@
 
 ## インフラ（AWS）
 
-構成は [インフラ構成](infrastructure.md) を参照（暫定案）。
+構成は [インフラ構成](infrastructure.md) を参照（Terraform のコードは `infra/`）。
 
 | 項目 | 技術・バージョン | 前回と同じ | 理由・補足 |
 |---|---|---|---|
 | 構築 | Terraform | ○ | |
 | サーバーの OS | Amazon Linux 2023 | ○ | |
-| Java（サーバー） | Amazon Corretto 25（`java-25-amazon-corretto`） | ○ | |
+| Java（サーバー） | Amazon Corretto 25（`java-25-amazon-corretto-headless`） | ○ | サーバーではビルドしないので、実行に要る分（headless）だけ入れる |
 | Web サーバー | nginx（Amazon Linux 2023 のパッケージ） | ○ | フロントエンドの静的ファイルを返す |
 | DB | RDS for PostgreSQL 17 | ○ | |
 | ロードバランサー | ALB | 新規 | |
 | 画像 | S3 + CloudFront | 新規 | |
+| HTTPS の入口 | CloudFront（アプリ用） | 新規 | 独自ドメインなしで HTTPS にするため。ALB の前に置く |
+| 請求アラート | AWS Budgets | 新規 | ALB は止められず課金が続くので、消し忘れに気づけるようにする |
 
 ## 前回（`github-demo`）との違いのまとめ
 
