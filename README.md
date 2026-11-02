@@ -46,6 +46,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | [ログ・監視の運用方針](docs/observability.md) | SLO、ログの形式・レベル・出さない情報、監視項目とアラート、障害対応、道具（CloudWatch・Datadog）の段階 |
 | [機能定義書](docs/feature-specs/README.md) | 機能分類ごとの処理の流れ・エラー時の動き・受け入れ条件（8本） |
 | [テスト計画書](docs/test-plan.md) | テストの技法（ブラックボックス・ホワイトボックス）、層ごとの対象とケースの設計、完了の基準 |
+| [パフォーマンステスト計画書](docs/performance-test-plan.md) | 性能の合格の基準、k6 のシナリオ、テストデータの規模、重点的に確かめる SQL、動かし方（手で動かす） |
 | [モックアップ実装計画書](docs/mockup-plan.md) | 本実装前に作成した静的モックアップの内容と動作確認結果 |
 
 ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSCode では拡張機能「Markdown Preview Mermaid Support」を入れるとプレビューで表示できる。
