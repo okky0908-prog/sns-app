@@ -57,7 +57,7 @@ public class OpenApiConfig {
 
   /** タグ（API の分類）の並び順。docs/api.md の API 一覧と同じ */
   private static final List<String> TAG_ORDER =
-      List.of("認証", "投稿・タイムライン", "コメント", "いいね", "フォロー", "プロフィール・ユーザー検索");
+      List.of("認証", "投稿・タイムライン", "コメント", "いいね", "フォロー", "プロフィール・ユーザー検索", "画面のエラー");
 
   @Bean
   OpenAPI openApi() {

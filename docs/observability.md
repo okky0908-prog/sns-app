@@ -52,7 +52,8 @@
 | アプリのログ | 原因を追う | 想定外の例外、外部（S3・DB）の失敗、定期処理の結果 | バックエンド |
 | アクセスログ | 原因を追う・傾向を見る | 1リクエスト1行：メソッド・パス・状態コード・時間・エラーコード・ユーザー ID | バックエンド（ALB のアクセスログでも補う） |
 | 監査ログ | 「誰が何をしたか」の証跡 | 新規登録・ログイン・ログアウト・投稿とコメントの削除・プロフィールの変更 | バックエンド |
-| セキュリティのログ | 攻撃・不正に気づく | ログインの失敗、リフレッシュトークンの使い回しの検知（`RefreshTokenService`）、権限のない操作（403） | バックエンド |
+| セキュリティのログ | 攻撃・不正に気づく | ログインの失敗、リフレッシュトークンの使い回しの検知（`RefreshTokenService`）、権限のない操作（403）、正しくないアクセストークン | バックエンド |
+| 画面のエラー | 画面の不具合に気づく・原因を追う | 画面の表示中のエラー、捕まえ損ねた例外・Promise の失敗（文言・スタックトレース・画面のパス・ブラウザ）。通信エラーとほかのサイトのスクリプト（ブラウザ拡張など）のエラーは送らない | 画面が `POST /api/client-errors`（A-90）で送り、バックエンドが出す |
 
 ### 3.2 形式：構造化ログ（JSON）
 
@@ -155,6 +156,7 @@ Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を�
 | A9 | EC2 のディスク・メモリ | エージェント | ディスク 80%・メモリ 90% を超える | P2 | ログの量、Java のヒープ |
 | A10 | 監視のデータが届かない | 監視の道具（No Data） | 15分間届かない | P2 | エージェントが動いているか |
 | A11 | 正しくないアクセストークンの急増 | セキュリティのログ（`invalid_token`） | 10分間に20件以上 | P3 | 同じ IP からの集中（偽造・総当たりの疑い）。期限切れは数えない |
+| A12 | 画面のエラーの急増 | 画面のエラー（`client_error`） | 1時間に、普段の3倍以上、または新しい文言のエラー | P2 | 文言・画面のパス別の件数、直前のリリース（`service.version`）。誰でも送れるので、同じ IP からの大量の報告は偽物を疑う |
 
 - 一瞬の山では鳴らさないよう、「◯分間続いたら」と時間の幅を持たせる
 - **A10 は必須**：エージェントが止まると、障害があっても「静か」に見えるため
@@ -198,7 +200,7 @@ flowchart LR
 |---|---|---|---|
 | **1. アプリの準備** | 実装済み（7.2） | 構造化ログ、リクエスト ID、アクセスログ・監査ログ・セキュリティのログ、出さない情報のテスト | Spring Boot の標準の機能 |
 | **2. AWS の標準で監視** | AWS に構築するとき | 4章の収集・保存、5章の監視項目とダッシュボード、外形監視 | CloudWatch Logs・Alarms・Dashboards・Synthetics（Canary）、SNS で通知、ALB のアクセスログ → S3・Athena |
-| **3. 監視サービス** | サービスが増える・チームで見る・トレースで横断して追いたくなったとき | 段階 2 に加え、トレース・フロントの監視 | Datadog（7.1） |
+| **3. 監視サービス** | サービスが増える・チームで見る・トレースで横断して追いたくなったとき | 段階 2 に加え、トレース・フロントの監視（表示の速さ。エラーは段階 1 で自前で送っている。RUM に置き換えてもよい） | Datadog（7.1） |
 
 学習目的の一時的な稼働では、段階 2 までで十分。費用が少なく、Terraform で環境と一緒に作って消せる。
 
@@ -232,6 +234,9 @@ flowchart LR
 | リクエスト ID（`X-Amzn-Trace-Id` を使う・なければ作る、応答の `X-Request-Id`）、アクセスログ | `logging/RequestLoggingFilter` | `RequestLoggingTest` |
 | MDC の項目（`request_id`・`user_id`・`error_code`） | `logging/LogFields`（ユーザー ID は `JwtAuthenticationFilter`、エラーコードはエラーの応答を作る3か所で入れる） | `RequestLoggingTest` |
 | 監査ログ・セキュリティのログ | `logging/AuditLog`（各 Service と `JwtService` から呼ぶ） | `AuditLogTest`・`JwtServiceTest` |
+| 画面のエラー（受け取る側）：A-90、ログインなしで送れる、長さの上限、検索条件を切る | `logging/ClientErrorController`・`ClientErrorReport` | `ClientErrorTest` |
+| 画面のエラー（送る側）：拾う・送らないもの・同じものは1回・1回のページ表示で10件まで | `frontend/src/lib/errorReporting.ts`（起動は `main.tsx`）、送信は `api/client.ts` の `reportClientError` | `errorReporting.test.ts`・`client.test.ts` |
+| 画面の表示中のエラー：真っ白な画面の代わりに「問題が発生しました」と再読み込み | `frontend/src/pages/ErrorPage.tsx`（`router.tsx` の `errorElement`） | `ErrorPage.test.tsx`、E2E の `client-error.spec.ts` |
 | 本番だけ JSON（ECS）で出す、サービス名・環境・バージョン | `application-production.yml`（バージョンは環境変数 `APP_VERSION`） | `ProductionLoggingConfigTest` |
 
 監査ログ・セキュリティのログの `event.action`：
@@ -247,6 +252,7 @@ flowchart LR
 | `comment_delete` | INFO | コメントを削除した | `user_id`・`comment.id` |
 | `profile_update` | INFO | プロフィールを変更した | `user_id` |
 | `forbidden` | WARN | 権限のない操作（403） | `user_id` |
+| `client_error` | WARN | 画面で起きたエラーの報告。誰でも送れるので、偽物を大量に送られても P1 が鳴らないよう ERROR にしない | `error.type`（`render`・`error`・`unhandledrejection`）・`error.message`・`error.stack_trace`・`url.path`・`user_agent.original` |
 | `invalid_token` | WARN | アクセストークンの署名が合わない（`reason`=`signature_invalid`）・形がおかしい（`malformed`）。**期限切れは出さない**（画面が自動で再発行するふつうのことなので）。トークンそのものは出さない | `reason` |
 
 - テストは、出力の文字列ではなくログの中身（レベル・MDC・キーと値）を受け取って確かめる（`support/LogCapture`）。出力の形式（テキスト・JSON）に左右されない
@@ -349,6 +355,7 @@ ExecStart=/usr/bin/java -javaagent:/opt/datadog/dd-java-agent.jar -jar /opt/sns-
 | A8・A9 | Metric | RDS の `aws.rds.free_storage_space`、Agent の `system.disk.in_use`・`system.mem.pct_usable` | P2 |
 | A10 | Service Check | `datadog.agent.up` が15分届かない | P2 |
 | A11 | Log | `@event.action:invalid_token` が 10分で20件以上 | P3 |
+| A12 | Log（Anomaly） | `@event.action:client_error` の件数が普段から大きく外れる。`@error.message` 別に分けると、新しい不具合が分かる | P2 |
 
 - 本文には「5.3 アラートの書き方」の4つ（何が・影響・最初に見るもの・Runbook）を書き、通知先を `@slack-…`・`@pagerduty-…` で緊急度ごとに分ける
 - Monitor やダッシュボードが増えたら、Terraform の Datadog プロバイダーでコードにして、作り直せるようにする

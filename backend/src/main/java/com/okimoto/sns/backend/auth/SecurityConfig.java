@@ -25,7 +25,8 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <ul>
  *   <li>セッションは使わず、リクエストごとに JWT で本人確認する
- *   <li>新規登録・ログイン・再発行・ログアウト・ヘルスチェック以外の API はログイン必須（再発行・ログアウトはアクセストークンの代わりにリフレッシュトークンの Cookie を使う）
+ *   <li>新規登録・ログイン・再発行・ログアウト・ヘルスチェック・画面のエラーの報告以外の API はログイン必須（再発行・ログアウトはアクセストークンの代わりにリフレッシュトークンの
+ *       Cookie を使う）
  *   <li>未ログインは 401、権限なしは 403 を、docs/api.md のエラー形式（JSON）で返す
  * </ul>
  */
@@ -38,7 +39,13 @@ public class SecurityConfig {
    * <p>ほかのクラスからも読むので、書き換えられない List で公開する（配列だと中身を書き換えられ、認証を外す範囲が変わってしまう）
    */
   public static final List<String> PUBLIC_POST_PATHS =
-      List.of("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout");
+      List.of(
+          "/api/auth/signup",
+          "/api/auth/login",
+          "/api/auth/refresh",
+          "/api/auth/logout",
+          // 画面で起きたエラーの報告。ログイン画面で起きたエラーも知りたいので、ログインなしで送れる（ClientErrorController）
+          "/api/client-errors");
 
   /**
    * API 仕様書と Swagger UI。本番では springdoc の設定（application-production.yml で既定を閉じている）で URL

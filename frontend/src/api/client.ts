@@ -2,6 +2,7 @@ import type {
   ApiErrorBody,
   ApiErrorCode,
   AuthResponse,
+  ClientErrorReport,
   Comment,
   CreatedComment,
   CursorPage,
@@ -80,10 +81,12 @@ interface RequestOptions {
   body?: unknown
   /** true ならアクセストークンを付ける。401 が返ったら再発行して1回だけやり直す */
   auth?: boolean
+  /** true なら、ページを閉じる途中でも送り終える（画面のエラーの報告） */
+  keepalive?: boolean
 }
 
 /** 1回だけリクエストを送る（Cookie は同じオリジンなのでブラウザが自動で付ける） */
-async function send<T>(path: string, { method = 'GET', body, auth = false }: RequestOptions): Promise<T> {
+async function send<T>(path: string, { method = 'GET', body, auth = false, keepalive }: RequestOptions): Promise<T> {
   const headers: Record<string, string> = {}
   const isForm = body instanceof FormData
   // FormData のときは Content-Type を付けない（ブラウザが区切り文字つきの multipart/form-data を付ける）
@@ -100,6 +103,7 @@ async function send<T>(path: string, { method = 'GET', body, auth = false }: Req
       method,
       headers,
       body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+      ...(keepalive ? { keepalive } : {}),
     })
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', NETWORK_ERROR_MESSAGE)
@@ -313,4 +317,19 @@ export function searchUsers(q: string, cursor: string | null = null): Promise<Cu
   const params = new URLSearchParams({ q })
   if (cursor) params.set('cursor', cursor)
   return apiFetch(`/api/users/search?${params}`, { auth: true })
+}
+
+// ===== 画面のエラーの報告（A-90） =====
+
+/**
+ * 画面で起きたエラーをサーバーに送る（lib/errorReporting.ts から呼ぶ）。
+ * ログイン中ならアクセストークンを付ける（誰の画面で起きたかが分かる）。送れなくても例外にせず、再発行もやり直しもしない。
+ * 報告の失敗をまた報告して、送り続けないようにするため
+ */
+export async function reportClientError(report: ClientErrorReport): Promise<void> {
+  try {
+    await send<void>('/api/client-errors', { method: 'POST', body: report, auth: true, keepalive: true })
+  } catch {
+    // 送れなくても何もしない
+  }
 }

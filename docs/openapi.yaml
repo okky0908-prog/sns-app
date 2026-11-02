@@ -18,6 +18,7 @@ tags:
 - name: いいね
 - name: フォロー
 - name: プロフィール・ユーザー検索
+- name: 画面のエラー
 paths:
   /api/auth/login:
     post:
@@ -152,6 +153,29 @@ paths:
       summary: A-01 新規登録
       tags:
       - 認証
+  /api/client-errors:
+    post:
+      description: A-90 画面で起きたエラーの報告。ログイン中なら、アクセストークンを付けるとユーザー ID も残る。
+      operationId: clientErrorReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientErrorReport"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: エラー。種類はステータスや文言ではなく code で見分ける（docs/api.md「エラーレスポンス」）
+      security: []
+      summary: A-90 画面で起きたエラーの報告
+      tags:
+      - 画面のエラー
   /api/comments/{commentId}:
     delete:
       description: A-32 コメント削除（本人だけ）。削除後のコメント数を返す。
@@ -1000,6 +1024,41 @@ components:
       required:
       - accessToken
       - user
+    ClientErrorReport:
+      type: object
+      description: 画面で起きたエラーの報告（A-90）。ログを大きくしすぎないよう、それぞれ長さの上限を決める（画面側で上限まで切ってから送る）。
+      properties:
+        kind:
+          type: string
+          description: どこで拾ったか。render：画面の表示中（React）、error：捕まえ損ねた例外、unhandledrejection：捕まえ損ねた
+            Promise の失敗
+          enum:
+          - render
+          - error
+          - unhandledrejection
+          pattern: render|error|unhandledrejection
+        message:
+          type: string
+          description: エラーの文言
+          maxLength: 1000
+          minLength: 0
+        path:
+          type: string
+          description: エラーが起きた画面のパス（URL の検索条件は含めない）
+          maxLength: 200
+          minLength: 0
+          pattern: /.*
+        stack:
+          type:
+          - string
+          - "null"
+          description: スタックトレース（ないこともある）
+          maxLength: 8000
+          minLength: 0
+      required:
+      - kind
+      - message
+      - path
     CommentCountResponse:
       type: object
       description: コメント削除（A-32）のレスポンス。削除後のその投稿のコメント数。
