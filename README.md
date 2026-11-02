@@ -26,7 +26,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | データベース | PostgreSQL 17（MyBatis + Flyway） |
 | 画像保存 | Amazon S3 + CloudFront |
 | ローカル環境 | Docker Compose（PostgreSQL・LocalStack コンテナ） |
-| インフラ（暫定案） | AWS（ALB + EC2 + RDS）、Terraform |
+| インフラ | AWS（CloudFront + ALB + EC2 + RDS）、Terraform |
 
 各コンポーネントの詳細バージョン・採用理由は[技術スタック](docs/tech-stack.md)を参照。
 
@@ -42,7 +42,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | [API設計](docs/api.md) | REST API の一覧とリクエスト・レスポンス |
 | [API 仕様書（OpenAPI）](docs/openapi.yaml) | コードから自動で作る API 仕様書。ブラウザでは Swagger UI で見る（[API設計](docs/api.md)） |
 | [技術スタック](docs/tech-stack.md) | 使う技術とバージョン |
-| [インフラ構成](docs/infrastructure.md) | AWS の構成図（暫定案） |
+| [インフラ構成](docs/infrastructure.md) | AWS の構成図・構築とデプロイの手順 |
 | [ログ・監視の運用方針](docs/observability.md) | SLO、ログの形式・レベル・出さない情報、監視項目とアラート、障害対応、道具（CloudWatch・Datadog）の段階 |
 | [機能定義書](docs/feature-specs/README.md) | 機能分類ごとの処理の流れ・エラー時の動き・受け入れ条件（8本） |
 | [テスト計画書](docs/test-plan.md) | テストの技法（ブラックボックス・ホワイトボックス）、層ごとの対象とケースの設計、完了の基準 |
@@ -60,10 +60,11 @@ ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSC
 ├── mockup/     # 実装前に作成した静的HTML/CSS/JSモックアップ
 ├── localstack/ # LocalStack の起動時にバケットを作るスクリプト
 ├── scripts/    # 動作確認用のテストデータを入れるスクリプト（seed.sh）
+├── infra/      # AWS の環境を作る Terraform と、デプロイ・起動停止のスクリプト
 └── docker-compose.yml   # ローカルの PostgreSQL・LocalStack 起動用
 ```
 
-AWS 構築用の Terraform（`infra/`）は、AWS 上に構築すると決めたときに追加する（[インフラ構成](docs/infrastructure.md)。暫定案）。
+AWS への構築とデプロイの手順は [インフラ構成](docs/infrastructure.md)「構築の手順」を参照。
 
 ## モックアップ
 

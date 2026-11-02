@@ -11,7 +11,7 @@ description: このリポジトリのTerraformコード（infra/配下）に対�
 
 チェックの基準は [インフラ構成](../../../docs/infrastructure.md) とする。要点は次のとおり。
 
-- ALB → EC2 2台（フロントエンド：nginx / バックエンド：Spring Boot 8080番）→ RDS for PostgreSQL 17
+- CloudFront（アプリ用。HTTPS の入口）→ ALB → EC2 2台（フロントエンド：nginx / バックエンド：Spring Boot 8080番）→ RDS for PostgreSQL 17
 - ALB はパスで振り分ける（`/api/*` → バックエンド、それ以外 → フロントエンド）
 - 画像は S3（非公開）に保存し、CloudFront（OAC）経由で配信する。バックエンドの EC2 は IAM ロールで S3 にアクセスする
 - 既定の VPC を使い、EC2 はパブリックサブネットに置く（NAT Gateway は使わない）
@@ -23,7 +23,8 @@ description: このリポジトリのTerraformコード（infra/配下）に対�
 - [ ] 秘密情報を扱う`variable`に`sensitive = true`が付与されているか
 - [ ] `terraform.tfvars`・`*.tfstate`・`*.tfstate.backup`・`.terraform/`が`.gitignore`されているか（stateには秘密情報が平文で残るため）
 - [ ] セキュリティグループのingressが必要最小限か
-  - [ ] `0.0.0.0/0`からの受け付けは ALB の 80番（HTTPS化後は443番）だけになっているか
+  - [ ] `0.0.0.0/0`から受け付けるものがないか。ALB の 80番は CloudFront のプレフィックスリスト（`com.amazonaws.global.cloudfront.origin-facing`）からだけか
+  - [ ] ALB のリスナーが、CloudFront の秘密のヘッダー（`X-Origin-Verify`）のないリクエストを 403 で断っているか（ほかの人の CloudFront から来たものを通さないため）
   - [ ] フロントエンドの EC2（80番）・バックエンドの EC2（8080番）が、**ALBのセキュリティグループからだけ**受け付けているか（EC2 に直接アクセスできないか）
   - [ ] SSH（22番）が送信元IP（自分のPCのIP）で絞られているか
   - [ ] RDS（5432番）がバックエンドの EC2 のセキュリティグループからだけ受け付けているか
@@ -35,7 +36,7 @@ description: このリポジトリのTerraformコード（infra/配下）に対�
   - [ ] バックエンドの EC2 の IAM ロールに付けた権限が、このバケットに対する`s3:PutObject`・`s3:DeleteObject`（必要なら`s3:GetObject`）だけか（`s3:*`や`Resource: "*"`になっていないか）
   - [ ] `Action: "*"`や無条件の`AdministratorAccess`相当を使っていないか
 - [ ] EC2 にアクセスキー（`AWS_ACCESS_KEY_ID`等）を渡していないか（IAMロールで足りるため）
-- [ ] HTTPS化後：ALB のリスナーで80番→443番のリダイレクトがあり、ACMの証明書を使っているか
+- [ ] CloudFront（アプリ用）が HTTP を HTTPS にリダイレクトし（`redirect-to-https`）、画面と API をキャッシュせず（`Managed-CachingDisabled`）、ヘッダー・Cookie をすべて ALB へ送っているか（`Managed-AllViewer`。GET の `Authorization` ヘッダーを落とさないため）
 
 ## 2. コスト管理
 

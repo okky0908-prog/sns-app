@@ -165,3 +165,24 @@ jobs:
             frontend/playwright-report/
             frontend/test-results/
           if-no-files-found: ignore
+
+  terraform:
+    name: Terraform（整形・構文チェック）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.3
+
+      # AWS には接続しない（-backend=false でプロバイダーだけ取得し、認証情報なしで確かめられる範囲だけ見る）。
+      # plan・apply は手元で行う（docs/infrastructure.md「構築の手順」）
+      - name: terraform fmt -check
+        run: terraform -chdir=infra fmt -check -diff -recursive
+
+      - name: terraform validate
+        run: |
+          terraform -chdir=infra init -backend=false -input=false
+          terraform -chdir=infra validate

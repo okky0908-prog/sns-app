@@ -43,6 +43,17 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
 
+  # Terraform のプロバイダー（aws・random）。infra/.terraform.lock.hcl の版を上げる。
+  # 上げたときは terraform plan で、意図しない変更（作り直しなど）が出ないかを確かめてから取り込む
+  - package-ecosystem: terraform
+    directory: /infra
+    schedule:
+      interval: monthly
+    groups:
+      terraform:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
