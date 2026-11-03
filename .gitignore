@@ -15,3 +15,6 @@ infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.*
 infra/terraform.tfvars
+
+# パフォーマンステストの結果（k6 の出力。docs/performance-test-plan.md「7. 見る値と記録」）
+perf/results/

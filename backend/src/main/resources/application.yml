@@ -42,6 +42,8 @@ management:
     web:
       # ALB のヘルスチェック用に /api/health で公開する（docs/infrastructure.md）
       base-path: /api
+      # パフォーマンステストのときだけ、環境変数 MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics で metrics も公開する
+      # （docs/performance-test-plan.md「8. 動かし方」）。health 以外はログインが必要
       exposure:
         include: health
   endpoint:

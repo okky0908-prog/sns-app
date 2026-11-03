@@ -24,7 +24,7 @@
 | **k6** | 利用者の操作を JavaScript で書き、同時に何人も動かして応答時間を測る | フロントで使っている TypeScript・JavaScript の知識で書ける。`thresholds` で合否を自動で判定できる。Docker イメージ（`grafana/k6`）で動くので Mac に入れなくてよい。版は導入するときの最新の安定版に固定する（[技術スタック](tech-stack.md)の決め方） |
 | **`EXPLAIN (ANALYZE, BUFFERS)`** | 遅い SQL の実行計画を見る（インデックスが使われているか、何行読んだか） | このアプリで遅くなる原因は、ほとんど SQL になると考えられるため |
 | **`pg_stat_statements`** | 負荷をかけている間に、合計時間が長い SQL を順に並べる | どの SQL から直すべきかが分かる。PostgreSQL の拡張で、専用の DB でだけ有効にする |
-| **Actuator の metrics** | JVM のヒープ・GC、DB の接続プール（HikariCP）の待ちを見る | 今は `health` だけを公開している。性能テストのときだけ `metrics` も公開する設定（環境変数）を足す |
+| **Actuator の metrics** | JVM のヒープ・GC、DB の接続プール（HikariCP）の待ちを見る | ふだんは `health` だけを公開している。性能テストのときだけ、環境変数で `metrics` も公開する（「8. 動かし方」） |
 
 選ばなかったもの：
 
@@ -149,9 +149,44 @@ k6 の出力そのもの（JSON）は `perf/results/` に置き、Git には入�
 perf/
   setup-db.sh perf/setup-db.sh base|x10  ← 専用の DB sns_perf を作り、テストデータを入れる（「4. テストデータ」）
   data/       テストデータを作る SQL（seed.sql。規模は setup-db.sh が渡す）
-  scenarios/  k6 のスクリプト（smoke・load・stress・soak・login）
-  run.sh      perf/run.sh <シナリオ> [接続先の URL]  ← Docker の k6 で動かす
-  results/    k6 の出力（Git には入れない）
+  scenarios/  k6 のスクリプト（smoke・load。stress・soak・login は手順 4 で足す）
+    lib/api.js  API の呼び出し・利用者の操作（「6.1」の割合）・合格の基準（thresholds）
+  run.sh      perf/run.sh <シナリオ> [接続先の URL]  ← Docker の k6（grafana/k6:2.3.0）で動かす
+  results/    k6 の結果の要約（JSON。Git には入れない）
+```
+
+### ローカルでの手順
+
+```bash
+# 1. データを入れる（「4. テストデータ」）
+perf/setup-db.sh base
+
+# 2. バックエンドを、本番と同じ JVM の設定で sns_perf につないで起動する（backend で実行。.env を読むため）
+cd backend && ./gradlew bootJar
+POSTGRES_DB=sns_perf MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics \
+  java -Xms256m -Xmx512m -jar build/libs/backend-0.0.1-SNAPSHOT.jar
+
+# 3. 別のターミナルで、スモーク → 負荷の順に流す（リポジトリのルートで）
+perf/run.sh smoke
+perf/run.sh load                     # 50人・10分。短く試すときは VUS=10 DURATION=1m perf/run.sh load
+```
+
+- k6 はコンテナの中で動くので、Mac のバックエンドには `http://host.docker.internal:8080` でつなぐ（`run.sh` の既定）。AWS では CloudFront の URL を2つ目の引数に渡す
+- 合格の基準を満たさないと、k6 は 0 以外の終了コード（99）で終わる。スモークは1つでも失敗したら止まる
+- 結果には、全部の API をまとめた値に加えて、API ごとの p95 が出る（`http_req_duration{name:GET /api/timeline}` など）。API ごとの値は合否に使わず、遅い API を見つけるために見る
+- テストを流すとデータが少し増える（投稿・コメント・いいね・フォロー）。前回と同じデータで比べるときは、`perf/setup-db.sh` で入れ直す
+- データを入れ直したときは、`perf/setup-db.sh` を実行したあとにバックエンドを再起動しなくてよい（ID は 1 から振り直される）
+
+### metrics（JVM のヒープ・接続プール）
+
+Actuator の `metrics` は、ふだんは公開していない（`application.yml` は `health` だけ）。性能テストのときだけ、環境変数 `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics` を付けて起動する。`health` 以外はログインが必要なので、テスト用ユーザーのアクセストークンを付けて見る。
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8080/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"perf00001@example.com","password":"password123"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["accessToken"])')
+curl -s -H "Authorization: Bearer $TOKEN" 'localhost:8080/api/metrics/jvm.memory.used?tag=area:heap'
+curl -s -H "Authorization: Bearer $TOKEN" localhost:8080/api/metrics/hikaricp.connections.pending
+curl -s -H "Authorization: Bearer $TOKEN" localhost:8080/api/metrics/jvm.gc.pause
 ```
 
 - CI（`.github/workflows/ci.yml`）には入れない。将来、手で起動する GitHub Actions（`workflow_dispatch`）にする案もあるが、GitHub のサーバーは性能が一定せず比べにくいので、まずはローカルで動かす
@@ -168,7 +203,7 @@ perf/
 |---|---|
 | 1 | この計画書を書き、[テスト計画書](test-plan.md)の「対象外」を書き直す |
 | 2 | テストデータの SQL（基準・10倍）と、専用の DB `sns_perf` を作る手順（Issue #125） |
-| 3 | k6 のシナリオ（スモーク・負荷）、`perf/run.sh`、合格の基準（`thresholds`）、性能テストのときだけ metrics を公開する設定 |
+| 3 | k6 のシナリオ（スモーク・負荷）、`perf/run.sh`、合格の基準（`thresholds`）、性能テストのときだけ metrics を公開する設定（Issue #127） |
 | 4 | 初回の測定（ストレス・耐久・ログイン集中を含む）と、結果の記録。遅い箇所は**改善ごとに別の Issue** にする |
 | 5 | AWS での測定（apply のあと） |
 
