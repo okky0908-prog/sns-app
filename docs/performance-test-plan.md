@@ -21,7 +21,7 @@
 
 | 道具 | 使い方 | 選んだ理由 |
 |---|---|---|
-| **k6** | 利用者の操作を JavaScript で書き、同時に何人も動かして応答時間を測る | フロントで使っている TypeScript・JavaScript の知識で書ける。`thresholds` で合否を自動で判定できる。Docker イメージ（`grafana/k6`）で動くので Mac に入れなくてよい。版は導入するときの最新の安定版に固定する（[技術スタック](tech-stack.md)の決め方） |
+| **k6** | 利用者の操作を TypeScript で書き、同時に何人も動かして応答時間を測る | フロントと同じ TypeScript で書ける（k6 は `.ts` をそのまま実行する。型チェックは `perf/` で `npm run typecheck`）。`thresholds` で合否を自動で判定できる。Docker イメージ（`grafana/k6`）で動くので Mac に入れなくてよい。版は導入するときの最新の安定版に固定する（[技術スタック](tech-stack.md)の決め方） |
 | **`EXPLAIN (ANALYZE, BUFFERS)`** | 遅い SQL の実行計画を見る（インデックスが使われているか、何行読んだか） | このアプリで遅くなる原因は、ほとんど SQL になると考えられるため |
 | **`pg_stat_statements`** | 負荷をかけている間に、合計時間が長い SQL を順に並べる | どの SQL から直すべきかが分かる。PostgreSQL の拡張で、専用の DB でだけ有効にする |
 | **Actuator の metrics** | JVM のヒープ・GC、DB の接続プール（HikariCP）の待ちを見る | ふだんは `health` だけを公開している。性能テストのときだけ、環境変数で `metrics` も公開する（「8. 動かし方」） |
@@ -150,14 +150,16 @@ perf/
   setup-db.sh perf/setup-db.sh base|x10  ← 専用の DB sns_perf を作り、テストデータを入れる（「4. テストデータ」）
   data/       テストデータを作る SQL（seed.sql。規模は setup-db.sh が渡す）、実行計画を見る SQL（explain.sql）
   scenarios/  k6 のスクリプト（smoke・load・stress・soak・login。「6.2 シナリオの種類」）
-    lib/api.js  API の呼び出し・利用者の操作（「6.1」の割合）・監視役（metrics の記録）・合格の基準（thresholds）
+    lib/api.ts  API の呼び出し・利用者の操作（「6.1」の割合）・監視役（metrics の記録）・合格の基準（thresholds）
   run.sh      perf/run.sh <シナリオ> [接続先の URL]  ← Docker の k6（grafana/k6:2.3.0）で動かす
   db-report.sh perf/db-report.sh reset|top|explain  ← pg_stat_statements の集計・EXPLAIN (ANALYZE, BUFFERS)
   analyze.py  python3 perf/analyze.py <CSV>  ← k6 の結果を時間ごと（人数ごと）に集計する
   results/    k6 の結果の要約（JSON）と、リクエストごとの値（CSV。時刻つき）。Git には入れない
+  package.json・tsconfig.json  シナリオの型チェック（TypeScript・@types/k6）
 ```
 
 - 負荷・ストレス・耐久・ログイン集中では、監視役（1人）がバックエンドの metrics（ヒープ・GC の累計・CPU・接続プール）を定期的に読み、k6 の結果に `backend_*` という名前で残す。監視役のリクエストは、合格の基準に入れない（シナリオで分けている）
+- シナリオは TypeScript で書く。k6 は型を取り除いて実行するだけで、型が合っているかは確かめないので、シナリオを直したら `cd perf && npm install && npm run typecheck` で確かめる（`npm install` は最初の1回だけ）
 - k6 の要約は全体の値しか出さないので、人数ごとの p95（ストレス）や、時間がたつと遅くなるか・ヒープが増え続けるか（耐久）は `perf/analyze.py` で見る
 - `pg_stat_statements` は docker compose の PostgreSQL で読み込み（`docker-compose.yml` の `command`）、拡張は `perf/setup-db.sh` が `sns_perf` にだけ作る。シナリオの前に `perf/db-report.sh reset`、あとに `perf/db-report.sh top`
 

@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    // k6 の API（k6/http など）と、__ENV・__VU・__ITER の型
+    "types": ["k6"],
+    "skipLibCheck": true,
+
+    // k6 は import のパスに拡張子（.ts）を付けて読む
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    // k6 は型を取り除いて実行するだけなので、型を取り除けない書き方（enum など）を使わない
+    "erasableSyntaxOnly": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["scenarios/**/*.ts"]
+}

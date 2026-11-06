@@ -18,3 +18,6 @@ infra/terraform.tfvars
 
 # パフォーマンステストの結果（k6 の出力。docs/performance-test-plan.md「7. 見る値と記録」）
 perf/results/
+
+# パフォーマンステストの型チェックの道具（perf/package.json）
+perf/node_modules/

@@ -5,9 +5,9 @@
 //   USERS     テストデータのユーザー数（perf/setup-db.sh の規模。基準は 500、10倍は 5000）
 //
 // それぞれの VU（仮想の利用者）は、自分の番号に対応するテスト用ユーザー（perf00001〜）でログインする。
-// VU ごとに JavaScript の実行環境が別なので、下の session は VU ごとに別の値を持つ。
+// VU ごとに実行環境が別なので、下の session は VU ごとに別の値を持つ。
 
-import http from 'k6/http';
+import http, { type RefinedResponse, type ResponseType } from 'k6/http';
 import { check, sleep } from 'k6';
 import { Gauge } from 'k6/metrics';
 
@@ -23,7 +23,7 @@ export const HOT_COMMENTS_POST_ID = 2;
 const REFRESH_AFTER_MS = 14 * 60 * 1000;
 
 // API ごとに応答時間を分けて見るための名前（k6 の name タグ）。ID などが入った URL ごとに分かれないよう、形でまとめる
-export const API_NAMES = [
+export const API_NAMES: readonly string[] = [
   'POST /api/auth/login',
   'POST /api/auth/refresh',
   'GET /api/timeline',
@@ -45,52 +45,96 @@ export const API_NAMES = [
   'GET /api/users/search',
 ];
 
-let session = null;
+// ---- API の応答の形（使う項目だけ。docs/openapi.yaml） ----
 
-export function username(n) {
+interface Post {
+  id: number;
+  likedByMe?: boolean;
+  author?: { username: string };
+}
+
+interface Page {
+  items: Post[];
+  hasNext: boolean;
+  nextCursor: string | null;
+}
+
+interface Measurement {
+  statistic: string;
+  value: number;
+}
+
+/** この VU のログインの状態と、見たことのある投稿 */
+interface Session {
+  n: number;
+  username: string;
+  token: string;
+  issuedAt: number;
+  latestPostId: number;
+  posts: Post[];
+}
+
+type Method = 'POST' | 'DELETE';
+type Response = RefinedResponse<ResponseType | undefined>;
+
+let session: Session | null = null;
+
+/** ログインしたあとの session（ログインの前に呼ばれたら、シナリオの書き間違い） */
+function current(): Session {
+  if (session === null) throw new Error('ログインの前に API を呼んでいます（先に ensureLoggedIn を呼ぶ）');
+  return session;
+}
+
+export function username(n: number): string {
   return 'perf' + String(n).padStart(5, '0');
 }
 
-function randomInt(min, max) {
+function randomInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-function pick(list) {
+function pick<T>(list: readonly T[]): T {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-function params(name, extra = {}) {
-  const headers = Object.assign({}, extra.headers);
+function params(name: string, extraHeaders: Record<string, string> = {}) {
+  const headers: Record<string, string> = { ...extraHeaders };
   if (session) {
     headers.Authorization = `Bearer ${session.token}`;
   }
   return { headers, tags: { name } };
 }
 
-function json(res) {
+function json<T>(res: Response): T | null {
   try {
-    return res.json();
-  } catch (e) {
+    return res.json() as T;
+  } catch {
     return null;
   }
 }
 
-function get(name, path) {
+function get<T = unknown>(name: string, path: string): T | null {
   const res = http.get(`${BASE_URL}${path}`, params(name));
   check(res, { [`${name} が 200`]: (r) => r.status === 200 });
   return json(res);
 }
 
-function send(method, name, path, body, expectedStatus, headers = {}) {
-  const res = http.request(method, `${BASE_URL}${path}`, body, params(name, { headers }));
+function send(
+  method: string,
+  name: string,
+  path: string,
+  body: string | null,
+  expectedStatus: number,
+  headers: Record<string, string> = {},
+): void {
+  const res = http.request(method, `${BASE_URL}${path}`, body, params(name, headers));
   check(res, { [`${name} が ${expectedStatus}`]: (r) => r.status === expectedStatus });
-  return json(res);
 }
 
 // ---- ログイン・再発行 ----
 
 /** この VU のユーザーでログインする（1回目の呼び出しだけ）。トークンが古くなっていたら再発行する */
-export function ensureLoggedIn() {
+export function ensureLoggedIn(): void {
   if (session === null) {
     const n = ((__VU - 1) % USERS) + 1;
     login(n);
@@ -99,7 +143,7 @@ export function ensureLoggedIn() {
   }
 }
 
-export function login(n) {
+export function login(n: number): void {
   session = null;
   const res = http.post(
     `${BASE_URL}/api/auth/login`,
@@ -110,66 +154,79 @@ export function login(n) {
   if (!ok) {
     throw new Error(`ログインできません（${username(n)}、ステータス ${res.status}）`);
   }
-  session = { n, username: username(n), token: res.json('accessToken'), issuedAt: Date.now(), latestPostId: 0, posts: [] };
+  session = {
+    n,
+    username: username(n),
+    token: res.json('accessToken') as string,
+    issuedAt: Date.now(),
+    latestPostId: 0,
+    posts: [],
+  };
 }
 
 /** アクセストークンを再発行する。リフレッシュトークンは、ログインのときに k6 の VU ごとの Cookie に入っている（シナリオの options に noCookiesReset: true が必要） */
-export function refresh() {
+export function refresh(): void {
+  const s = current();
   const res = http.post(`${BASE_URL}/api/auth/refresh`, null, { tags: { name: 'POST /api/auth/refresh' } });
   check(res, { 'POST /api/auth/refresh が 200': (r) => r.status === 200 });
   if (res.status === 200) {
-    session.token = res.json('accessToken');
-    session.issuedAt = Date.now();
+    s.token = res.json('accessToken') as string;
+    s.issuedAt = Date.now();
   }
 }
 
 // ---- 利用者の操作（「6.1 利用者の操作の割合」の1行ずつ） ----
 
-function remember(page) {
+function remember(page: Page | null): void {
   if (page && Array.isArray(page.items) && page.items.length > 0) {
-    session.posts = page.items;
-    session.latestPostId = Math.max(session.latestPostId, page.items[0].id);
+    const s = current();
+    s.posts = page.items;
+    s.latestPostId = Math.max(s.latestPostId, page.items[0].id);
   }
 }
 
 /** 見たことのある投稿から1つ選ぶ。いいね・コメントの多い投稿も、ときどき選ぶ */
-function somePostId() {
+function somePostId(): number {
   const r = Math.random();
   if (r < 0.05) return HOT_LIKES_POST_ID;
   if (r < 0.1) return HOT_COMMENTS_POST_ID;
-  if (session.posts.length > 0) return pick(session.posts).id;
+  const { posts } = current();
+  if (posts.length > 0) return pick(posts).id;
   return randomInt(1, 100);
 }
 
 /** 自分以外のユーザーを1人選ぶ。見たことのある投稿の作者か、ランダムなユーザー */
-function someOtherUsername() {
-  const authors = session.posts.map((p) => p.author && p.author.username).filter((u) => u && u !== session.username);
+function someOtherUsername(): string {
+  const s = current();
+  const authors = s.posts
+    .map((p) => p.author?.username)
+    .filter((u): u is string => u !== undefined && u !== s.username);
   if (authors.length > 0 && Math.random() < 0.5) return pick(authors);
   let n = randomInt(1, USERS);
-  if (n === session.n) n = (n % USERS) + 1;
+  if (n === s.n) n = (n % USERS) + 1;
   return username(n);
 }
 
 /** タイムラインを見る（フォロー中か全体）。続きを1〜2ページ読む */
-export function viewTimeline(tab = Math.random() < 0.5 ? 'following' : 'all') {
+export function viewTimeline(tab: 'following' | 'all' = Math.random() < 0.5 ? 'following' : 'all'): void {
   const path = tab === 'all' ? '/api/timeline/all' : '/api/timeline';
   const name = `GET ${path}`;
-  let page = get(name, path);
+  let page = get<Page>(name, path);
   remember(page);
   const more = randomInt(1, 2);
-  for (let i = 0; i < more && page && page.hasNext; i++) {
-    page = get(name, `${path}?cursor=${encodeURIComponent(page.nextCursor)}`);
+  for (let i = 0; i < more && page && page.hasNext && page.nextCursor; i++) {
+    page = get<Page>(name, `${path}?cursor=${encodeURIComponent(page.nextCursor)}`);
   }
 }
 
 /** 投稿の詳細とコメントを見る */
-export function viewPost(postId = somePostId()) {
+export function viewPost(postId: number = somePostId()): void {
   get('GET /api/posts/{postId}', `/api/posts/${postId}`);
   get('GET /api/posts/{postId}/comments', `/api/posts/${postId}/comments`);
 }
 
 /** プロフィールを見る（投稿一覧と、フォロー中かフォロワーの一覧） */
-export function viewProfile(name = someOtherUsername()) {
+export function viewProfile(name: string = someOtherUsername()): void {
   get('GET /api/users/{username}', `/api/users/${name}`);
   get('GET /api/users/{username}/posts', `/api/users/${name}/posts`);
   if (Math.random() < 0.5) {
@@ -180,26 +237,29 @@ export function viewProfile(name = someOtherUsername()) {
 }
 
 /** いいねを付ける・外す（method を省くと、見た投稿がいいね済みなら外し、それ以外は付ける） */
-export function toggleLike(postId = somePostId(), method = undefined) {
+export function toggleLike(postId: number = somePostId(), method?: Method): void {
   if (method === undefined) {
-    const post = session.posts.find((p) => p.id === postId);
-    method = post && post.likedByMe ? 'DELETE' : 'POST';
+    const post = current().posts.find((p) => p.id === postId);
+    method = post?.likedByMe ? 'DELETE' : 'POST';
   }
   send(method, `${method} /api/posts/{postId}/likes`, `/api/posts/${postId}/likes`, null, 200);
 }
 
 /** フォローする・外す */
-export function toggleFollow(name = someOtherUsername(), method = Math.random() < 0.5 ? 'POST' : 'DELETE') {
+export function toggleFollow(
+  name: string = someOtherUsername(),
+  method: Method = Math.random() < 0.5 ? 'POST' : 'DELETE',
+): void {
   send(method, `${method} /api/users/{username}/follow`, `/api/users/${name}/follow`, null, 200);
 }
 
 /** ユーザーを検索する */
-export function searchUsers(q = pick(['perf', 'perf001', 'perf0042', '性能', 'テスト', '性能テスト 1'])) {
+export function searchUsers(q: string = pick(['perf', 'perf001', 'perf0042', '性能', 'テスト', '性能テスト 1'])): void {
   get('GET /api/users/search', `/api/users/search?q=${encodeURIComponent(q)}`);
 }
 
 /** 投稿する（画像なし）。API は multipart/form-data しか受け付けないので、本文を自分で組み立てる */
-export function createPost() {
+export function createPost(): void {
   const boundary = `----k6${Date.now()}${__VU}`;
   const body =
     `--${boundary}\r\n` +
@@ -212,7 +272,7 @@ export function createPost() {
 }
 
 /** コメントする */
-export function createComment(postId = somePostId()) {
+export function createComment(postId: number = somePostId()): void {
   send(
     'POST',
     'POST /api/posts/{postId}/comments',
@@ -224,14 +284,14 @@ export function createComment(postId = somePostId()) {
 }
 
 /** 新しい投稿の件数を確かめる（画面を開いている全員が60秒ごとに呼ぶ） */
-export function checkNewCount() {
-  const since = session.latestPostId;
+export function checkNewCount(): void {
+  const since = current().latestPostId;
   get('GET /api/timeline/new-count', `/api/timeline/new-count?since=${since}`);
   get('GET /api/timeline/all/new-count', `/api/timeline/all/new-count?since=${since}`);
 }
 
 /** 「6.1 利用者の操作の割合」に従って、操作を1つ選んで行う */
-export function doRandomAction() {
+export function doRandomAction(): void {
   const r = Math.random() * 100;
   if (r < 40) return viewTimeline();
   if (r < 60) return viewPost();
@@ -250,7 +310,7 @@ let lastNewCountAt = 0;
  *   - 60秒ごとに、新しい投稿の件数を確かめる（最初の1回は、基準になる「一番新しい投稿」を知るため先にタイムラインを見る）
  *   - 操作を1つ選んで行い、人が画面を読む時間（3〜10秒）だけ待つ
  */
-export function userIteration() {
+export function userIteration(): void {
   ensureLoggedIn();
   if (Date.now() - lastNewCountAt >= NEW_COUNT_INTERVAL_MS) {
     if (lastNewCountAt === 0) viewTimeline('following');
@@ -270,14 +330,15 @@ const processCpu = new Gauge('backend_process_cpu');
 const hikariActive = new Gauge('backend_hikari_active');
 const hikariPending = new Gauge('backend_hikari_pending');
 
-function metricValue(path, statistic = 'VALUE') {
+function metricValue(path: string, statistic = 'VALUE'): number | null {
   const res = http.get(`${BASE_URL}/api/metrics/${path}`, params('GET /api/metrics/{name}'));
   if (res.status !== 200) return null;
-  const m = (res.json('measurements') || []).find((x) => x.statistic === statistic);
+  const measurements = (json<{ measurements?: Measurement[] }>(res)?.measurements) ?? [];
+  const m = measurements.find((x) => x.statistic === statistic);
   return m ? m.value : null;
 }
 
-function record(gauge, value, scale = 1) {
+function record(gauge: Gauge, value: number | null, scale = 1): void {
   if (value !== null) gauge.add(value * scale);
 }
 
@@ -286,7 +347,7 @@ function record(gauge, value, scale = 1) {
  * バックエンドを MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics で起動していないと 404 になり、何も記録しない。
  * 監視役のリクエストは、合格の基準（thresholds）に入れない（シナリオで分けている）
  */
-export function monitorIteration(intervalSeconds = 10) {
+export function monitorIteration(intervalSeconds = 10): void {
   if (session === null) login(USERS);
   else if (Date.now() - session.issuedAt > REFRESH_AFTER_MS) refresh();
   record(heapUsedMb, metricValue('jvm.memory.used?tag=area:heap'), 1 / 1024 / 1024);
@@ -298,7 +359,7 @@ export function monitorIteration(intervalSeconds = 10) {
 }
 
 /** "10m"・"90s"・"1h" を分にする（切り上げ。監視役を同じ長さだけ動かすため） */
-export function minutes(text) {
+export function minutes(text: string): number {
   const m = /^(\d+)([smh])$/.exec(text);
   if (!m) throw new Error(`時間は 10m・90s・1h の形で書く（${text}）`);
   const n = parseInt(m[1], 10);
@@ -306,20 +367,27 @@ export function minutes(text) {
 }
 
 /** 監視役のシナリオ（options.scenarios に足す）。test の長さに合わせて duration を渡す */
-export function monitorScenario(duration) {
-  return { executor: 'constant-vus', vus: 1, duration, exec: 'monitor' };
+export function monitorScenario(duration: string) {
+  return { executor: 'constant-vus', vus: 1, duration, exec: 'monitor' } as const;
 }
 
 // ---- 合格の基準（docs/performance-test-plan.md「1. 目的と合格の基準」） ----
+
+/** k6 の thresholds の1つ（式だけか、途中で止めるかなどの設定つき） */
+type Threshold = string | { threshold: string; abortOnFail?: boolean; delayAbortEval?: string };
 
 /**
  * 合否を決める基準（全部の API をまとめて p95 < 500ms、エラー率 1% 未満）に加え、
  * API ごとの p95 を結果に出すための式を付ける（API ごとの式は合否に使わない。必ず通る「0以上」にしている）。
  * scenario を渡すと、そのシナリオのリクエストだけで判定する（監視役のリクエストを入れないため）
  */
-export function thresholds(scenario = undefined, overall = ['p(95)<500'], failed = ['rate<0.01']) {
+export function thresholds(
+  scenario?: string,
+  overall: Threshold[] = ['p(95)<500'],
+  failed: Threshold[] = ['rate<0.01'],
+): Record<string, Threshold[]> {
   const filter = scenario ? `{scenario:${scenario}}` : '';
-  const t = {
+  const t: Record<string, Threshold[]> = {
     [`http_req_duration${filter}`]: overall,
     [`http_req_failed${filter}`]: failed,
   };
