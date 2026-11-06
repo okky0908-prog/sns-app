@@ -5,7 +5,7 @@
 # 使い方（リポジトリのルートで）:
 #   perf/run.sh <シナリオ> [接続先の URL]
 #
-#   シナリオ  perf/scenarios/<シナリオ>.js（smoke・load・stress・soak・login）
+#   シナリオ  perf/scenarios/<シナリオ>.ts（smoke・load・stress・soak・login）
 #   接続先    既定は http://host.docker.internal:8080（k6 のコンテナから見た、Mac で動いているバックエンド）。
 #             AWS では CloudFront の URL（https://xxxx.cloudfront.net）を渡す
 #
@@ -33,9 +33,9 @@ K6_IMAGE="grafana/k6:2.3.0"
 scenario="${1:-}"
 base_url="${2:-http://host.docker.internal:8080}"
 
-if [ -z "$scenario" ] || [ ! -f "$ROOT_DIR/perf/scenarios/$scenario.js" ]; then
+if [ -z "$scenario" ] || [ ! -f "$ROOT_DIR/perf/scenarios/$scenario.ts" ]; then
   sed -n '5,10p' "$0" | sed 's/^# \{0,1\}//' >&2
-  echo "シナリオ: $(cd "$ROOT_DIR/perf/scenarios" && ls -- *.js | sed 's/\.js$//' | tr '\n' ' ')" >&2
+  echo "シナリオ: $(cd "$ROOT_DIR/perf/scenarios" && ls -- *.ts | sed 's/\.ts$//' | tr '\n' ' ')" >&2
   exit 1
 fi
 
@@ -60,4 +60,4 @@ docker run --rm -i \
   --summary-trend-stats "avg,med,p(95),p(99),max" \
   --summary-export "/results/${result}" \
   --out "csv=/results/${result%.json}.csv.gz" \
-  "/scripts/${scenario}.js"
+  "/scripts/${scenario}.ts"

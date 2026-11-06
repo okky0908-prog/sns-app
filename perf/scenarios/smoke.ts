@@ -2,7 +2,7 @@
 // スクリプトとテストデータが正しく動くかの確認なので、ほかのシナリオの前に必ず流す。
 // 速さは見ず、1つでも失敗したら（ステータスが期待と違ったら）k6 を失敗で終わらせる。
 
-import * as api from './lib/api.js';
+import * as api from './lib/api.ts';
 
 export const options = {
   // k6 は既定で繰り返しのたびに Cookie を消す。リフレッシュトークンの Cookie を残すため、消さないようにする
@@ -15,7 +15,7 @@ export const options = {
   },
 };
 
-export default function () {
+export default function (): void {
   api.ensureLoggedIn();
   api.viewTimeline('following');
   api.viewTimeline('all');

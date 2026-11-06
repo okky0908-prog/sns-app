@@ -10,7 +10,7 @@
 // 環境変数: RATE（1秒あたりのログイン。既定 20）、BACKGROUND_VUS（既定 20）
 
 import { check } from 'k6';
-import * as api from './lib/api.js';
+import * as api from './lib/api.ts';
 
 const RATE = parseInt(__ENV.RATE || '20', 10);
 const BACKGROUND_VUS = parseInt(__ENV.BACKGROUND_VUS || '20', 10);
@@ -47,21 +47,21 @@ export const options = {
   }),
 };
 
-export function loginOnly() {
+export function loginOnly(): void {
   // ふだんの利用者（users）と重ならないよう、後ろの半分の番号のユーザーでログインする
   const half = Math.floor(api.USERS / 2);
   const n = half + 1 + Math.floor(Math.random() * (api.USERS - half - 1));
   try {
     api.login(n);
-  } catch (e) {
+  } catch {
     check(null, { 'ログインの集中でログインできた': () => false });
   }
 }
 
-export function user() {
+export function user(): void {
   api.userIteration();
 }
 
-export function monitor() {
+export function monitor(): void {
   api.monitorIteration(5);
 }

@@ -1,0 +1,13 @@
+{
+  "name": "sns-perf",
+  "private": true,
+  "description": "パフォーマンステスト（k6）のシナリオの型チェック。k6 は .ts をそのまま実行するが、型は確かめないので tsc で確かめる",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/k6": "^2.3.1",
+    "typescript": "^7.0.2"
+  }
+}
