@@ -226,14 +226,16 @@ PostgreSQL では、UNIQUE 制約には自動でインデックスが作られ�
 | refresh_tokens | (user_id) | 使い回しを検知したときに、そのユーザーのトークンをまとめて無効にする。ユーザー削除時の CASCADE |
 | users | UNIQUE(LOWER(username)) | ユーザー名の重複チェック（大文字・小文字を区別しない）、プロフィール表示 |
 | users | (created_at DESC) | ユーザー検索でキーワードが空のときの「最近参加したユーザー」 |
-| users | GIN(username gin_trgm_ops)<br>GIN(display_name gin_trgm_ops) | ユーザー検索の部分一致（`ILIKE '%キーワード%'`）。**未作成**（ユーザーが増えたら追加する。下の説明を参照） |
+| users | GIN(username gin_trgm_ops)<br>GIN(display_name gin_trgm_ops) | ユーザー検索の部分一致（`ILIKE '%キーワード%'`）。キーワードが3文字以上のとき（下の説明を参照） |
 
 ### ユーザー検索のインデックスについて
 
 - 部分一致（`'%yama%'` のように前に `%` が付く検索）は、普通のインデックス（B-tree）が使えない
 - PostgreSQL の拡張機能 **pg_trgm**（文字を3文字ずつに分けて索引を作る仕組み）を使うと、部分一致でもインデックスが効く
-- 利用には `CREATE EXTENSION IF NOT EXISTS pg_trgm;` が必要
-- 学習用の規模（数百ユーザー）ではインデックスがなくても十分速いので、**最初は作らず、ユーザーが増えてから追加してもよい**
+- 利用には `CREATE EXTENSION IF NOT EXISTS pg_trgm;` が必要。pg_trgm は「信頼できる拡張」なので、スーパーユーザーでなくても DB の CREATE 権限があれば作れる（RDS も同じ）
+- 日本語も3文字ずつに分けられる（`show_trgm('性能テスト')` で確かめた）
+- キーワードが2文字以下のときは3文字の組を作れないので、インデックスでは絞り込めず、これまでどおり全件を読む
+- 最初は作らなかったが、パフォーマンステストで、ユーザーの数に比例して遅くなることが分かったので追加した（Issue #131、[パフォーマンステストの結果](./performance-test-results.md)）
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -364,9 +366,9 @@ SQL の読みやすさを保つため、MyBatis の機能は次の範囲で使�
 | `V6__create_likes.sql` | likes テーブルの作成（post_id と user_id の一意制約、user_id のインデックス） | 作成済み（いいね） |
 | `V7__create_comments.sql` | comments テーブルの作成（(post_id, created_at, id) と user_id のインデックス） | 作成済み（コメント） |
 | `V8__create_post_images.sql` | post_images テーブルの作成（表示順 1〜4 の CHECK 制約、(post_id, sort_order) の一意制約） | 作成済み（画像投稿） |
+| `V9__add_user_search_index.sql` | pg_trgm 拡張と、ユーザー検索用の GIN インデックス（username・display_name） | 作成済み（Issue #131） |
 
 - 動作確認用のサンプルデータ（複数ユーザー・投稿・いいね・コメント・フォロー関係）はマイグレーションには入れず、`scripts/seed.sh` で入れる（本番の DB にテストデータが入らないように。使い方は README）
 
-- pg_trgm 拡張とユーザー検索用の GIN インデックスは、必要になった時点で `V<次の番号>__add_user_search_index.sql` として追加する
 - `bootRun` 起動時に Flyway が未適用のマイグレーションを自動実行する（[技術スタック](./tech-stack.md)参照）
 - 一度適用したマイグレーションファイルは書き換えず、変更は新しい番号のファイルで行う

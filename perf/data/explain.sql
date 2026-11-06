@@ -60,7 +60,7 @@ SELECT count(*) FROM (
   LIMIT 100
 ) AS new_posts;
 
-\echo '==== ユーザー検索（UserMapper.search、キーワード「性能」。followedByMe は省略）'
+\echo '==== ユーザー検索（UserMapper.search、キーワード「性能」。2 文字で、全員が当てはまる＝索引で絞れない場合。followedByMe は省略）'
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT * FROM (
   SELECT u.id, u.username, u.display_name,
@@ -72,6 +72,22 @@ SELECT * FROM (
   FROM users u
   WHERE u.username ILIKE '%' || '性能' || '%'
      OR u.display_name ILIKE '%' || '性能' || '%'
+) found
+ORDER BY found.match_rank, LOWER(found.username)
+LIMIT 21;
+
+\echo '==== ユーザー検索（UserMapper.search、キーワード「perf0042」。当てはまる人が少ない＝索引が効く場合。followedByMe は省略）'
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM (
+  SELECT u.id, u.username, u.display_name,
+         CASE
+           WHEN LOWER(u.username) = LOWER('perf0042') THEN 0
+           WHEN u.username ILIKE 'perf0042' || '%' THEN 1
+           ELSE 2
+         END AS match_rank
+  FROM users u
+  WHERE u.username ILIKE '%' || 'perf0042' || '%'
+     OR u.display_name ILIKE '%' || 'perf0042' || '%'
 ) found
 ORDER BY found.match_rank, LOWER(found.username)
 LIMIT 21;
