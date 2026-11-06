@@ -214,6 +214,55 @@ curl -s -H "Authorization: Bearer $TOKEN" localhost:8080/api/metrics/jvm.gc.paus
 | 3 | k6 のシナリオ（スモーク・負荷）、`perf/run.sh`、合格の基準（`thresholds`）、性能テストのときだけ metrics を公開する設定（Issue #127） |
 | 4 | 初回の測定（ストレス・耐久・ログイン集中を含む）と、結果の記録（[結果](performance-test-results.md)）。遅い箇所は**改善ごとに別の Issue** にする（Issue #129） |
 | 5 | AWS での測定（apply のあと） |
+| 6 | ブラウザのパフォーマンステスト（「10」。Issue #142） |
 
 - k6 のスクリプトとテストデータの SQL は、テストのための道具なので、[CLAUDE.md](../CLAUDE.md) の TDD の対象外とする
 - 測定で見つかった問題を直すとき（SQL の書き換え・インデックスの追加など）は、TDD のルールに従う。動きを変えない改善でも、直す前に既存のテストが通っていることを確かめ、直したあとにもう一度測って、改善した数値を PR に書く
+
+## 10. ブラウザのパフォーマンステスト
+
+k6 は API の速さだけを測る。非機能要件の「操作から画面反映まで1秒以内」は、ブラウザでの描画を含めて確かめる必要があるので、Playwright で画面を操作して時間を測る（`frontend/browser-perf/`）。
+
+### 測るもの
+
+| 区分 | 測るもの | 目安（合否） |
+|---|---|---|
+| 最初の表示 | ログイン画面の FCP・LCP・DOMContentLoaded・HTML が届き終わるまで、送られた JavaScript・CSS の量 | LCP 2.5 秒以内（Web Vitals の「良い」）。ほかは記録だけ |
+| 最初の表示 | 「ログイン」を押してからタイムラインが出るまで、読み込み直してからタイムラインが出るまで（再訪問。Cookie でトークンを再発行する） | 1 秒以内 |
+| 操作から画面反映まで | タブの切り替え・続きの読み込み・投稿詳細・プロフィール・ユーザー検索・いいね・投稿 | 1 秒以内 |
+
+- **時間の測り方**：テストの道具（Playwright）は画面を数十〜数百 ms おきに見に行くので、その待ちが時間に混ざらないよう、操作もその後の待ちもブラウザの中で行う。操作した瞬間から、結果が DOM にそろったフレーム（`requestAnimationFrame`）までを `performance.now()` で測る（`measure.ts` の `timeAction`）。操作の前からあった要素には印を付け、新しく描かれたものだけを数える（タブを切り替えたとき、古い一覧を「表示された」と数えないため）
+- **画面は本番用にビルドする**（`vite build` → `vite preview`。ポートは 5173）。開発用のサーバーは最適化していないので遅く出る。`vite preview` も本番の CloudFront と同じく圧縮して配る
+- **データ**：性能テストの DB `sns_perf` の基準の規模。ユーザーは、たくさんフォローしている perf00001（タイムラインが一番重い）
+- **回数**：1 つの値を 5 回測って中央値と最大を出す（環境変数 `SAMPLES` で変えられる）。最初の 1 回は、サーバーとブラウザを温めるために捨てる
+- **条件**：2 つの条件で測る
+
+| 条件 | 内容 | 合否 |
+|---|---|---|
+| Mac のまま | 何も遅くしない | 付ける |
+| 遅い端末・回線のまね | CPU を 4 倍遅く、回線は遅延 150ms・下り 1.6Mbps（Lighthouse のスマートフォンの条件と同じ。Chrome の DevTools Protocol で設定する） | 付けない（記録だけ。非機能要件は PC を優先しているため） |
+
+- Chrome の回線のまねは、遅延を「届き始め」ではなく「届き終わり」に足すので、最初の1バイト（TTFB）ではなく「HTML が届き終わるまで」を記録する
+- 画像の配信は測らない（LocalStack では本物の S3・CloudFront の速さが分からない。「3. 実行する環境」の段階 2 で測る）
+- **CI では動かさない**（この計画書の冒頭の方針）。型チェックだけ、フロントエンドのビルド（`tsc -b`）で毎回行う
+
+### 選ばなかったもの
+
+- **Lighthouse**：ページを開いたときの値は詳しく出るが、ログインしたあとの操作（タブの切り替えなど）を測れない。Chrome を別に起動する仕組みも要る。読み込みの値（FCP・LCP）は Playwright でも取れるので、道具を増やさない
+
+### 手順
+
+```bash
+# 1. データを入れる
+perf/setup-db.sh base
+
+# 2. バックエンドを、本番と同じ JVM の設定で sns_perf につないで起動する（backend で実行）
+cd backend && ./gradlew bootJar
+POSTGRES_DB=sns_perf java -Xms256m -Xmx512m -jar build/libs/backend-0.0.1-SNAPSHOT.jar
+
+# 3. 別のターミナルで（frontend で実行）。ビルドと vite preview は自動で行う
+cd frontend && npm run test:browser-perf    # 回数を変えるときは SAMPLES=10 npm run test:browser-perf
+```
+
+- 結果の表は、画面と `frontend/browser-perf-results/`（Git には入れない）に Markdown で出る。そのまま [結果](performance-test-results.md) に貼れる
+- 測るたびに投稿・いいねが少し増える。前回と同じデータで比べるときは、`perf/setup-db.sh base` で入れ直す

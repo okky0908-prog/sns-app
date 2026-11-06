@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:browser-perf": "playwright test --config playwright.browser-perf.config.ts",
     "gen:api": "npm --prefix tools/openapi-typescript run generate",
     "preview": "vite preview"
   },
