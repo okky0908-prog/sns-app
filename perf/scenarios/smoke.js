@@ -5,6 +5,8 @@
 import * as api from './lib/api.js';
 
 export const options = {
+  // k6 は既定で繰り返しのたびに Cookie を消す。リフレッシュトークンの Cookie を残すため、消さないようにする
+  noCookiesReset: true,
   vus: 1,
   iterations: 1,
   thresholds: {

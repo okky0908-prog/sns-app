@@ -70,6 +70,8 @@ if [ "$(psql_in -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '$DB
 else
   psql_in -d postgres -c "CREATE DATABASE $DB_NAME"
 fi
+# SQL ごとの実行時間を集計する拡張（perf/db-report.sh top で見る）。docker-compose.yml で読み込んである前提
+psql_in -d "$DB_NAME" -q -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements"
 
 echo "== 2. テーブルを作る（Flyway）"
 # Flyway のコンテナを postgres と同じネットワークにつなぎ、サービス名（postgres）で接続する
