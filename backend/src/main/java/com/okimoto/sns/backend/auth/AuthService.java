@@ -19,6 +19,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** 新規登録・ログイン・トークンの再発行・ログアウト・ログイン中のユーザー情報の取得（docs/feature-specs/01_auth.md）。 */
 @Service
@@ -44,6 +45,7 @@ public class AuthService {
   private final JwtService jwtService;
   private final RefreshTokenService refreshTokenService;
   private final ImageStorage imageStorage;
+  private final TransactionOperations transactionOperations;
   private final Clock clock;
 
   /** 存在しないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
@@ -55,17 +57,22 @@ public class AuthService {
       JwtService jwtService,
       RefreshTokenService refreshTokenService,
       ImageStorage imageStorage,
+      TransactionOperations transactionOperations,
       Clock clock) {
     this.userMapper = userMapper;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
     this.refreshTokenService = refreshTokenService;
     this.imageStorage = imageStorage;
+    this.transactionOperations = transactionOperations;
     this.clock = clock;
     this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
   }
 
-  @Transactional
+  /**
+   * 新規登録。BCrypt のハッシュ化（約 80ms）はトランザクションの外で行い、DB の接続を持つのは保存の間だけにする（Issue #130）。
+   * ユーザーの保存とリフレッシュトークンの発行は、1つのトランザクションでまとめて確定する。
+   */
   public AuthResult signup(SignupRequest request) {
     String username = request.username();
     String email = normalizeEmail(request.email());
@@ -97,6 +104,10 @@ public class AuthService {
             email,
             passwordEncoder.encode(request.password()),
             OffsetDateTime.now(clock));
+    return transactionOperations.execute(status -> saveAndIssueTokens(user));
+  }
+
+  private AuthResult saveAndIssueTokens(User user) {
     try {
       userMapper.insert(user);
     } catch (DuplicateKeyException e) {
@@ -112,7 +123,10 @@ public class AuthService {
     return issueTokens(user);
   }
 
-  @Transactional
+  /**
+   * ログイン。トランザクションは使わない（Issue #130）。BCrypt の照合（約 80ms）の間に DB の接続を持ち続けないようにするため。 DB
+   * の操作は、ユーザーの検索とリフレッシュトークンの保存の1回ずつで、まとめて確定する必要がない。
+   */
   public AuthResult login(LoginRequest request) {
     String email = normalizeEmail(request.email());
     Optional<User> user = userMapper.findByEmail(email);

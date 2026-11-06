@@ -31,6 +31,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionOperations;
 
 /**
  * AuthService の単体テスト（Mapper・トークンの発行・S3 は偽物。パスワードのハッシュは本物の BCrypt を強度を下げて使う）。
@@ -59,6 +60,7 @@ class AuthServiceTest {
           jwtService,
           refreshTokenService,
           imageStorage,
+          TransactionOperations.withoutTransaction(),
           Clock.fixed(NOW.toInstant(), ZoneOffset.UTC));
 
   @BeforeEach
