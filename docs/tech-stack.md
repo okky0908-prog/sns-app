@@ -71,7 +71,9 @@
 | 項目 | 技術・バージョン | 前回と同じ | 理由・補足 |
 |---|---|---|---|
 | コンテナ | Docker Compose | ○ | |
-| DB | `postgres:17` | ○ | |
+| DB | `postgres:17` | ○ | パフォーマンステストのため、`pg_stat_statements` を読み込んで起動する（`docker-compose.yml` の `command`。拡張を作るのは性能テストの DB `sns_perf` だけ） |
+| 負荷テスト | k6 2.3.0（Docker イメージ `grafana/k6:2.3.0`） | 新規 | 利用者の操作を JavaScript で書き、同時に何人も動かして応答時間を測る（[パフォーマンステスト計画書](performance-test-plan.md)）。Mac に入れずに Docker で動かす。導入したとき（2026-11-04）の最新の安定版 |
+| テストデータの DB の作成 | Flyway 12.4.0（Docker イメージ `flyway/flyway:12.4.0`） | 新規 | 性能テストの DB `sns_perf` にテーブルを作る（`perf/setup-db.sh`）。バックエンドの Flyway と同じ版にそろえる |
 | S3 の代わり | LocalStack 4.14.0（Docker イメージ `localstack/localstack:4.14.0`、S3 だけ起動） | 新規 | AWS に接続せずに画像のアップロードを試せる。**2026.03.0 以降は起動に LocalStack のアカウントと認証トークンが必要になった**ため、トークンなしで動く最後の版 4.14.0 に固定する（更新は受けられないが、使うのは S3 の保存・削除・表示だけで、手元の開発用なので影響は小さい）。無料版はデータを保存しないので、コンテナを作り直すと画像は消える |
 
 ## インフラ（AWS）

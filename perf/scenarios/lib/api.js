@@ -8,7 +8,8 @@
 // VU ごとに JavaScript の実行環境が別なので、下の session は VU ごとに別の値を持つ。
 
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
+import { Gauge } from 'k6/metrics';
 
 export const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:8080';
 export const USERS = parseInt(__ENV.USERS || '500', 10);
@@ -112,7 +113,7 @@ export function login(n) {
   session = { n, username: username(n), token: res.json('accessToken'), issuedAt: Date.now(), latestPostId: 0, posts: [] };
 }
 
-/** アクセストークンを再発行する。リフレッシュトークンは、ログインのときに k6 の VU ごとの Cookie に入っている */
+/** アクセストークンを再発行する。リフレッシュトークンは、ログインのときに k6 の VU ごとの Cookie に入っている（シナリオの options に noCookiesReset: true が必要） */
 export function refresh() {
   const res = http.post(`${BASE_URL}/api/auth/refresh`, null, { tags: { name: 'POST /api/auth/refresh' } });
   check(res, { 'POST /api/auth/refresh が 200': (r) => r.status === 200 });
@@ -240,16 +241,87 @@ export function doRandomAction() {
   return Math.random() < 0.5 ? createPost() : createComment();
 }
 
+const NEW_COUNT_INTERVAL_MS = 60 * 1000;
+let lastNewCountAt = 0;
+
+/**
+ * 利用者（VU）の1回分の動き。負荷・ストレス・耐久で共通に使う。
+ *   - 最初にログインする（14分たったら再発行する）
+ *   - 60秒ごとに、新しい投稿の件数を確かめる（最初の1回は、基準になる「一番新しい投稿」を知るため先にタイムラインを見る）
+ *   - 操作を1つ選んで行い、人が画面を読む時間（3〜10秒）だけ待つ
+ */
+export function userIteration() {
+  ensureLoggedIn();
+  if (Date.now() - lastNewCountAt >= NEW_COUNT_INTERVAL_MS) {
+    if (lastNewCountAt === 0) viewTimeline('following');
+    checkNewCount();
+    lastNewCountAt = Date.now();
+  }
+  doRandomAction();
+  sleep(3 + Math.random() * 7);
+}
+
+// ---- 監視役（バックエンドの metrics を定期的に記録する） ----
+
+// k6 の結果（CSV）に時刻つきで残し、perf/analyze.py で時間ごとの変化を見る
+const heapUsedMb = new Gauge('backend_heap_used_mb');
+const gcPauseTotalMs = new Gauge('backend_gc_pause_total_ms');
+const processCpu = new Gauge('backend_process_cpu');
+const hikariActive = new Gauge('backend_hikari_active');
+const hikariPending = new Gauge('backend_hikari_pending');
+
+function metricValue(path, statistic = 'VALUE') {
+  const res = http.get(`${BASE_URL}/api/metrics/${path}`, params('GET /api/metrics/{name}'));
+  if (res.status !== 200) return null;
+  const m = (res.json('measurements') || []).find((x) => x.statistic === statistic);
+  return m ? m.value : null;
+}
+
+function record(gauge, value, scale = 1) {
+  if (value !== null) gauge.add(value * scale);
+}
+
+/**
+ * 監視役の1回分。専用のユーザー（一番最後の番号）でログインし、metrics を読んで記録する。
+ * バックエンドを MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics で起動していないと 404 になり、何も記録しない。
+ * 監視役のリクエストは、合格の基準（thresholds）に入れない（シナリオで分けている）
+ */
+export function monitorIteration(intervalSeconds = 10) {
+  if (session === null) login(USERS);
+  else if (Date.now() - session.issuedAt > REFRESH_AFTER_MS) refresh();
+  record(heapUsedMb, metricValue('jvm.memory.used?tag=area:heap'), 1 / 1024 / 1024);
+  record(gcPauseTotalMs, metricValue('jvm.gc.pause', 'TOTAL_TIME'), 1000);
+  record(processCpu, metricValue('process.cpu.usage'));
+  record(hikariActive, metricValue('hikaricp.connections.active'));
+  record(hikariPending, metricValue('hikaricp.connections.pending'));
+  sleep(intervalSeconds);
+}
+
+/** "10m"・"90s"・"1h" を分にする（切り上げ。監視役を同じ長さだけ動かすため） */
+export function minutes(text) {
+  const m = /^(\d+)([smh])$/.exec(text);
+  if (!m) throw new Error(`時間は 10m・90s・1h の形で書く（${text}）`);
+  const n = parseInt(m[1], 10);
+  return m[2] === 'h' ? n * 60 : m[2] === 'm' ? n : Math.ceil(n / 60);
+}
+
+/** 監視役のシナリオ（options.scenarios に足す）。test の長さに合わせて duration を渡す */
+export function monitorScenario(duration) {
+  return { executor: 'constant-vus', vus: 1, duration, exec: 'monitor' };
+}
+
 // ---- 合格の基準（docs/performance-test-plan.md「1. 目的と合格の基準」） ----
 
 /**
  * 合否を決める基準（全部の API をまとめて p95 < 500ms、エラー率 1% 未満）に加え、
- * API ごとの p95 を結果に出すための式を付ける（API ごとの式は合否に使わない。必ず通る「0以上」にしている）
+ * API ごとの p95 を結果に出すための式を付ける（API ごとの式は合否に使わない。必ず通る「0以上」にしている）。
+ * scenario を渡すと、そのシナリオのリクエストだけで判定する（監視役のリクエストを入れないため）
  */
-export function thresholds() {
+export function thresholds(scenario = undefined, overall = ['p(95)<500'], failed = ['rate<0.01']) {
+  const filter = scenario ? `{scenario:${scenario}}` : '';
   const t = {
-    http_req_duration: ['p(95)<500'],
-    http_req_failed: ['rate<0.01'],
+    [`http_req_duration${filter}`]: overall,
+    [`http_req_failed${filter}`]: failed,
   };
   for (const name of API_NAMES) {
     t[`http_req_duration{name:${name}}`] = ['p(95)>=0'];

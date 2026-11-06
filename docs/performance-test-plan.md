@@ -148,12 +148,18 @@ k6 の出力そのもの（JSON）は `perf/results/` に置き、Git には入�
 ```
 perf/
   setup-db.sh perf/setup-db.sh base|x10  ← 専用の DB sns_perf を作り、テストデータを入れる（「4. テストデータ」）
-  data/       テストデータを作る SQL（seed.sql。規模は setup-db.sh が渡す）
-  scenarios/  k6 のスクリプト（smoke・load。stress・soak・login は手順 4 で足す）
-    lib/api.js  API の呼び出し・利用者の操作（「6.1」の割合）・合格の基準（thresholds）
+  data/       テストデータを作る SQL（seed.sql。規模は setup-db.sh が渡す）、実行計画を見る SQL（explain.sql）
+  scenarios/  k6 のスクリプト（smoke・load・stress・soak・login。「6.2 シナリオの種類」）
+    lib/api.js  API の呼び出し・利用者の操作（「6.1」の割合）・監視役（metrics の記録）・合格の基準（thresholds）
   run.sh      perf/run.sh <シナリオ> [接続先の URL]  ← Docker の k6（grafana/k6:2.3.0）で動かす
-  results/    k6 の結果の要約（JSON。Git には入れない）
+  db-report.sh perf/db-report.sh reset|top|explain  ← pg_stat_statements の集計・EXPLAIN (ANALYZE, BUFFERS)
+  analyze.py  python3 perf/analyze.py <CSV>  ← k6 の結果を時間ごと（人数ごと）に集計する
+  results/    k6 の結果の要約（JSON）と、リクエストごとの値（CSV。時刻つき）。Git には入れない
 ```
+
+- 負荷・ストレス・耐久・ログイン集中では、監視役（1人）がバックエンドの metrics（ヒープ・GC の累計・CPU・接続プール）を定期的に読み、k6 の結果に `backend_*` という名前で残す。監視役のリクエストは、合格の基準に入れない（シナリオで分けている）
+- k6 の要約は全体の値しか出さないので、人数ごとの p95（ストレス）や、時間がたつと遅くなるか・ヒープが増え続けるか（耐久）は `perf/analyze.py` で見る
+- `pg_stat_statements` は docker compose の PostgreSQL で読み込み（`docker-compose.yml` の `command`）、拡張は `perf/setup-db.sh` が `sns_perf` にだけ作る。シナリオの前に `perf/db-report.sh reset`、あとに `perf/db-report.sh top`
 
 ### ローカルでの手順
 
@@ -204,7 +210,7 @@ curl -s -H "Authorization: Bearer $TOKEN" localhost:8080/api/metrics/jvm.gc.paus
 | 1 | この計画書を書き、[テスト計画書](test-plan.md)の「対象外」を書き直す |
 | 2 | テストデータの SQL（基準・10倍）と、専用の DB `sns_perf` を作る手順（Issue #125） |
 | 3 | k6 のシナリオ（スモーク・負荷）、`perf/run.sh`、合格の基準（`thresholds`）、性能テストのときだけ metrics を公開する設定（Issue #127） |
-| 4 | 初回の測定（ストレス・耐久・ログイン集中を含む）と、結果の記録。遅い箇所は**改善ごとに別の Issue** にする |
+| 4 | 初回の測定（ストレス・耐久・ログイン集中を含む）と、結果の記録（[結果](performance-test-results.md)）。遅い箇所は**改善ごとに別の Issue** にする（Issue #129） |
 | 5 | AWS での測定（apply のあと） |
 
 - k6 のスクリプトとテストデータの SQL は、テストのための道具なので、[CLAUDE.md](../CLAUDE.md) の TDD の対象外とする
