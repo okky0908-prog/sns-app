@@ -10,6 +10,8 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: 'browser-perf',
+  // 計算の部分の部品のテスト（*.test.ts。Vitest で動かす）は含めない
+  testMatch: '*.spec.ts',
   workers: 1,
   fullyParallel: false,
   retries: 0,
