@@ -64,7 +64,7 @@ export function LikeButton({ postId, likeCount, likedByMe, onChange, onError }: 
     <button
       type="button"
       className={`${styles.button} ${likedByMe ? styles.liked : ''}`}
-      aria-label={likedByMe ? 'いいねを取り消す' : 'いいね'}
+      // 押したかどうかは aria-pressed で伝える（名前は変えない）
       aria-pressed={likedByMe}
       onClick={handleClick}
     >
@@ -72,7 +72,16 @@ export function LikeButton({ postId, likeCount, likedByMe, onChange, onError }: 
         {likedByMe ? '♥' : '♡'}
       </span>
       {/* いいね数が0のときは数字を出さない */}
-      {likeCount > 0 && <span className={styles.count}>{likeCount}</span>}
+      {likeCount > 0 && (
+        <span className={styles.count} aria-hidden="true">
+          {likeCount}
+        </span>
+      )}
+      {/*
+        読み上げの名前は「いいね（N件）」で、見えている数字を含む（WCAG 2.5.3。#140）。
+        見えている数字と補足を別々の要素にすると、Chrome が間に空白を入れる（「いいね（ 1 件）」）ので、名前は1つの要素で持つ
+      */}
+      <span className="visually-hidden">いいね（{likeCount}件）</span>
     </button>
   )
 }

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { likePost } from '../api/client'
 import type { Post, UserSummary } from '../api/types'
 import { AuthContext, type AuthContextValue } from '../auth/authContext'
-import { aPost, aUser, NOW, renderWithRouter } from '../test/helpers'
+import { aPost, aUser, NOW, renderWithRouter, visibleText } from '../test/helpers'
 import { AppLayout } from './AppLayout'
 import { PostCard } from './PostCard'
 
@@ -66,7 +66,7 @@ describe('PostCard：投稿カード', () => {
   ])('コメント数 %i は「%s」と読み上げ、数字は0なら出さない', (commentCount, name, text) => {
     card(aPost({ commentCount }))
 
-    expect(screen.getByRole('link', { name })).toHaveTextContent(`💬${text}`)
+    expect(visibleText(screen.getByRole('link', { name }))).toBe(`💬${text}`)
   })
 
   test('他人の投稿には「…」メニューを出さない', () => {
@@ -119,7 +119,7 @@ describe('PostCard：投稿カード', () => {
     vi.mocked(likePost).mockReturnValue(new Promise(() => {}))
     const h = card(aPost({ id: 10 }))
 
-    await userEvent.click(screen.getByRole('button', { name: 'いいね' }))
+    await userEvent.click(screen.getByRole('button', { name: 'いいね（0件）' }))
 
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
     expect(h.onLikeChange).toHaveBeenCalledWith(10, { likeCount: 1, likedByMe: true })
@@ -164,7 +164,7 @@ describe('AppLayout：ログイン後の共通ヘッダー', () => {
     renderLayout(aUser({ username: 'alice', displayName: 'アリス' }))
 
     const account = screen.getByRole('link', { name: 'アリス（@alice）のプロフィール' })
-    expect(account).toHaveTextContent('アリス')
+    expect(visibleText(account)).toContain('アリス')
     expect(screen.getByRole('link', { name: 'プロフィール' })).toHaveAttribute('href', '/users/alice')
     expect(screen.getByText('画面の中身')).toBeInTheDocument()
   })

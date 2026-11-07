@@ -259,10 +259,10 @@ describe('ProfilePage：投稿一覧', () => {
     vi.mocked(unlikePost).mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', '文言'))
     renderProfile()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'いいね' }))
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'いいねを取り消す' })).toHaveTextContent('♥2'))
+    await userEvent.click(await screen.findByRole('button', { name: /^いいね/, pressed: false }))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'いいね（2件）', pressed: true })).toBeInTheDocument())
 
-    await userEvent.click(screen.getByRole('button', { name: 'いいねを取り消す' }))
+    await userEvent.click(screen.getByRole('button', { name: /^いいね/, pressed: true }))
     expect(await screen.findByRole('status')).toHaveTextContent('いいねに失敗しました')
   })
 

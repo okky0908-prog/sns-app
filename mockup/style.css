@@ -5,10 +5,11 @@
   --color-border: #e3e8ec;
   --color-text: #0f1419;
   --color-sub: #536471;
-  --color-primary: #1d9bf0;
-  --color-primary-dark: #1a8cd8;
-  --color-danger: #f4212e;
-  --color-like: #f91880;
+  /* 文字のコントラスト比を 4.5:1 以上にするため、少し濃くした（#140。frontend/src/index.css と同じ値） */
+  --color-primary: #0f6fc6;
+  --color-primary-dark: #0b5aa3;
+  --color-danger: #d01b28;
+  --color-like: #cc1166;
   --color-hover: #f7f9f9;
   --radius: 12px;
   --content-width: 640px;

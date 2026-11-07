@@ -27,7 +27,7 @@ test('ユーザーを検索してフォローすると、その人の投稿が�
   await page.getByRole('searchbox', { name: 'ユーザーを検索' }).fill(author.username)
   await page.getByRole('searchbox', { name: 'ユーザーを検索' }).press('Enter')
   await expect(page.getByRole('heading', { name: `「${author.username}」の検索結果` })).toBeVisible()
-  await page.getByRole('link', { name: author.displayName }).click()
+  await page.getByRole('link', { name: author.displayName, exact: true }).click()
 
   await followOnProfile(page, author.username)
 
