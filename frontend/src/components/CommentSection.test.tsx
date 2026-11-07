@@ -68,6 +68,26 @@ describe('CommentSection：読み込み（状態遷移）', () => {
     expect(link).toHaveAttribute('href', '/users/bobby')
   })
 
+  test('最初の読み込みの結果を渡されたら（親が投稿と同時に取り始めたもの）、それを使って取りに行かない。再試行では取りに行く', async () => {
+    const initialPage = deferred<CursorPage<Comment>>()
+    vi.mocked(fetchComments).mockResolvedValue(page([aComment({ content: '再試行で読めたコメント' })]))
+    renderWithRouter(
+      <CommentSection
+        postId={10}
+        initialPage={initialPage.promise}
+        focusRequest={null}
+        onCountChange={onCountChange}
+        notify={notify}
+      />,
+    )
+
+    initialPage.reject(new Error('通信の失敗'))
+    await userEvent.click(await screen.findByRole('button', { name: '再試行' }))
+
+    await vi.waitFor(() => expect(shownContents()).toEqual(['再試行で読めたコメント']))
+    expect(fetchComments).toHaveBeenCalledTimes(1)
+  })
+
   test('0件なら「まだコメントはありません」', async () => {
     vi.mocked(fetchComments).mockResolvedValue(page([]))
     renderSection()
