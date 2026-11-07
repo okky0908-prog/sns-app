@@ -159,7 +159,7 @@ perf/
 ```
 
 - 負荷・ストレス・耐久・ログイン集中では、監視役（1人）がバックエンドの metrics（ヒープ・GC の累計・CPU・接続プール）を定期的に読み、k6 の結果に `backend_*` という名前で残す。監視役のリクエストは、合格の基準に入れない（シナリオで分けている）
-- シナリオは TypeScript で書く。k6 は型を取り除いて実行するだけで、型が合っているかは確かめないので、シナリオを直したら `cd perf && npm install && npm run typecheck` で確かめる（`npm install` は最初の1回だけ）
+- シナリオは TypeScript で書く。k6 は型を取り除いて実行するだけで、型が合っているかは確かめないので、シナリオを直したら `cd perf && npm install && npm run typecheck` で確かめる（`npm install` は最初の1回だけ）。CI でも毎回確かめる（負荷をかける本体は CI では動かさない）
 - k6 の要約は全体の値しか出さないので、人数ごとの p95（ストレス）や、時間がたつと遅くなるか・ヒープが増え続けるか（耐久）は `perf/analyze.py` で見る
 - `pg_stat_statements` は docker compose の PostgreSQL で読み込み（`docker-compose.yml` の `command`）、拡張は `perf/setup-db.sh` が `sns_perf` にだけ作る。シナリオの前に `perf/db-report.sh reset`、あとに `perf/db-report.sh top`
 

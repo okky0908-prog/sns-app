@@ -43,6 +43,21 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
 
+  # パフォーマンステストのシナリオの型チェック（TypeScript・@types/k6）。
+  # @types/k6 は、使っている k6（perf/run.sh の Docker イメージ grafana/k6:2.3.0）の版に合わせるので、パッチだけ上げる。
+  # k6 を上げるときは、この除外を見直して @types/k6 も合わせる（docs/tech-stack.md）
+  - package-ecosystem: npm
+    directory: /perf
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: "@types/k6"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      perf:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
   # Terraform のプロバイダー（aws・random）。infra/.terraform.lock.hcl の版を上げる。
   # 上げたときは terraform plan で、意図しない変更（作り直しなど）が出ないかを確かめてから取り込む
   - package-ecosystem: terraform

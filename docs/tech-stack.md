@@ -73,7 +73,7 @@
 | コンテナ | Docker Compose | ○ | |
 | DB | `postgres:17` | ○ | パフォーマンステストのため、`pg_stat_statements` を読み込んで起動する（`docker-compose.yml` の `command`。拡張を作るのは性能テストの DB `sns_perf` だけ） |
 | 負荷テスト | k6 2.3.0（Docker イメージ `grafana/k6:2.3.0`） | 新規 | 利用者の操作を TypeScript で書き、同時に何人も動かして応答時間を測る（[パフォーマンステスト計画書](performance-test-plan.md)）。Mac に入れずに Docker で動かす。導入したとき（2026-11-04）の最新の安定版 |
-| 負荷テストの型チェック | TypeScript 7.0.2、`@types/k6` 2.3.1（`perf/package.json`） | 新規 | k6 は `.ts` を型を取り除いて実行するだけなので、型は `tsc --noEmit` で確かめる（Issue #135）。TypeScript はフロントと同じ版。`@types/k6` は k6 2.3 に合う版 |
+| 負荷テストの型チェック | TypeScript 7.0.2、`@types/k6` 2.3.1（`perf/package.json`） | 新規 | k6 は `.ts` を型を取り除いて実行するだけなので、型は `tsc --noEmit` で確かめる（Issue #135）。TypeScript はフロントと同じ版。`@types/k6` は k6 2.3 に合う版。CI で毎回型チェックする。Dependabot では、`@types/k6` は k6 に合わせるのでパッチだけ上げる（k6 を上げるときに合わせて上げる。Issue #137） |
 | テストデータの DB の作成 | Flyway 12.4.0（Docker イメージ `flyway/flyway:12.4.0`） | 新規 | 性能テストの DB `sns_perf` にテーブルを作る（`perf/setup-db.sh`）。バックエンドの Flyway と同じ版にそろえる |
 | S3 の代わり | LocalStack 4.14.0（Docker イメージ `localstack/localstack:4.14.0`、S3 だけ起動） | 新規 | AWS に接続せずに画像のアップロードを試せる。**2026.03.0 以降は起動に LocalStack のアカウントと認証トークンが必要になった**ため、トークンなしで動く最後の版 4.14.0 に固定する（更新は受けられないが、使うのは S3 の保存・削除・表示だけで、手元の開発用なので影響は小さい）。無料版はデータを保存しないので、コンテナを作り直すと画像は消える |
 

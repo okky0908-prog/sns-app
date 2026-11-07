@@ -1,4 +1,4 @@
-# PR と main への push のたびに、バックエンドのテスト・フロントエンドの lint・テスト・ビルド・E2E テストを実行する。
+# PR と main への push のたびに、バックエンドのテスト・フロントエンドの lint・テスト・ビルド・パフォーマンステストのシナリオの型チェック・E2E テストを実行する。
 # マージは、この CI が通ってから行う（CLAUDE.md のリポジトリ運用ルール）
 name: CI
 
@@ -124,6 +124,28 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/
           if-no-files-found: ignore
+
+  perf:
+    name: パフォーマンステストのシナリオ（型チェック）
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: perf
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: perf/package-lock.json
+
+      - run: npm ci
+
+      # k6 は .ts を型を取り除いて実行するだけなので、型が合っているかはここで確かめる（負荷をかける本体は CI では動かさない。
+      # docs/performance-test-plan.md「8. 動かし方」）
+      - run: npm run typecheck
 
   e2e:
     name: E2E テスト（Playwright）
