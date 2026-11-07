@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiError, followUser, likePost, unfollowUser, unlikePost } from '../api/client'
 import type { FollowState, LikeState, UserListItem } from '../api/types'
-import { aListItem, deferred, renderWithRouter } from '../test/helpers'
+import { aListItem, deferred, renderWithRouter, visibleText } from '../test/helpers'
 import { FollowButton } from './FollowButton'
 import { LikeButton } from './LikeButton'
 import { UserListRow } from './UserListRow'
@@ -45,12 +45,12 @@ describe('LikeButton：いいね（状態遷移）', () => {
 
     await userEvent.click(likeButton())
     // 通信の結果を待たずに変わる
-    expect(likeButton()).toHaveAccessibleName('いいねを取り消す')
+    expect(likeButton()).toHaveAccessibleName('いいね（3件）')
     expect(likeButton()).toHaveAttribute('aria-pressed', 'true')
-    expect(likeButton()).toHaveTextContent('♥3')
+    expect(visibleText(likeButton())).toBe('♥3')
 
     response.resolve({ likeCount: 5, likedByMe: true })
-    await vi.waitFor(() => expect(likeButton()).toHaveTextContent('♥5'))
+    await vi.waitFor(() => expect(visibleText(likeButton())).toBe('♥5'))
     expect(likePost).toHaveBeenCalledWith(10)
   })
 
@@ -60,14 +60,24 @@ describe('LikeButton：いいね（状態遷移）', () => {
 
     await userEvent.click(likeButton())
 
-    await vi.waitFor(() => expect(likeButton()).toHaveAccessibleName('いいね'))
+    await vi.waitFor(() => expect(likeButton()).toHaveAttribute('aria-pressed', 'false'))
+    expect(likeButton()).toHaveAccessibleName('いいね（0件）')
     expect(unlikePost).toHaveBeenCalledWith(10)
   })
 
-  test('いいね数が0なら数字を出さない', () => {
+  test('いいね数が0なら数字を出さない（読み上げでは「0件」と伝える）', () => {
     renderWithRouter(<LikeHarness initial={{ likeCount: 0, likedByMe: false }} />)
 
-    expect(likeButton()).toHaveTextContent(/^♡$/)
+    expect(visibleText(likeButton())).toBe('♡')
+    expect(likeButton()).toHaveAccessibleName('いいね（0件）')
+  })
+
+  test('読み上げの名前は、見えている数字を含む「いいね（N件）」。押したかどうかは名前を変えず aria-pressed で伝える（#140）', () => {
+    renderWithRouter(<LikeHarness initial={{ likeCount: 12, likedByMe: true }} />)
+
+    expect(likeButton()).toHaveAccessibleName('いいね（12件）')
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'true')
+    expect(visibleText(likeButton())).toBe('♥12')
   })
 
   test.each([
@@ -80,8 +90,8 @@ describe('LikeButton：いいね（状態遷移）', () => {
     await userEvent.click(likeButton())
 
     await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(message))
-    expect(likeButton()).toHaveAccessibleName('いいね')
-    expect(likeButton()).toHaveTextContent('♡2')
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'false')
+    expect(visibleText(likeButton())).toBe('♡2')
   })
 
   test('連打：送信中に「取り消し」と押されたら、最初の結果が返ってから取り消しを1回だけ送る', async () => {
@@ -93,12 +103,12 @@ describe('LikeButton：いいね（状態遷移）', () => {
     await userEvent.click(likeButton()) // いいね（送信中）
     await userEvent.click(likeButton()) // 取り消し（まだ送らない）
     expect(unlikePost).not.toHaveBeenCalled()
-    expect(likeButton()).toHaveAccessibleName('いいね')
+    expect(likeButton()).toHaveAttribute('aria-pressed', 'false')
 
     first.resolve({ likeCount: 3, likedByMe: true })
 
     await vi.waitFor(() => expect(unlikePost).toHaveBeenCalledTimes(1))
-    await vi.waitFor(() => expect(likeButton()).toHaveTextContent('♡2'))
+    await vi.waitFor(() => expect(visibleText(likeButton())).toBe('♡2'))
     expect(likePost).toHaveBeenCalledTimes(1)
   })
 
@@ -112,7 +122,7 @@ describe('LikeButton：いいね（状態遷移）', () => {
     await userEvent.click(likeButton())
     first.resolve({ likeCount: 3, likedByMe: true })
 
-    await vi.waitFor(() => expect(likeButton()).toHaveTextContent('♥3'))
+    await vi.waitFor(() => expect(visibleText(likeButton())).toBe('♥3'))
     expect(likePost).toHaveBeenCalledTimes(1)
     expect(unlikePost).not.toHaveBeenCalled()
   })
@@ -206,6 +216,12 @@ describe('UserListRow：ユーザー一覧の1行', () => {
     expect(screen.getByRole('link', { name: 'ボブ' })).toHaveAttribute('href', '/users/bobby')
     expect(screen.getByRole('link', { name: '@bobby' })).toHaveAttribute('href', '/users/bobby')
     expect(screen.getByText('Javaを勉強中です')).toBeInTheDocument()
+  })
+
+  test('アイコンのリンクにも、読み上げの名前がある（#140）', () => {
+    row(aListItem({ displayName: 'ボブ', username: 'bobby' }))
+
+    expect(screen.getByRole('link', { name: 'ボブのプロフィール' })).toHaveAttribute('href', '/users/bobby')
   })
 
   test('自己紹介がなければ出さない', () => {

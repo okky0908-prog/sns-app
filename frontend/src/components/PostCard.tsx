@@ -39,7 +39,7 @@ export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange,
     <article className={`${styles.card} ${detail ? styles.detail : ''}`} data-post-id={post.id} onClick={handleCardClick}>
       <UserLink username={post.author.username} plain className={styles.avatarLink}>
         <Avatar displayName={post.author.displayName} iconUrl={post.author.iconUrl} size={44} />
-        <span className={styles.visuallyHidden}>{post.author.displayName}のプロフィール</span>
+        <span className="visually-hidden">{post.author.displayName}のプロフィール</span>
       </UserLink>
       <div className={styles.body}>
         <div className={styles.head}>
@@ -65,13 +65,13 @@ export function PostCard({ post, detail = false, onEdit, onDelete, onLikeChange,
             state={{ focusComment: true }}
             replace={detail}
             className={styles.commentLink}
-            aria-label={`コメント（${post.commentCount}件）`}
           >
             <span className={styles.commentIcon} aria-hidden="true">
               💬
             </span>
-            {/* コメント数が0のときは数字を出さない */}
-            {post.commentCount > 0 && <span>{post.commentCount}</span>}
+            {/* コメント数が0のときは数字を出さない。読み上げの名前は「コメント（N件）」で、見えている数字を含む（LikeButton と同じ。#140） */}
+            {post.commentCount > 0 && <span aria-hidden="true">{post.commentCount}</span>}
+            <span className="visually-hidden">コメント（{post.commentCount}件）</span>
           </Link>
           <LikeButton
             postId={post.id}

@@ -14,7 +14,7 @@
 
 .button:hover {
   background: #fde8ef;
-  color: #f91880;
+  color: var(--color-like);
 }
 
 .heart {
@@ -23,7 +23,7 @@
 }
 
 .liked {
-  color: #f91880;
+  color: var(--color-like);
 }
 
 .count {

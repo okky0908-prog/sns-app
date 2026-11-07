@@ -60,6 +60,14 @@ describe('CommentSection：読み込み（状態遷移）', () => {
     expect(fetchComments).toHaveBeenCalledWith(10)
   })
 
+  test('コメントした人のアイコンのリンクにも、読み上げの名前がある（#140）', async () => {
+    vi.mocked(fetchComments).mockResolvedValue(page([aComment()]))
+    renderSection()
+
+    const link = await screen.findByRole('link', { name: 'ボブのプロフィール' })
+    expect(link).toHaveAttribute('href', '/users/bobby')
+  })
+
   test('0件なら「まだコメントはありません」', async () => {
     vi.mocked(fetchComments).mockResolvedValue(page([]))
     renderSection()

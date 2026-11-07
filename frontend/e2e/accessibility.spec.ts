@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { commentByApi, followByApi, loginByUi, newUser, postByApi, signupByApi } from './support'
+import { commentByApi, followByApi, likeByApi, loginByUi, newUser, postByApi, signupByApi } from './support'
 
 // アクセシビリティの自動チェック（axe-core）。部品のテストでもラベルは確かめているが、色のコントラスト・見出しの順番・
 // ランドマークなど、本物のブラウザで画面全体を描いて初めて分かることをここで確かめる。
@@ -15,29 +15,8 @@ type NodeResult = Awaited<ReturnType<AxeBuilder['analyze']>>['violations'][numbe
  * 分かっていて、Issue で直すことにした違反。直したらここから消す（消し忘れないよう、どの Issue の分かを書く）。
  * 規則の種類だけでなく、どの色・どの要素かまで絞って外す（同じ規則でも、新しく出た違反は落とす）
  */
-const KNOWN: { issue: string; rule: string; matches: (node: NodeResult) => boolean }[] = [
-  {
-    issue: '#140',
-    rule: 'color-contrast',
-    // 基本の青（#1d9bf0）と削除の赤（#f4212e）の文字・背景
-    matches: (node) => {
-      const data = node.any[0]?.data as { fgColor?: string; bgColor?: string } | undefined
-      return [data?.fgColor, data?.bgColor].some((color) => color === '#1d9bf0' || color === '#f4212e')
-    },
-  },
-  {
-    issue: '#140',
-    rule: 'label-content-name-mismatch',
-    // 投稿カードのコメント数のリンク・ヘッダーの自分の名前のリンク
-    matches: (node) => node.html.includes('aria-label="コメント（') || node.html.includes('としてログイン中'),
-  },
-  {
-    issue: '#140',
-    rule: 'link-name',
-    // 投稿詳細の、コメントした人のアイコンのリンク
-    matches: (node) => node.html.includes('avatarLink'),
-  },
-]
+// 例：{ issue: '#140', rule: 'color-contrast', matches: (node) => node.html.includes('…') }（#140 の分は直したので、今は空）
+const KNOWN: { issue: string; rule: string; matches: (node: NodeResult) => boolean }[] = []
 
 /** 画面全体を axe で調べ、重大な違反がないことを確かめる。違反があれば、どの要素かが分かるように出す */
 async function expectNoSeriousViolations(page: Page, screen: string) {
@@ -50,6 +29,48 @@ async function expectNoSeriousViolations(page: Page, screen: string) {
         .map((node) => `${v.id}（${v.impact}）${v.help}: ${node.html}`),
     )
   expect(serious, `${screen} の重大な違反`).toEqual([])
+  expect(await hiddenTextContrastViolations(page), `${screen} の、読み上げから外した文字のコントラスト`).toEqual([])
+}
+
+/**
+ * 読み上げから外した（aria-hidden）けれど画面には見えている文字の、色のコントラストを確かめる。
+ * axe は aria-hidden の中を調べないので、ここで補う（いいね数・コメント数・ヘッダーの表示名など。名前は別の要素で読み上げる。#140）。
+ * 基準は axe と同じ 4.5:1（24px 以上、または太字で 18.66px 以上なら 3:1）。文字・数字を含まない記号（♥・💬）は数えない
+ */
+function hiddenTextContrastViolations(page: Page) {
+  return page.evaluate(() => {
+    const rgb = (color: string) => (color.match(/[\d.]+/g) ?? []).map(Number)
+    const luminance = ([r, g, b]: number[]) => {
+      const [R, G, B] = [r, g, b].map((v) => {
+        const c = v / 255
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * R + 0.7152 * G + 0.0722 * B
+    }
+    /** 文字の後ろの背景色（透明なら親をたどる。最後まで透明なら白） */
+    const background = (element: Element | null): number[] => {
+      for (let e = element; e; e = e.parentElement) {
+        const color = rgb(getComputedStyle(e).backgroundColor)
+        if (color.length === 3 || color[3] > 0) return color.slice(0, 3)
+      }
+      return [255, 255, 255]
+    }
+    const violations: string[] = []
+    for (const hidden of document.querySelectorAll('[aria-hidden="true"]')) {
+      const walker = document.createTreeWalker(hidden, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const element = node.parentElement
+        if (!element || !/[\p{L}\p{N}]/u.test(node.textContent ?? '') || !element.checkVisibility()) continue
+        const style = getComputedStyle(element)
+        const [l1, l2] = [luminance(rgb(style.color)), luminance(background(element))].sort((a, b) => b - a)
+        const ratio = (l1 + 0.05) / (l2 + 0.05)
+        const size = parseFloat(style.fontSize)
+        const large = size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700)
+        if (ratio < (large ? 3 : 4.5)) violations.push(`${ratio.toFixed(2)}:1 「${node.textContent}」 ${element.outerHTML}`)
+      }
+    }
+    return violations
+  })
 }
 
 test.describe('アクセシビリティ', () => {
@@ -75,6 +96,8 @@ test.describe('アクセシビリティ', () => {
     const me = newUser('pia')
     const token = await signupByApi(request, me)
     await followByApi(request, token, friend.username)
+    // いいね済みの表示（色が変わる）も調べる
+    await likeByApi(request, token, post.id)
     await loginByUi(page, me)
 
     const screens: [string, string, string][] = [

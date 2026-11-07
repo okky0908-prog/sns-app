@@ -60,7 +60,7 @@
 }
 
 .danger:hover {
-  background: #dc1f2b;
+  background: var(--color-danger-dark);
 }
 
 .title {

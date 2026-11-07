@@ -139,16 +139,16 @@ describe('PostDetailPage：いいね・編集・削除', () => {
     vi.mocked(likePost).mockResolvedValue({ likeCount: 6, likedByMe: true })
     renderDetail()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'いいね' }))
+    await userEvent.click(await screen.findByRole('button', { name: /^いいね/, pressed: false }))
 
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'いいねを取り消す' })).toHaveTextContent('♥6'))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'いいね（6件）', pressed: true })).toBeInTheDocument())
   })
 
   test('いいねに失敗したら、エラーを知らせる', async () => {
     vi.mocked(likePost).mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', '文言'))
     renderDetail()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'いいね' }))
+    await userEvent.click(await screen.findByRole('button', { name: /^いいね/, pressed: false }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('いいねに失敗しました')
   })

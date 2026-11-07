@@ -1,5 +1,5 @@
 // E2E テストで共通して使うもの（ユーザーを作る・API で下準備する・ログインする）
-import { expect, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 
 export interface TestUser {
   username: string
@@ -85,6 +85,15 @@ export async function commentByApi(
 /** 投稿カード（本文で探す。DB はテストの実行全体で共有しているので、本文にはユーザー名などを入れて重ならないようにする） */
 export function postCard(page: Page, content: string) {
   return page.locator('article').filter({ hasText: content })
+}
+
+/** 画面に見えている文字（読み上げだけに使う .visually-hidden の文字を除く。部品のテストの visibleText と同じ） */
+export function visibleText(locator: Locator) {
+  return locator.evaluate((element) => {
+    const copy = element.cloneNode(true) as Element
+    copy.querySelectorAll('.visually-hidden').forEach((hidden) => hidden.remove())
+    return copy.textContent
+  })
 }
 
 /** ログイン画面からログインし、ホームが出るまで待つ */

@@ -420,9 +420,9 @@ describe('TimelinePage：投稿・いいね・削除', () => {
     renderTimeline()
     await vi.waitFor(() => expect(shown()).toEqual(['投稿1']))
 
-    await userEvent.click(screen.getByRole('button', { name: 'いいね' }))
+    await userEvent.click(screen.getByRole('button', { name: /^いいね/, pressed: false }))
 
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'いいねを取り消す' })).toHaveTextContent('♥4'))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'いいね（4件）', pressed: true })).toBeInTheDocument())
   })
 
   test('いいねに失敗したら、エラーを知らせる', async () => {
@@ -430,7 +430,7 @@ describe('TimelinePage：投稿・いいね・削除', () => {
     renderTimeline()
     await vi.waitFor(() => expect(shown()).toEqual(['投稿1']))
 
-    await userEvent.click(screen.getByRole('button', { name: 'いいね' }))
+    await userEvent.click(screen.getByRole('button', { name: /^いいね/, pressed: false }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('この投稿は削除されています')
   })
