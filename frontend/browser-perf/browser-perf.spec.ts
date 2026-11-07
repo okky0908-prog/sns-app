@@ -7,6 +7,7 @@ import {
   installLoadObserver,
   loadMetrics,
   median,
+  pageCls,
   timeAction,
   toMarkdown,
   type Condition,
@@ -15,7 +16,7 @@ import {
 
 // ブラウザのパフォーマンステスト（docs/performance-test-plan.md「10. ブラウザのパフォーマンステスト」）。
 // 本番用にビルドした画面を、性能テストの DB（sns_perf・基準の規模）につないだバックエンドで開いて測る。
-// 合否の目安：操作から画面反映まで 1 秒以内（非機能要件「性能」）、LCP 2.5 秒以内（Web Vitals の「良い」）
+// 合否の目安：操作から画面反映まで 1 秒以内（非機能要件「性能」）、LCP 2.5 秒以内・CLS 0.1 以下（Web Vitals の「良い」）
 
 const BASE_URL = 'http://localhost:5173'
 /** たくさんフォローしている人（perf/data/seed.sql。タイムラインが一番重い） */
@@ -23,6 +24,7 @@ const USER = { email: 'perf00001@example.com', password: 'password123' }
 /** 1 つの値を何回測るか（最初の 1 回は温めるために捨てる） */
 const SAMPLES = Number(process.env.SAMPLES ?? 5)
 const BUDGET_MS = { interaction: 1000, timeline: 1000, lcp: 2500 }
+const BUDGET_CLS = 0.1
 
 const LIST_ARTICLE = 'section[aria-label="投稿一覧"][aria-busy="false"] article'
 
@@ -72,8 +74,16 @@ for (const condition of CONDITIONS) {
         fcp: { name: 'ログイン画面：最初に描かれるまで（FCP）', samples: [], unit: 'ms' },
         lcp: { name: 'ログイン画面：一番大きな要素まで（LCP）', samples: [], unit: 'ms', budget: BUDGET_MS.lcp },
         dcl: { name: 'ログイン画面：DOMContentLoaded', samples: [], unit: 'ms' },
+        clsLogin: { name: 'ログイン画面：レイアウトのずれ（CLS）', samples: [], unit: 'score', budget: BUDGET_CLS },
         login: { name: '「ログイン」を押してからタイムラインが出るまで', samples: [], unit: 'ms', budget: BUDGET_MS.timeline },
         reload: { name: '読み込み直してからタイムラインが出るまで（再訪問）', samples: [], unit: 'ms', budget: BUDGET_MS.timeline },
+        // ログインのボタンを押した直後のずれは「操作の結果」として数えないので（Web Vitals）、読み込み直したときで測る
+        clsTimeline: {
+          name: 'タイムライン（再訪問）：レイアウトのずれ（CLS。画像・アイコンが出そろうまで）',
+          samples: [],
+          unit: 'score',
+          budget: BUDGET_CLS,
+        },
         scriptTransfer: { name: 'JavaScript の量（送られた量。圧縮後）', samples: [], unit: 'KB' },
         scriptDecoded: { name: 'JavaScript の量（展開後）', samples: [], unit: 'KB' },
         styleTransfer: { name: 'CSS の量（送られた量。圧縮後）', samples: [], unit: 'KB' },
@@ -84,6 +94,7 @@ for (const condition of CONDITIONS) {
         await page.goto('/login', { waitUntil: 'load' })
         await expect(page.getByRole('button', { name: 'ログイン' })).toBeVisible()
         const load = await loadMetrics(page)
+        const clsLogin = await pageCls(page)
 
         await page.getByLabel('メールアドレス').fill(USER.email)
         await page.getByLabel('パスワード', { exact: true }).fill(USER.password)
@@ -91,6 +102,7 @@ for (const condition of CONDITIONS) {
 
         await page.reload()
         const reload = await firstPostTime(page)
+        const clsTimeline = await pageCls(page)
         await page.context().close()
 
         if (i === 0) continue // 1 回目は、サーバー・ブラウザを温めるために捨てる
@@ -98,6 +110,8 @@ for (const condition of CONDITIONS) {
         rows.fcp.samples.push(load.fcp)
         rows.lcp.samples.push(load.lcp)
         rows.dcl.samples.push(load.domContentLoaded)
+        rows.clsLogin.samples.push(clsLogin)
+        rows.clsTimeline.samples.push(clsTimeline)
         rows.login.samples.push(login)
         rows.reload.samples.push(reload)
         rows.scriptTransfer.samples.push(load.scriptTransfer)

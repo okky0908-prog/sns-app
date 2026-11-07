@@ -42,14 +42,21 @@ export async function applyCondition(page: Page, condition: Condition) {
 /**
  * ページを開く前に入れておく計測（page.addInitScript に渡す）。
  * - LCP（一番大きな要素が描かれた時刻）を記録する
+ * - レイアウトのずれ（layout-shift）を記録する（CLS を出すため）。クリック・キー入力の直後のずれは、
+ *   操作の結果として予想できるので数えない（Web Vitals と同じ）
  * - タイムラインの最初の投稿が DOM に現れた時刻を記録する（読み込み直したときに、タイムラインが出るまでの時間）
  */
 export function installLoadObserver() {
-  const perf = { lcp: 0, firstPostAt: 0 }
+  const perf = { lcp: 0, firstPostAt: 0, shifts: [] as LayoutShift[] }
   ;(window as unknown as { perfMarks: typeof perf }).perfMarks = perf
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) perf.lcp = entry.startTime
   }).observe({ type: 'largest-contentful-paint', buffered: true })
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries() as unknown as (LayoutShift & { hadRecentInput: boolean })[]) {
+      if (!entry.hadRecentInput) perf.shifts.push({ startTime: entry.startTime, value: entry.value })
+    }
+  }).observe({ type: 'layout-shift', buffered: true })
   new MutationObserver((_, observer) => {
     if (document.querySelector('section[aria-label="投稿一覧"] article')) {
       perf.firstPostAt = performance.now()
@@ -97,6 +104,45 @@ export async function loadMetrics(page: Page): Promise<LoadMetrics> {
       scriptDecoded: sum(/\.js$/, (r) => r.decodedBodySize),
     }
   })
+}
+
+/** レイアウトのずれ 1 回（layout-shift の記録のうち、CLS に使うもの） */
+export interface LayoutShift {
+  startTime: number
+  value: number
+}
+
+/**
+ * CLS（Cumulative Layout Shift）。Web Vitals と同じ数え方：前のずれから 1 秒以内に続くずれを 1 つのまとまりとし
+ * （まとまりは最初のずれから 5 秒まで）、まとまりごとの合計の最大を取る。ずれがなければ 0
+ */
+export function clsScore(shifts: LayoutShift[]) {
+  let max = 0
+  let sum = 0
+  let first = 0
+  let last = 0
+  for (const shift of shifts) {
+    if (sum > 0 && shift.startTime - last < 1000 && shift.startTime - first < 5000) {
+      sum += shift.value
+    } else {
+      sum = shift.value
+      first = shift.startTime
+    }
+    last = shift.startTime
+    max = Math.max(max, sum)
+  }
+  return max
+}
+
+/**
+ * 開いているページの、今までの CLS。あとから入る画像・アイコンでずれることがあるので、
+ * 通信が落ち着いて（networkidle）から、さらに少し待って数える
+ */
+export async function pageCls(page: Page): Promise<number> {
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(500)
+  const shifts = await page.evaluate(() => (window as unknown as { perfMarks: { shifts: LayoutShift[] } }).perfMarks.shifts)
+  return clsScore(shifts)
 }
 
 /** 読み込み直してから、タイムラインの最初の投稿が DOM に現れるまで（installLoadObserver が記録した時刻） */
@@ -155,9 +201,9 @@ export async function timeAction(target: Locator, how: 'click' | 'submit' | 'scr
 export interface Row {
   name: string
   samples: number[]
-  /** 目安（ms・バイト）。なければ記録だけ */
+  /** 目安（ms・バイト・CLS の値）。なければ記録だけ */
   budget?: number
-  unit: 'ms' | 'KB'
+  unit: 'ms' | 'KB' | 'score'
 }
 
 export function median(values: number[]) {
@@ -168,7 +214,8 @@ export function median(values: number[]) {
 
 /** 結果を Markdown の表にする（docs/performance-test-results.md にそのまま貼れる形） */
 export function toMarkdown(condition: Condition, rows: Row[]) {
-  const format = (row: Row, value: number) => (row.unit === 'KB' ? `${(value / 1024).toFixed(1)}KB` : `${Math.round(value)}ms`)
+  const format = (row: Row, value: number) =>
+    row.unit === 'KB' ? `${(value / 1024).toFixed(1)}KB` : row.unit === 'score' ? value.toFixed(3) : `${Math.round(value)}ms`
   const lines = [
     `#### ${condition.name}（${rows[0]?.samples.length ?? 0} 回の中央値と最大）`,
     '',
