@@ -78,16 +78,15 @@ public class UserSearchService {
         cursorOf,
         page ->
             page.stream()
-                .map(
-                    row ->
-                        UserListItemResponse.of(
-                            row.getId(),
-                            row.getUsername(),
-                            row.getDisplayName(),
-                            row.getBio(),
-                            imageStorage.urlOf(row.getIconKey()),
-                            row.isFollowedByMe(),
-                            me))
+                .map(row ->
+                    UserListItemResponse.of(
+                        row.getId(),
+                        row.getUsername(),
+                        row.getDisplayName(),
+                        row.getBio(),
+                        imageStorage.urlOf(row.getIconKey()),
+                        row.isFollowedByMe(),
+                        me))
                 .toList());
   }
 }

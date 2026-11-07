@@ -119,12 +119,11 @@ class PostServiceTest {
 
       verify(postImageMapper)
           .insertAll(
-              argThat(
-                  rows ->
-                      rows.stream()
-                          .map(r -> r.getPostId() + ":" + r.getImageKey() + ":" + r.getSortOrder())
-                          .toList()
-                          .equals(List.of("50:posts/2026/10/img1:1", "50:posts/2026/10/img2:2"))));
+              argThat(rows ->
+                  rows.stream()
+                      .map(r -> r.getPostId() + ":" + r.getImageKey() + ":" + r.getSortOrder())
+                      .toList()
+                      .equals(List.of("50:posts/2026/10/img1:1", "50:posts/2026/10/img2:2"))));
       // 投稿の保存が取り消されたら、保存した画像を消す
       verify(imageStorage)
           .deleteAfterTransaction(List.of(), List.of("posts/2026/10/img1", "posts/2026/10/img2"));

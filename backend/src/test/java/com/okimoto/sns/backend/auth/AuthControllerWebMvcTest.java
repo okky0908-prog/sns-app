@@ -119,11 +119,10 @@ class AuthControllerWebMvcTest {
 
       verify(authService)
           .signup(
-              argThat(
-                  r ->
-                      r.username().equals("yamada")
-                          && r.email().equals("yamada@example.com")
-                          && r.password().equals("password123")));
+              argThat(r ->
+                  r.username().equals("yamada")
+                      && r.email().equals("yamada@example.com")
+                      && r.password().equals("password123")));
     }
 
     @ParameterizedTest(name = "{0}「{1}」は受け付ける")

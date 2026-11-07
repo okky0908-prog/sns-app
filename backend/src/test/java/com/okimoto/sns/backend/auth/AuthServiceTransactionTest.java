@@ -118,10 +118,9 @@ class AuthServiceTransactionTest {
   void 新規登録でリフレッシュトークンの発行に失敗したとき_ユーザーも保存しない() {
     doThrow(new IllegalStateException("発行に失敗")).when(refreshTokenService).issue(anyLong());
 
-    assertThatThrownBy(
-            () ->
-                authService.signup(
-                    new SignupRequest("txtest04", "トランザクション", "txtest04@example.com", PASSWORD)))
+    assertThatThrownBy(() ->
+            authService.signup(
+                new SignupRequest("txtest04", "トランザクション", "txtest04@example.com", PASSWORD)))
         .isInstanceOf(IllegalStateException.class);
 
     assertThat(userMapper.findByEmail("txtest04@example.com")).isEmpty();

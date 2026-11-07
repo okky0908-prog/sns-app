@@ -64,27 +64,23 @@ public class SecurityConfig {
         .logout(AbstractHttpConfigurer::disable)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS.toArray(String[]::new))
-                    .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/health")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.GET, API_DOCS_PATHS)
-                    .permitAll()
-                    .requestMatchers("/error")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-        .exceptionHandling(
-            handling ->
-                handling
-                    .authenticationEntryPoint(
-                        (request, response, e) ->
-                            writeError(response, objectMapper, ErrorCode.UNAUTHENTICATED))
-                    .accessDeniedHandler(
-                        (request, response, e) ->
-                            writeError(response, objectMapper, ErrorCode.FORBIDDEN)))
+        .authorizeHttpRequests(auth ->
+            auth.requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS.toArray(String[]::new))
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/health")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, API_DOCS_PATHS)
+                .permitAll()
+                .requestMatchers("/error")
+                .permitAll()
+                .anyRequest()
+                .authenticated())
+        .exceptionHandling(handling ->
+            handling
+                .authenticationEntryPoint((request, response, e) ->
+                    writeError(response, objectMapper, ErrorCode.UNAUTHENTICATED))
+                .accessDeniedHandler((request, response, e) ->
+                    writeError(response, objectMapper, ErrorCode.FORBIDDEN)))
         .addFilterBefore(
             new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
     return http.build();

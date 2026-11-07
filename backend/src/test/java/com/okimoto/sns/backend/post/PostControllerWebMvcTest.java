@@ -162,11 +162,10 @@ class PostControllerWebMvcTest {
         .create(
             eq(1L),
             eq("本文"),
-            argThat(
-                files ->
-                    files.size() == 2
-                        && files.get(0).getOriginalFilename().equals("a.png")
-                        && files.get(1).getOriginalFilename().equals("b.gif")));
+            argThat(files ->
+                files.size() == 2
+                    && files.get(0).getOriginalFilename().equals("a.png")
+                    && files.get(1).getOriginalFilename().equals("b.gif")));
   }
 
   @Test

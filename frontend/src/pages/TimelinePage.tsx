@@ -123,23 +123,23 @@ export function TimelinePage({ tab }: { tab: TimelineTab }) {
 
   useEffect(() => {
     if (status !== 'ready') return
-    let cancelled = false
+    // 後片付けの abort() で、途中の確認の結果を捨て、visibilitychange の登録も外す
+    const controller = new AbortController()
     const check = () => {
       // 裏に回っているブラウザのタブでは確認しない（表に戻ったときにすぐ確認する）
       if (document.visibilityState !== 'visible') return
       const generation = generationRef.current
       fetchNewPostCount(tab, newestIdRef.current)
         .then((count) => {
-          if (!cancelled && generation === generationRef.current) setNewCount(count)
+          if (!controller.signal.aborted && generation === generationRef.current) setNewCount(count)
         })
         .catch(() => {}) // 確認に失敗しても画面には出さない（次の確認でまた試す）
     }
     const timer = setInterval(check, NEW_POSTS_CHECK_INTERVAL_MS)
-    document.addEventListener('visibilitychange', check)
+    document.addEventListener('visibilitychange', check, { signal: controller.signal })
     return () => {
-      cancelled = true
+      controller.abort()
       clearInterval(timer)
-      document.removeEventListener('visibilitychange', check)
     }
   }, [status, tab])
 

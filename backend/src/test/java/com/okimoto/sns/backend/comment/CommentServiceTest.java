@@ -142,12 +142,11 @@ class CommentServiceTest {
 
     verify(commentMapper)
         .insert(
-            argThat(
-                c ->
-                    c.getContent().equals("わかりやすいです！")
-                        && c.getPostId() == 10
-                        && c.getUserId() == 1
-                        && c.getCreatedAt().equals(NOW)));
+            argThat(c ->
+                c.getContent().equals("わかりやすいです！")
+                    && c.getPostId() == 10
+                    && c.getUserId() == 1
+                    && c.getCreatedAt().equals(NOW)));
     assertThat(created.id()).isEqualTo(99);
     assertThat(created.mine()).isTrue();
     assertThat(created.commentCount()).isEqualTo(4);
