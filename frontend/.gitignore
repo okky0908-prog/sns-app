@@ -28,3 +28,7 @@ coverage
 # E2E テスト（Playwright）の結果
 test-results
 playwright-report
+
+# ブラウザのパフォーマンステストの結果（npm run test:browser-perf）
+browser-perf-results
+browser-perf-report
