@@ -1,9 +1,11 @@
 # --- アプリ用の CloudFront（HTTPS の入口）---
 # 本番はリフレッシュトークンの Cookie に Secure 属性を付けるため、HTTPS が必須（docs/infrastructure.md「HTTPS」）。
 # 独自ドメインがなくても、CloudFront の URL（https://xxxx.cloudfront.net）なら無料の証明書で HTTPS にできる。
-# ブラウザと CloudFront の間は HTTPS、CloudFront から ALB までは HTTP
+# パスで振り分ける：/api/* → ALB → Fargate（HTTP）、それ以外 → 画面の S3（OAC）。
+# ブラウザからは1つのドメインに見えるため、CORS の設定はいらない
 
-# 画面と API はキャッシュしない（ログインした人ごとに中身が違うため。Managed-CachingDisabled）
+# キャッシュしない（Managed-CachingDisabled）。API はログインした人ごとに中身が違うため。
+# index.html も、デプロイしたらすぐ新しい版を返したいのでキャッシュしない（中で読む JS・CSS のファイル名が変わる）
 data "aws_cloudfront_cache_policy" "caching_disabled" {
   name = "Managed-CachingDisabled"
 }
@@ -15,13 +17,22 @@ data "aws_cloudfront_origin_request_policy" "all_viewer" {
 }
 
 resource "aws_cloudfront_distribution" "app" {
-  enabled         = true
-  comment         = "${var.project_name} app (frontend and API)"
-  price_class     = var.cloudfront_price_class
-  is_ipv6_enabled = true
+  enabled             = true
+  comment             = "${var.project_name} app (frontend on S3 and API on Fargate)"
+  price_class         = var.cloudfront_price_class
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
 
+  # 画面（React のビルド結果）
   origin {
-    origin_id   = "app-alb"
+    origin_id                = "frontend-s3"
+    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  # API
+  origin {
+    origin_id   = "api-alb"
     domain_name = aws_lb.this.dns_name
 
     custom_origin_config {
@@ -40,9 +51,25 @@ resource "aws_cloudfront_distribution" "app" {
     }
   }
 
-  # 画面と API。すべてのメソッドを ALB へ送り、キャッシュしない
+  # 画面。画面の URL は index.html に書き換えて S3 から返す（frontend.tf の CloudFront Functions）
   default_cache_behavior {
-    target_origin_id         = "app-alb"
+    target_origin_id       = "frontend-s3"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_disabled.id
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_rewrite.arn
+    }
+  }
+
+  # API。すべてのメソッドを ALB へ送り、キャッシュしない
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    target_origin_id         = "api-alb"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD"]
@@ -54,7 +81,7 @@ resource "aws_cloudfront_distribution" "app" {
   # Vite がビルドした JS・CSS（ファイル名に中身のハッシュが付く）は、長くキャッシュしてよい
   ordered_cache_behavior {
     path_pattern           = "/assets/*"
-    target_origin_id       = "app-alb"
+    target_origin_id       = "frontend-s3"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]

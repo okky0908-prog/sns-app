@@ -4,22 +4,22 @@ output "app_url" {
 }
 
 output "image_base_url" {
-  description = "画像の配信元（画像用の CloudFront）。バックエンドの環境変数 IMAGE_BASE_URL に入れる"
+  description = "画像の配信元（画像用の CloudFront）。API のタスク定義の環境変数 IMAGE_BASE_URL に入っている"
   value       = "https://${aws_cloudfront_distribution.images.domain_name}"
 }
 
 output "s3_bucket" {
-  description = "画像を保存する S3 バケットの名前。バックエンドの環境変数 S3_BUCKET に入れる"
+  description = "画像を保存する S3 バケットの名前"
   value       = aws_s3_bucket.images.bucket
 }
 
 output "project_name" {
-  description = "リソース名のプレフィックス。サーバー上のフォルダ（/opt/<project_name>）や systemd のサービス名にも使う"
+  description = "リソース名のプレフィックス。SSM パラメータストアの場所（/<project_name>/...）にも使う"
   value       = var.project_name
 }
 
 output "aws_region" {
-  description = "リージョン。バックエンドの環境変数 AWS_REGION に入れる"
+  description = "リージョン"
   value       = var.aws_region
 }
 
@@ -28,28 +28,38 @@ output "alb_dns_name" {
   value       = aws_lb.this.dns_name
 }
 
-output "frontend_instance_id" {
-  description = "フロントエンドのサーバー（EC2）のID"
-  value       = aws_instance.frontend.id
+output "frontend_bucket" {
+  description = "画面（frontend/dist）を置く S3 バケットの名前。deploy.sh が送る"
+  value       = aws_s3_bucket.frontend.bucket
 }
 
-output "backend_instance_id" {
-  description = "バックエンドのサーバー（EC2）のID"
-  value       = aws_instance.backend.id
+output "ecr_repository_url" {
+  description = "API のコンテナのイメージを置く ECR の URL。deploy.sh が送る"
+  value       = aws_ecr_repository.backend.repository_url
 }
 
-output "frontend_public_ip" {
-  description = "フロントエンドのサーバーの公開IP（SSH用。EC2を起動するたびに変わる）"
-  value       = aws_instance.frontend.public_ip
+output "ecs_cluster_name" {
+  description = "ECS のクラスターの名前"
+  value       = aws_ecs_cluster.this.name
 }
 
-output "backend_public_ip" {
-  description = "バックエンドのサーバーの公開IP（SSH用。EC2を起動するたびに変わる）"
-  value       = aws_instance.backend.public_ip
+output "ecs_service_name" {
+  description = "API の ECS のサービスの名前。deploy.sh・servers.sh がタスクの数を変える"
+  value       = aws_ecs_service.backend.name
+}
+
+output "backend_log_group" {
+  description = "API のログ（CloudWatch Logs）。見るときは aws logs tail <この値> --follow"
+  value       = aws_cloudwatch_log_group.backend.name
+}
+
+output "jwt_secret_parameter_name" {
+  description = "JWT の署名鍵を置く SSM パラメータの名前。deploy.sh が初回だけ作る（Terraform は作らない）"
+  value       = "${local.ssm_prefix}/jwt-secret"
 }
 
 output "rds_endpoint" {
-  description = "RDSのエンドポイント（ホスト名:ポート）。バックエンドのサーバーからだけ接続できる"
+  description = "RDSのエンドポイント（ホスト名:ポート）。API のタスクからだけ接続できる"
   value       = aws_db_instance.this.endpoint
 }
 

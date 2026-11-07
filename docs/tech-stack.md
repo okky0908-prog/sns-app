@@ -85,13 +85,16 @@
 | 項目 | 技術・バージョン | 前回と同じ | 理由・補足 |
 |---|---|---|---|
 | 構築 | Terraform | ○ | |
-| サーバーの OS | Amazon Linux 2023 | ○ | |
-| Java（サーバー） | Amazon Corretto 25（`java-25-amazon-corretto-headless`） | ○ | サーバーではビルドしないので、実行に要る分（headless）だけ入れる |
-| Web サーバー | nginx（Amazon Linux 2023 のパッケージ） | ○ | フロントエンドの静的ファイルを返す |
+| API の実行環境 | ECS Fargate（ARM64） | 新規 | EC2（サーバー）を使わず、OS の更新・SSH・起動と停止の管理をなくす（#155）。前回は EC2 |
+| コンテナ | Docker（`backend/Dockerfile`）、ECR | 新規 | |
+| Java（コンテナ） | Amazon Corretto 25（`amazoncorretto:25-al2023-headless`） | ○ | コンテナの中ではビルドしないので、実行に要る分（headless）だけ |
+| 画面の配信 | S3 + CloudFront、CloudFront Functions | 新規 | 前回は EC2 の nginx。画面の URL を `index.html` に書き換えるのは CloudFront Functions |
+| 秘密の値 | SSM パラメータストア（SecureString） | 新規 | DB のパスワード・JWT の署名鍵 |
+| ログ | CloudWatch Logs | 新規 | ECS のログドライバー（awslogs）で送る |
 | DB | RDS for PostgreSQL 17 | ○ | |
 | ロードバランサー | ALB | 新規 | |
 | 画像 | S3 + CloudFront | 新規 | |
-| HTTPS の入口 | CloudFront（アプリ用） | 新規 | 独自ドメインなしで HTTPS にするため。ALB の前に置く |
+| HTTPS の入口 | CloudFront（アプリ用） | 新規 | 独自ドメインなしで HTTPS にするため。`/api/*` は ALB へ、それ以外は画面の S3 へ振り分ける |
 | 請求アラート | AWS Budgets | 新規 | ALB は止められず課金が続くので、消し忘れに気づけるようにする |
 
 ## 前回（`github-demo`）との違いのまとめ

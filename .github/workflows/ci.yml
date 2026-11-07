@@ -189,7 +189,7 @@ jobs:
           if-no-files-found: ignore
 
   terraform:
-    name: Terraform（整形・構文チェック）
+    name: Terraform（整形・構文チェック・CloudFront Functions のテスト）
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -208,3 +208,8 @@ jobs:
         run: |
           terraform -chdir=infra init -backend=false -input=false
           terraform -chdir=infra validate
+
+      # 画面の URL を index.html に書き換える関数（infra/cloudfront_functions/spa_rewrite.js）。
+      # 書き換えを間違えると、画面を直接開けない・ファイルが返らないことになるので、毎回確かめる（ubuntu-latest の Node で動かす）
+      - name: CloudFront Functions のテスト
+        run: node --test infra/cloudfront_functions/*.test.mjs

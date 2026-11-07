@@ -1,5 +1,5 @@
 # --- RDS（PostgreSQL 17）---
-# インターネットに公開せず、バックエンドの EC2 からだけ接続する。テーブルは Spring Boot の起動時に Flyway が作る
+# インターネットに公開せず、API（Fargate のタスク）からだけ接続する。テーブルは Spring Boot の起動時に Flyway が作る
 
 # DB サブネットグループは（シングル AZ でも）異なる AZ の複数のサブネットが必要
 resource "aws_db_subnet_group" "this" {
@@ -29,7 +29,7 @@ resource "aws_db_instance" "this" {
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
   multi_az               = false
-  # バックエンドの EC2 と同じアベイラビリティゾーンに置く（AZ をまたぐ通信の料金と遅れを避ける）
+  # API（Fargate）と同じアベイラビリティゾーンに置く（AZ をまたぐ通信の料金と遅れを避ける）
   availability_zone = local.primary_az
 
   # 学習用の環境のため、自動バックアップは取らず、削除のときの最終スナップショットも残さない（無料枠を超えないように）。

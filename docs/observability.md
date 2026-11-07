@@ -14,7 +14,7 @@
 | **原因を追う** | 何が・いつ・どこで・誰に起きたかを、あとから調べられる | ログ・トレース |
 | **傾向を見る** | 遅くなってきた・容量が埋まりそう、を壊れる前に知る | メトリクス（ダッシュボード） |
 
-対象：バックエンド（Spring Boot）、フロントエンド（nginx・ブラウザ）、ALB・RDS・S3・CloudFront。
+対象：バックエンド（Spring Boot。ECS Fargate）、フロントエンド（ブラウザ）、ALB・RDS・S3・CloudFront。
 
 ### 3つのデータの役割
 
@@ -109,8 +109,8 @@ Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を�
 
 ### 4.1 集め方
 
-- アプリは**標準出力に出すだけ**にし、集めて送るのはサーバーに置くエージェント（CloudWatch エージェント・Datadog Agent）に任せる。アプリから監視サービスへ直接送ると、送り先の障害や遅れがアプリに響くため
-- EC2 では systemd で動かしているので、標準出力は journald に入る。エージェントはそこから読む
+- アプリは**標準出力に出すだけ**にし、集めて送るのは仕組みの側（ECS のログドライバー・Datadog Agent）に任せる。アプリから監視サービスへ直接送ると、送り先の障害や遅れがアプリに響くため
+- API は ECS Fargate で動かしているので、標準出力は ECS のログドライバー（awslogs）が CloudWatch Logs（`/ecs/sns-app-backend`）に送る。エージェントを入れる必要はない（#155）
 - ALB のアクセスログは S3 に出す（ALB の設定）
 
 ### 4.2 残す期間
@@ -153,7 +153,7 @@ Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を�
 | A6 | ログインの失敗の急増 | 監査ログ（401 `INVALID_CREDENTIALS`） | 10分間で普段の5倍以上 | P2 | 同じ IP・同じメールアドレスへの集中（総当たり攻撃の疑い） |
 | A7 | リフレッシュトークンの使い回しの検知 | セキュリティのログ | 1件でも | P3 | そのユーザーのログイン履歴 |
 | A8 | RDS の空き容量 | CloudWatch | 20% を下回る | P2 | テーブルの大きさ |
-| A9 | EC2 のディスク・メモリ | エージェント | ディスク 80%・メモリ 90% を超える | P2 | ログの量、Java のヒープ |
+| A9 | API のタスクの CPU・メモリ | ECS のメトリクス（CloudWatch） | CPU 80%・メモリ 90% を超える | P2 | Java のヒープ、タスクが入れ替わっていないか（メモリが足りないと止まって作り直される） |
 | A10 | 監視のデータが届かない | 監視の道具（No Data） | 15分間届かない | P2 | エージェントが動いているか |
 | A11 | 正しくないアクセストークンの急増 | セキュリティのログ（`invalid_token`） | 10分間に20件以上 | P3 | 同じ IP からの集中（偽造・総当たりの疑い）。期限切れは数えない |
 | A12 | 画面のエラーの急増 | 画面のエラー（`client_error`） | 1時間に、普段の3倍以上、または新しい文言のエラー | P2 | 文言・画面のパス別の件数、直前のリリース（`service.version`）。誰でも送れるので、同じ IP からの大量の報告は偽物を疑う |
@@ -175,7 +175,7 @@ Spring Boot の標準の機能（`logging.structured.format.console: ecs`）を�
 | 名前 | 見る人・場面 | 中身 |
 |---|---|---|
 | サービスの概要 | 毎日・障害のとき最初に | SLO の残り、リクエスト数、5xx の割合、応答時間（p50・p95・p99） |
-| インフラ | 原因を探すとき | EC2（CPU・メモリ・ディスク）、RDS（CPU・接続数・空き容量）、ALB のターゲットの状態 |
+| インフラ | 原因を探すとき | API のタスク（CPU・メモリ・動いている数）、RDS（CPU・接続数・空き容量）、ALB のターゲットの状態 |
 | 調べる | 原因を探すとき | パス別の件数と応答時間、エラーコード別の件数、ログインの成功・失敗 |
 
 ## 6. 障害が起きたとき
@@ -208,7 +208,7 @@ flowchart LR
 
 | 機能 | 使い方 |
 |---|---|
-| Datadog Agent | EC2（フロント・バックエンド）に入れ、メトリクスとログを集める |
+| Datadog Agent | API のタスクにサイドカー（2つ目のコンテナ）として入れ、メトリクスとトレースを集める |
 | AWS 連携 | ALB・RDS・S3・CloudFront のメトリクスを取り込む |
 | APM（`dd-java-agent`） | Spring Boot の起動時に Java エージェントを付けて、トレースを取る。ログに `trace_id` が入り、トレースとログを行き来できる |
 | Log Management | 構造化ログを取り込む。3章の項目名を、Datadog の標準の項目に対応付ける（パイプライン） |
@@ -260,73 +260,44 @@ flowchart LR
 
 ### 7.3 Datadog の導入手順
 
-段階 3 に進むと決めたときの手順。EC2（[インフラ構成](./infrastructure.md)）に入れる前提。API キーなどの秘密情報はリポジトリに入れない。
+段階 3 に進むと決めたときの手順。API は ECS Fargate で動かす前提（[インフラ構成](./infrastructure.md)）。API キーなどの秘密情報はリポジトリに入れない。
 
 **1. アカウントとキー**
 
 - Datadog のアカウントを作り、サイトを選ぶ（日本なら AP1：`ap1.datadoghq.com`）。以降の `DD_SITE` はこの値
-- API キー（Agent がデータを送るためのキー）を作る。サーバーには `/etc/datadog-agent/datadog.yaml`（Agent が作る。権限は Agent だけが読める）にだけ置く
+- API キー（Agent がデータを送るためのキー）を作る。SSM パラメータストア（SecureString）にだけ置き、タスク定義の `secrets` で Agent に渡す
 
 **2. AWS 連携（ALB・RDS・S3・CloudFront のメトリクス）**
 
 - Datadog の画面の Integrations → Amazon Web Services から、案内される CloudFormation で、Datadog が CloudWatch を読むための IAM ロールを作る
-- 取り込むサービスを ALB・RDS・S3・CloudFront・EC2 に絞る（取り込む量で費用が変わるため）
+- 取り込むサービスを ALB・RDS・S3・CloudFront・ECS に絞る（取り込む量で費用が変わるため）
 
-**3. Agent を EC2 に入れる（フロント・バックエンドの両方）**
+**3. Agent をタスクに入れる（Fargate のサイドカー）**
 
-```bash
-DD_API_KEY=<API キー> DD_SITE="ap1.datadoghq.com" \
-  bash -c "$(curl -L https://install.datadoghq.com/scripts/install_script_agent7.sh)"
-```
+API は ECS Fargate で動かしている（[インフラ構成](./infrastructure.md)。サーバーに Agent を入れられない）ので、Agent を**同じタスクの中の2つ目のコンテナ（サイドカー）**として動かす。Terraform のタスク定義（`infra/ecs.tf`）の `container_definitions` に足す。
 
-`/etc/datadog-agent/datadog.yaml` で、タグとログの収集を有効にする。
+- イメージ：`public.ecr.aws/datadog/agent:latest`（版は固定する）
+- 環境変数：`DD_SITE`・`ECS_FARGATE=true`・`DD_APM_ENABLED=true`。API キー（`DD_API_KEY`）は SSM パラメータストアに置き、`secrets` で渡す（DB のパスワードと同じ）
+- タスクの CPU・メモリを、Agent の分（0.25 vCPU・512MB ほど）だけ増やす
 
-```yaml
-env: production
-tags:
-  - team:sns-app
-logs_enabled: true
-```
+**4. API のログを集める**
 
-**4. バックエンドのログを集める（journald から）**
+ログは今、awslogs ドライバーで CloudWatch Logs に送っている（「4.1 集め方」）。Datadog に送るには、次のどちらかにする。
 
-バックエンドは systemd で動かしているので、ログは journald に入る（「4.1 集め方」）。Agent が journald を読めるようにする。
+- **FireLens**（タスクの中の Fluent Bit のコンテナ）で、ログを直接 Datadog に送る。タスク定義の `logConfiguration` を `awsfirelens` にする
+- CloudWatch Logs に送ったまま、Datadog の Forwarder（Lambda）で取り込む。タスク定義は変えなくてよいが、Lambda の分の手間と費用がかかる
 
-```bash
-sudo usermod -a -G systemd-journal dd-agent
-```
-
-`/etc/datadog-agent/conf.d/sns-backend.d/conf.yaml`：
-
-```yaml
-logs:
-  - type: journald
-    include_units:
-      - sns-backend.service
-    service: sns-backend
-    source: java
-```
-
-- ログは JSON（ECS）なので、Datadog が項目ごとに読み取る（`@http.status`・`@error_code`・`@event.action` などで検索できる）
-- Logs → Pipelines で、レベル（`log.level`）と時刻（`@timestamp`）が Datadog のステータス・日時として読まれているかを確かめ、読まれていなければ Status Remapper・Date Remapper に指定する
-- フロントエンドの nginx のアクセスログも、同じように `/var/log/nginx/access.log` を `type: file` で集められる（必要になったら）
+どちらでも、ログは JSON（ECS）なので、Datadog が項目ごとに読み取る（`@http.status`・`@error_code`・`@event.action` などで検索できる）。Logs → Pipelines で、レベル（`log.level`）と時刻（`@timestamp`）が Datadog のステータス・日時として読まれているかを確かめ、読まれていなければ Status Remapper・Date Remapper に指定する。
 
 **5. APM（トレース）を付ける**
 
-```bash
-sudo mkdir -p /opt/datadog && sudo wget -O /opt/datadog/dd-java-agent.jar 'https://dtdg.co/latest-java-tracer'
-```
+`backend/Dockerfile` で Java エージェント（`dd-java-agent.jar`）をイメージに入れ、起動コマンドに `-javaagent:` を付ける。タグ（Unified Service Tagging）はタスク定義の環境変数で渡す。
 
-systemd のサービス（`sns-backend.service`）の起動コマンドに Java エージェントを付け、タグ（Unified Service Tagging）を環境変数で渡す。
-
-```ini
-[Service]
-Environment=DD_SERVICE=sns-backend
-Environment=DD_ENV=production
-# APP_VERSION と DD_VERSION は、デプロイのたびに同じ値を backend.env に書く
-EnvironmentFile=/opt/sns-app/backend.env
-Environment=DD_LOGS_INJECTION=true
-ExecStart=/usr/bin/java -javaagent:/opt/datadog/dd-java-agent.jar -jar /opt/sns-app/backend.jar --spring.profiles.active=production
+```text
+DD_SERVICE=sns-backend
+DD_ENV=production
+DD_VERSION=<APP_VERSION と同じ値>   # deploy.sh がイメージに入れている版（git の短いハッシュ）
+DD_LOGS_INJECTION=true
 ```
 
 - `DD_LOGS_INJECTION=true` で、ログの MDC にトレース ID（`dd.trace_id`）が入る。ECS のログは MDC をそのまま項目にするので、Datadog でログとトレースを行き来できる
