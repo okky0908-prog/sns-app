@@ -33,13 +33,58 @@ export async function signupByApi(request: APIRequestContext, user: TestUser): P
   return ((await res.json()) as { accessToken: string }).accessToken
 }
 
-/** API で投稿する（下準備） */
-export async function postByApi(request: APIRequestContext, token: string, content: string) {
+/** API で作った投稿（使う項目だけ） */
+export interface CreatedPost {
+  id: number
+  images: { url: string }[]
+}
+
+function auth(token: string) {
+  return { Authorization: `Bearer ${token}` }
+}
+
+/** API で投稿する（下準備）。image を渡すと画像付きにする */
+export async function postByApi(
+  request: APIRequestContext,
+  token: string,
+  content: string,
+  image?: { name: string; mimeType: string; buffer: Buffer },
+): Promise<CreatedPost> {
   const res = await request.post('/api/posts', {
-    headers: { Authorization: `Bearer ${token}` },
-    multipart: { content },
+    headers: auth(token),
+    multipart: image ? { content, images: image } : { content },
   })
   expect(res.status(), await res.text()).toBe(201)
+  return (await res.json()) as CreatedPost
+}
+
+/** API でフォローする（下準備） */
+export async function followByApi(request: APIRequestContext, token: string, username: string) {
+  const res = await request.post(`/api/users/${username}/follow`, { headers: auth(token) })
+  expect(res.status(), await res.text()).toBe(200)
+}
+
+/** API でいいねする（下準備） */
+export async function likeByApi(request: APIRequestContext, token: string, postId: number) {
+  const res = await request.post(`/api/posts/${postId}/likes`, { headers: auth(token) })
+  expect(res.status(), await res.text()).toBe(200)
+}
+
+/** API でコメントする（下準備）。コメントの ID を返す */
+export async function commentByApi(
+  request: APIRequestContext,
+  token: string,
+  postId: number,
+  content: string,
+): Promise<number> {
+  const res = await request.post(`/api/posts/${postId}/comments`, { headers: auth(token), data: { content } })
+  expect(res.status(), await res.text()).toBe(201)
+  return ((await res.json()) as { id: number }).id
+}
+
+/** 投稿カード（本文で探す。DB はテストの実行全体で共有しているので、本文にはユーザー名などを入れて重ならないようにする） */
+export function postCard(page: Page, content: string) {
+  return page.locator('article').filter({ hasText: content })
 }
 
 /** ログイン画面からログインし、ホームが出るまで待つ */
