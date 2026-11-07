@@ -6,6 +6,16 @@ import { vi } from 'vitest'
 import type { Comment, CursorPage, Post, Profile, UserListItem, UserSummary } from '../api/types'
 import { AuthContext, type AuthContextValue } from '../auth/authContext'
 
+/**
+ * 画面に見えている文字（読み上げだけに使う .visually-hidden の文字を除く）。
+ * textContent には見えない文字も入るので、「見た目に何が出ているか」はこれで確かめる
+ */
+export function visibleText(element: Element) {
+  const copy = element.cloneNode(true) as Element
+  copy.querySelectorAll('.visually-hidden').forEach((hidden) => hidden.remove())
+  return copy.textContent
+}
+
 interface RenderOptions {
   /** 最初に開く URL（state 付きで開くときは { pathname, state }） */
   route?: InitialEntry

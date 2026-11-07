@@ -190,6 +190,8 @@ export function CommentSection({ postId, focusRequest, onCountChange, notify }: 
             <li key={comment.id} className={styles.item} data-comment-id={comment.id}>
               <UserLink username={comment.author.username} plain className={styles.avatarLink}>
                 <Avatar displayName={comment.author.displayName} iconUrl={comment.author.iconUrl} size={36} />
+                {/* アイコンは読み上げないので、リンクの名前を補う（投稿カードと同じ。#140） */}
+                <span className="visually-hidden">{comment.author.displayName}のプロフィール</span>
               </UserLink>
               <div className={styles.body}>
                 <div className={styles.head}>

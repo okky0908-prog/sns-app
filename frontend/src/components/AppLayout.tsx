@@ -63,15 +63,21 @@ export function AppLayout() {
             )}
             {user && (
               // ログイン中のアカウント（プロフィール画像と表示名）。押すと自分のプロフィールへ（画面仕様「ユーザーへのリンク」）。
-              // プロフィール編集で変えたら、すぐここにも反映される。表示名は重なることがあるので、@ユーザー名も読み上げとツールチップで伝える
+              // プロフィール編集で変えたら、すぐここにも反映される。表示名は重なることがあるので、@ユーザー名も読み上げとツールチップで伝える。
+              // 読み上げの名前は、見えている表示名から始める（aria-label で上書きしない。WCAG 2.5.3。#140）。
+              // 表示名と補足を別々の要素にすると Chrome が間に空白を入れるので、名前は1つの要素で持つ
               <Link
                 to={`/users/${encodeURIComponent(user.username)}`}
                 className={styles.user}
                 title={`${user.displayName}（@${user.username}）としてログイン中`}
-                aria-label={`${user.displayName}（@${user.username}）のプロフィール`}
               >
                 <Avatar displayName={user.displayName} iconUrl={user.iconUrl} size={28} />
-                <span className={styles.userName}>{user.displayName}</span>
+                <span className={styles.userName} aria-hidden="true">
+                  {user.displayName}
+                </span>
+                <span className="visually-hidden">
+                  {user.displayName}（@{user.username}）のプロフィール
+                </span>
               </Link>
             )}
             <button type="button" className={styles.logout} onClick={handleLogout}>

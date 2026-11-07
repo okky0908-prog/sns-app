@@ -20,6 +20,8 @@ export function UserListRow({ user, onFollowChange, onError }: UserListRowProps)
     <li className={styles.row} data-user-id={user.id}>
       <UserLink username={user.username} plain className={styles.avatarLink}>
         <Avatar displayName={user.displayName} iconUrl={user.iconUrl} size={44} />
+        {/* アイコンは読み上げないので、リンクの名前を補う（投稿カードと同じ。#140） */}
+        <span className="visually-hidden">{user.displayName}のプロフィール</span>
       </UserLink>
       <div className={styles.body}>
         <UserLink username={user.username} className={styles.displayName}>

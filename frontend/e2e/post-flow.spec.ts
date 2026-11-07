@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { newUser } from './support'
+import { newUser, visibleText } from './support'
 
 // 主要な流れ：新規登録 → 投稿 → いいね → コメント（docs/test-plan.md「4. ケースの設計例」）
 test('新規登録して投稿し、いいね・コメントでき、読み込み直しても残っている', async ({ page }) => {
@@ -33,11 +33,13 @@ test('新規登録して投稿し、いいね・コメントでき、読み込�
   })
 
   await test.step('いいねすると数が増え、読み込み直しても残っている', async () => {
-    await card.getByRole('button', { name: 'いいね' }).click()
-    await expect(card.getByRole('button', { name: 'いいねを取り消す' })).toHaveText('♥1')
+    await card.getByRole('button', { name: 'いいね（0件）', pressed: false }).click()
+    // 押した状態は aria-pressed で、数は名前と見た目（♥1）で確かめる
+    await expect(card.getByRole('button', { name: 'いいね（1件）', pressed: true })).toBeVisible()
+    expect(await visibleText(card.getByRole('button', { name: /^いいね/ }))).toBe('♥1')
 
     await page.reload()
-    await expect(card.getByRole('button', { name: 'いいねを取り消す' })).toHaveText('♥1')
+    await expect(card.getByRole('button', { name: 'いいね（1件）', pressed: true })).toBeVisible()
   })
 
   await test.step('投稿詳細でコメントすると、一覧とコメント数に反映され、読み込み直しても残っている', async () => {

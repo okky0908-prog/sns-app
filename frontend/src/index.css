@@ -1,13 +1,19 @@
-/* 色などの共通設定（mockup/style.css と同じ値） */
+/* 色などの共通設定。文字の色は、置く背景（白・--color-bg・薄い色の背景）とのコントラスト比が 4.5:1 以上になるように選ぶ（WCAG 2.1 AA。#140） */
 :root {
   color-scheme: light;
   --color-bg: #f5f7f9;
   --color-border: #e3e8ec;
   --color-text: #0f1419;
   --color-sub: #536471;
-  --color-primary: #1d9bf0;
-  --color-primary-dark: #1a8cd8;
-  --color-danger: #f4212e;
+  /* 白の上で 5.1:1。白い文字を載せるボタンの背景にも使う */
+  --color-primary: #0f6fc6;
+  /* ボタンにマウスを乗せたとき（7.0:1） */
+  --color-primary-dark: #0b5aa3;
+  /* 白の上で 5.4:1・薄い赤（#fdecee）の上で 4.8:1 */
+  --color-danger: #d01b28;
+  --color-danger-dark: #a8141f;
+  /* いいね済みのピンク（白の上で 5.5:1・薄いピンク #fde8ef の上で 4.7:1） */
+  --color-like: #cc1166;
   --color-hover: #f7f9f9;
   /* 共通ヘッダーの高さ。ヘッダーの下に固定する部分（検索欄・新しい投稿のお知らせ）の位置もこれで決める */
   --header-height: 58px;
@@ -39,4 +45,14 @@ button,
 input {
   font: inherit;
   color: inherit;
+}
+
+/* 画面には出さず、読み上げにだけ使う文字（見えている文字に補足して、読み上げの名前を作るときに使う） */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

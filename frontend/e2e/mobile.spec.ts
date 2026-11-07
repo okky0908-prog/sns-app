@@ -50,7 +50,7 @@ test('スマートフォンの幅でも、主な画面が横にはみ出さず�
   // 表示名の文字と「プロフィール」の文字リンクは隠し、アイコンからプロフィールへ行ける
   const banner = page.getByRole('banner')
   await expect(banner.getByRole('link', { name: 'プロフィール', exact: true })).toBeHidden()
-  await expect(banner.getByText(me.displayName)).toBeHidden()
+  await expect(banner.getByText(me.displayName, { exact: true })).toBeHidden()
   await expect(banner.getByRole('link', { name: `${me.displayName}（@${me.username}）のプロフィール` })).toBeVisible()
 
   const screens: [string, string, string][] = [
