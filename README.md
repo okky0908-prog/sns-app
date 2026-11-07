@@ -26,7 +26,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | データベース | PostgreSQL 17（MyBatis + Flyway） |
 | 画像保存 | Amazon S3 + CloudFront |
 | ローカル環境 | Docker Compose（PostgreSQL・LocalStack コンテナ） |
-| インフラ | AWS（CloudFront + ALB + EC2 + RDS）、Terraform |
+| インフラ | AWS（CloudFront + S3（画面）+ ALB + ECS Fargate + RDS）、Terraform。EC2 は使わない |
 
 各コンポーネントの詳細バージョン・採用理由は[技術スタック](docs/tech-stack.md)を参照。
 

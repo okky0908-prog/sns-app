@@ -1,9 +1,10 @@
 # このファイルをコピーして terraform.tfvars を作成し、実際の値を入力する（terraform.tfvars は Git に含めない）
 # cp terraform.tfvars.example terraform.tfvars
 
-ssh_public_key     = "ssh-ed25519 AAAA... (自分の公開鍵の中身。例: cat ~/.ssh/sns-app-aws-ec2.pub)"
-my_ip_cidr         = "203.0.113.1/32"                 # SSH を許可する自分のグローバルIP/32（例: curl -s https://checkip.amazonaws.com で確認）
 db_password        = "change-me-to-a-random-password" # RDS の管理者パスワード（12文字以上。英数字・- _ だけ。例: openssl rand -hex 16）
 budget_alert_email = "you@example.com"                # 請求アラートを受け取るメールアドレス
-# monthly_budget_usd = 30                             # 請求アラートの月の予算（米ドル）
-# auto_stop_time     = "00:00"                        # EC2 を毎日自動で停止する時刻（日本時間）
+# monthly_budget_usd       = 30      # 請求アラートの月の予算（米ドル）
+# backend_cpu              = 512     # API の Fargate のタスクの CPU（1024 = 1 vCPU）
+# backend_memory           = 1024    # API の Fargate のタスクのメモリ（MiB）
+# backend_cpu_architecture = "ARM64" # イメージを作る PC と合わせる（Intel の PC なら X86_64）
+# log_retention_days       = 14      # API のログを残す日数

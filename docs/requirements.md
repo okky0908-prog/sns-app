@@ -92,6 +92,6 @@ users・posts・post_images・comments・likes・follows と、ログイン状�
 
 ## 11. インフラ構成（AWS）
 
-画像の保存先に S3（配信は CloudFront）を使う。アプリのサーバーは、前回の EC2 + RDS 構成に ALB を加え、HTTPS の入口として CloudFront を前に置く構成（CloudFront + ALB + EC2 + RDS for PostgreSQL 17）とし、Terraform で構築する（`infra/`）。
+画像の保存先に S3（配信は CloudFront）を使う。EC2（サーバー）は使わず、画面は S3 + CloudFront で配り、API（Spring Boot）はコンテナにして ECS Fargate で動かす。HTTPS の入口として CloudFront を前に置き、`/api/*` を ALB 経由で Fargate へ振り分ける構成（CloudFront + S3 + ALB + ECS Fargate + RDS for PostgreSQL 17）とし、Terraform で構築する（`infra/`）。
 
 → 詳細は [インフラ構成](./infrastructure.md) を参照

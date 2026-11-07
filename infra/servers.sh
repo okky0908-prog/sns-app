@@ -1,10 +1,10 @@
 #!/bin/bash
-# EC2（フロントエンド・バックエンドの2台）を起動・停止する（docs/infrastructure.md）
-# EC2 の無料利用枠は2台合計で月750時間のため、使わないときは停止する。RDS は動かしたまま（無料利用枠の範囲）
-#   infra/servers.sh start   … 2台を起動し、アプリのURLを表示する（SSH 用の公開IPは起動のたびに変わる）
-#   infra/servers.sh stop    … 2台を停止する
-#   infra/servers.sh status  … 2台の状態を表示する
-# ALB と CloudFront は止められない。ALB は存在するだけで課金されるので、しばらく使わないなら terraform destroy で削除する
+# API（ECS Fargate のタスク）を動かす・止める（docs/infrastructure.md「費用」）
+# Fargate は動いている時間だけ課金されるので、使わないときはタスクを 0 にする。画面（S3・CloudFront）は止めなくてよい
+#   infra/servers.sh start   … タスクを 1 にして、動き出すまで待つ
+#   infra/servers.sh stop    … タスクを 0 にする
+#   infra/servers.sh status  … タスクの数を表示する
+# ALB と RDS は止まらない。ALB は存在するだけで課金されるので、しばらく使わないなら terraform destroy で削除する
 set -euo pipefail
 
 INFRA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,32 +13,32 @@ tfout() {
 }
 
 REGION="$(tfout aws_region)"
-FRONTEND_ID="$(tfout frontend_instance_id)"
-BACKEND_ID="$(tfout backend_instance_id)"
+CLUSTER="$(tfout ecs_cluster_name)"
+SERVICE="$(tfout ecs_service_name)"
 
 status() {
-  aws ec2 describe-instances --region "${REGION}" --instance-ids "${FRONTEND_ID}" "${BACKEND_ID}" \
-    --query 'Reservations[].Instances[].[Tags[?Key==`Name`]|[0].Value,State.Name,PublicIpAddress]' \
-    --output table
+  aws ecs describe-services --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}" \
+    --query 'services[0].{desired:desiredCount,running:runningCount,pending:pendingCount}' --output table
+}
+
+scale() {
+  aws ecs update-service --region "${REGION}" --cluster "${CLUSTER}" --service "${SERVICE}" --desired-count "$1" > /dev/null
 }
 
 case "${1:-}" in
   start)
-    aws ec2 start-instances --region "${REGION}" --instance-ids "${BACKEND_ID}" "${FRONTEND_ID}" > /dev/null
-    echo "==> 起動を待っています"
-    aws ec2 wait instance-running --region "${REGION}" --instance-ids "${BACKEND_ID}" "${FRONTEND_ID}"
-    # 公開IP（SSH 用）が変わるため、Terraform の出力値を最新にする（リソースは変更しない）
-    terraform -chdir="${INFRA_DIR}" apply -refresh-only -auto-approve > /dev/null
+    scale 1
+    echo "==> タスクが動き出し、ALB のヘルスチェックに通るのを待っています（2〜3分）"
+    aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"
     status
     echo "==> アプリのURL: $(tfout app_url)"
-    echo "    （起動してから、ALB のヘルスチェックが通ってアプリが使えるようになるまで、2分ほどかかります）"
     ;;
   stop)
-    aws ec2 stop-instances --region "${REGION}" --instance-ids "${FRONTEND_ID}" "${BACKEND_ID}" > /dev/null
-    echo "==> 停止を待っています"
-    aws ec2 wait instance-stopped --region "${REGION}" --instance-ids "${FRONTEND_ID}" "${BACKEND_ID}"
+    scale 0
+    echo "==> タスクの停止を待っています"
+    aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"
     status
-    echo "==> ALB は止められず、課金が続きます。しばらく使わないなら terraform -chdir=infra destroy で削除してください"
+    echo "==> ALB と RDS は動いたままで、課金が続きます。しばらく使わないなら terraform -chdir=infra destroy で削除してください"
     ;;
   status)
     status

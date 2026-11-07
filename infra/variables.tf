@@ -10,20 +10,54 @@ variable "project_name" {
   default     = "sns-app"
 
   validation {
-    # ALB・ターゲットグループの名前（32文字まで）に「-frontend-tg」を付けても収まる長さにする
+    # ALB・ターゲットグループの名前（32文字まで）に「-backend-tg」などを付けても収まる長さにする
     condition     = can(regex("^[a-z][a-z0-9-]{1,18}$", var.project_name))
     error_message = "project_name は英小文字で始まる、英小文字・数字・ハイフンの2〜19文字にしてください。"
   }
 }
 
-variable "instance_type" {
-  description = "EC2のインスタンスタイプ（2台とも同じ。無料利用枠の対象に限る）"
-  type        = string
-  default     = "t3.micro"
+variable "backend_cpu" {
+  description = "API（Spring Boot）の Fargate のタスクの CPU（1024 = 1 vCPU）"
+  type        = number
+  default     = 512
 
   validation {
-    condition     = contains(["t2.micro", "t3.micro"], var.instance_type)
-    error_message = "instance_type は無料利用枠の対象（t2.micro / t3.micro）にしてください。"
+    condition     = contains([256, 512, 1024], var.backend_cpu)
+    error_message = "backend_cpu は 256・512・1024 のどれかにしてください。"
+  }
+}
+
+variable "backend_memory" {
+  description = "API（Spring Boot）の Fargate のタスクのメモリ（MiB）。Java はこの 75% までを使う（backend/Dockerfile）"
+  type        = number
+  default     = 1024
+
+  validation {
+    # Spring Boot は 512MiB では足りないことがあるので、1GiB 以上にする。CPU との組み合わせは Fargate の決まりに従う
+    condition     = var.backend_memory >= 1024 && var.backend_memory <= 4096
+    error_message = "backend_memory は 1024〜4096（MiB）にしてください。"
+  }
+}
+
+variable "backend_cpu_architecture" {
+  description = "API のコンテナの CPU の種類。イメージを作る PC と合わせる（Apple シリコンの Mac なら ARM64。ARM64 は X86_64 より約2割安い）"
+  type        = string
+  default     = "ARM64"
+
+  validation {
+    condition     = contains(["ARM64", "X86_64"], var.backend_cpu_architecture)
+    error_message = "backend_cpu_architecture は ARM64 か X86_64 にしてください。"
+  }
+}
+
+variable "log_retention_days" {
+  description = "API のログ（CloudWatch Logs）を残す日数"
+  type        = number
+  default     = 14
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90], var.log_retention_days)
+    error_message = "log_retention_days は 1・3・5・7・14・30・60・90 のどれかにしてください。"
   }
 }
 
@@ -49,21 +83,6 @@ variable "cloudfront_price_class" {
   }
 }
 
-variable "ssh_public_key" {
-  description = "EC2にSSH接続するための公開鍵の中身（例: ~/.ssh/sns-app-aws-ec2.pub の内容）"
-  type        = string
-}
-
-variable "my_ip_cidr" {
-  description = "SSH（22番）を許可する送信元（自分のグローバルIP/32）。アプリ（HTTPS）は CloudFront から誰でも使える"
-  type        = string
-
-  validation {
-    condition     = can(cidrhost(var.my_ip_cidr, 0)) && endswith(var.my_ip_cidr, "/32")
-    error_message = "my_ip_cidr は「自分のグローバルIP/32」の形で指定してください（例: 203.0.113.1/32）。"
-  }
-}
-
 variable "db_name" {
   description = "RDSに作成するデータベース名"
   type        = string
@@ -82,20 +101,9 @@ variable "db_password" {
   sensitive   = true
 
   validation {
-    # RDS で使えない文字（/ @ " と空白）に加え、backend.env（systemd が読む）で特別な意味を持つ文字（引用符・\ など）も使わない
+    # RDS で使えない文字（/ @ " と空白）に加え、シェル・URL で特別な意味を持つ文字（引用符・\ など）も使わない
     condition     = can(regex("^[A-Za-z0-9_-]{12,}$", var.db_password))
     error_message = "db_password は12文字以上で、英数字・ハイフン・アンダースコアだけにしてください（例: openssl rand -hex 16 の結果）。"
-  }
-}
-
-variable "auto_stop_time" {
-  description = "EC2を毎日自動で停止する時刻（日本時間、HH:MM）。止め忘れで無料利用枠（月750時間）を超えないようにする"
-  type        = string
-  default     = "00:00"
-
-  validation {
-    condition     = can(regex("^([01][0-9]|2[0-3]):[0-5][0-9]$", var.auto_stop_time))
-    error_message = "auto_stop_time は HH:MM の形で指定してください（例: 00:00）。"
   }
 }
 

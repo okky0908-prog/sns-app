@@ -1,17 +1,18 @@
-# SNSアプリの本番環境（docs/infrastructure.md）
+# SNSアプリの本番環境（docs/infrastructure.md）。EC2 は使わない
 #
-#   ブラウザ ─HTTPS→ CloudFront（アプリ用）─HTTP→ ALB ─┬─ /api/* → バックエンドの EC2（Spring Boot 8080番）→ RDS for PostgreSQL 17
-#                                                         └─ それ以外 → フロントエンドの EC2（nginx 80番）
-#   ブラウザ ─HTTPS→ CloudFront（画像用）─OAC→ S3（非公開）
+#   ブラウザ ─HTTPS→ CloudFront（アプリ用）─┬─ /api/* ─HTTP→ ALB → ECS Fargate（Spring Boot 8080番）→ RDS for PostgreSQL 17
+#                                             └─ それ以外 ─OAC→ S3（画面。React のビルド結果）
+#   ブラウザ ─HTTPS→ CloudFront（画像用）─OAC→ S3（画像。非公開）
 #
 # ファイルの分け方：
 #   main.tf             … Terraform・プロバイダーの設定、既定の VPC などの読み取り
 #   security_groups.tf  … セキュリティグループ
 #   alb.tf              … ALB・ターゲットグループ・リスナー
-#   ec2.tf              … EC2 2台・キーペア・バックエンドの IAM ロール
+#   ecs.tf              … ECR・ECS（クラスター・タスク定義・サービス）・IAM ロール・ログ・秘密の値（SSM）
 #   rds.tf              … RDS
+#   frontend.tf         … 画面の S3 バケットと、画面の URL を index.html に書き換える CloudFront Functions
 #   images.tf           … 画像の S3 バケットと、画像用の CloudFront
-#   cloudfront_app.tf   … アプリ用の CloudFront（HTTPS の入口）
+#   cloudfront_app.tf   … アプリ用の CloudFront（HTTPS の入口。画面と API を振り分ける）
 #   budget.tf           … 請求アラート
 
 terraform {
@@ -62,18 +63,14 @@ data "aws_subnets" "default" {
   }
 }
 
-# EC2 と RDS を置くアベイラビリティゾーン。インスタンスタイプを使えるもののうち、最初のもの（東京なら a）
-data "aws_ec2_instance_type_offerings" "available" {
-  location_type = "availability-zone"
-
-  filter {
-    name   = "instance-type"
-    values = [var.instance_type]
-  }
+# API（Fargate）と RDS を置くアベイラビリティゾーン。使えるもののうち、最初のもの（東京なら a）。
+# 同じところに置き、アベイラビリティゾーンをまたぐ通信の料金と遅れを避ける
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
 locals {
-  primary_az = sort(data.aws_ec2_instance_type_offerings.available.locations)[0]
+  primary_az = sort(data.aws_availability_zones.available.names)[0]
 }
 
 data "aws_subnet" "primary" {
@@ -82,7 +79,7 @@ data "aws_subnet" "primary" {
   default_for_az    = true
 }
 
-# ALB のサブネットは2つ（EC2 のいるアベイラビリティゾーンと、もう1つ）にする。
+# ALB のサブネットは2つ（Fargate のいるアベイラビリティゾーンと、もう1つ）にする。
 # ALB にはサブネットごとに公開IPv4 が付いて課金されるので、必要な数（2つ以上のアベイラビリティゾーン）だけにする。
 # 既定のサブネットはアベイラビリティゾーンごとに1つなので、違うサブネットを選べば違うアベイラビリティゾーンになる
 locals {
@@ -90,20 +87,4 @@ locals {
     [data.aws_subnet.primary.id],
     slice(sort([for id in data.aws_subnets.default.ids : id if id != data.aws_subnet.primary.id]), 0, 1),
   )
-}
-
-# 最新の Amazon Linux 2023 の AMI
-data "aws_ami" "amazon_linux_2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023.*-x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
 }

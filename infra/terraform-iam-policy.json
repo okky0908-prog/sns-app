@@ -12,6 +12,14 @@
         "rds:ListTagsForResource",
         "cloudfront:Get*",
         "cloudfront:List*",
+        "cloudfront:DescribeFunction",
+        "ecs:DescribeClusters",
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition",
+        "ecs:ListTagsForResource",
+        "ecr:DescribeRepositories",
+        "logs:DescribeLogGroups",
+        "ssm:DescribeParameters",
         "budgets:ViewBudget",
         "budgets:ListTagsForResource",
         "sts:GetCallerIdentity"
@@ -19,7 +27,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "Ec2SecurityGroupsInstancesKeyPair",
+      "Sid": "Ec2SecurityGroups",
       "Effect": "Allow",
       "Action": [
         "ec2:CreateSecurityGroup",
@@ -31,14 +39,6 @@
         "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
         "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
         "ec2:ModifySecurityGroupRules",
-        "ec2:RunInstances",
-        "ec2:TerminateInstances",
-        "ec2:StartInstances",
-        "ec2:StopInstances",
-        "ec2:ModifyInstanceAttribute",
-        "ec2:AssociateIamInstanceProfile",
-        "ec2:ImportKeyPair",
-        "ec2:DeleteKeyPair",
         "ec2:CreateTags",
         "ec2:DeleteTags"
       ],
@@ -57,8 +57,6 @@
         "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:ModifyTargetGroup",
         "elasticloadbalancing:ModifyTargetGroupAttributes",
-        "elasticloadbalancing:RegisterTargets",
-        "elasticloadbalancing:DeregisterTargets",
         "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:ModifyListener",
@@ -92,12 +90,14 @@
       ]
     },
     {
-      "Sid": "ImagesBucket",
+      "Sid": "BucketsImagesAndFrontend",
       "Effect": "Allow",
       "Action": "s3:*",
       "Resource": [
         "arn:aws:s3:::sns-app-images-*",
-        "arn:aws:s3:::sns-app-images-*/*"
+        "arn:aws:s3:::sns-app-images-*/*",
+        "arn:aws:s3:::sns-app-frontend-*",
+        "arn:aws:s3:::sns-app-frontend-*/*"
       ]
     },
     {
@@ -112,12 +112,115 @@
         "cloudfront:UntagResource",
         "cloudfront:CreateOriginAccessControl",
         "cloudfront:UpdateOriginAccessControl",
-        "cloudfront:DeleteOriginAccessControl"
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:CreateFunction",
+        "cloudfront:UpdateFunction",
+        "cloudfront:DeleteFunction",
+        "cloudfront:PublishFunction"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "BackendRole",
+      "Sid": "ContainerRegistry",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:PutImageScanningConfiguration",
+        "ecr:PutImageTagMutability",
+        "ecr:PutLifecyclePolicy",
+        "ecr:GetLifecyclePolicy",
+        "ecr:DeleteLifecyclePolicy",
+        "ecr:TagResource",
+        "ecr:UntagResource",
+        "ecr:ListTagsForResource",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:BatchDeleteImage",
+        "ecr:ListImages"
+      ],
+      "Resource": "arn:aws:ecr:*:*:repository/sns-app-*"
+    },
+    {
+      "Sid": "ContainerRegistryLoginForDeploy",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcsClusterAndService",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:CreateCluster",
+        "ecs:DeleteCluster",
+        "ecs:UpdateCluster",
+        "ecs:CreateService",
+        "ecs:UpdateService",
+        "ecs:DeleteService",
+        "ecs:TagResource",
+        "ecs:UntagResource",
+        "ecs:ExecuteCommand",
+        "ecs:DescribeTasks",
+        "ecs:ListTasks"
+      ],
+      "Resource": [
+        "arn:aws:ecs:*:*:cluster/sns-app",
+        "arn:aws:ecs:*:*:cluster/sns-app-*",
+        "arn:aws:ecs:*:*:service/sns-app/*",
+        "arn:aws:ecs:*:*:service/sns-app-*/*",
+        "arn:aws:ecs:*:*:task-definition/sns-app-*:*",
+        "arn:aws:ecs:*:*:task/sns-app/*",
+        "arn:aws:ecs:*:*:container-instance/sns-app/*"
+      ]
+    },
+    {
+      "Sid": "EcsTaskDefinitions",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RegisterTaskDefinition",
+        "ecs:DeregisterTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Logs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource",
+        "logs:FilterLogEvents",
+        "logs:StartLiveTail"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/ecs/sns-app-*",
+        "arn:aws:logs:*:*:log-group:/ecs/sns-app-*:*"
+      ]
+    },
+    {
+      "Sid": "Secrets",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:PutParameter",
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:DeleteParameter",
+        "ssm:AddTagsToResource",
+        "ssm:RemoveTagsFromResource",
+        "ssm:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:ssm:*:*:parameter/sns-app/*"
+    },
+    {
+      "Sid": "Roles",
       "Effect": "Allow",
       "Action": [
         "iam:CreateRole",
@@ -132,26 +235,19 @@
         "iam:ListRolePolicies",
         "iam:ListAttachedRolePolicies",
         "iam:ListInstanceProfilesForRole",
-        "iam:CreateInstanceProfile",
-        "iam:DeleteInstanceProfile",
-        "iam:GetInstanceProfile",
-        "iam:TagInstanceProfile",
-        "iam:AddRoleToInstanceProfile",
-        "iam:RemoveRoleFromInstanceProfile"
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
       ],
-      "Resource": [
-        "arn:aws:iam::*:role/sns-app-*",
-        "arn:aws:iam::*:instance-profile/sns-app-*"
-      ]
+      "Resource": "arn:aws:iam::*:role/sns-app-*"
     },
     {
-      "Sid": "PassBackendRoleToEc2Only",
+      "Sid": "PassRolesToEcsTasksOnly",
       "Effect": "Allow",
       "Action": "iam:PassRole",
       "Resource": "arn:aws:iam::*:role/sns-app-*",
       "Condition": {
         "StringEquals": {
-          "iam:PassedToService": "ec2.amazonaws.com"
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
         }
       }
     },
@@ -164,7 +260,8 @@
         "StringEquals": {
           "iam:AWSServiceName": [
             "elasticloadbalancing.amazonaws.com",
-            "rds.amazonaws.com"
+            "rds.amazonaws.com",
+            "ecs.amazonaws.com"
           ]
         }
       }

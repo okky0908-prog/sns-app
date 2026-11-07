@@ -22,7 +22,7 @@ resource "aws_security_group" "alb" {
   }
 
   egress {
-    description = "To the targets (frontend 80, backend 8080) and their health checks inside the VPC"
+    description = "To the API tasks (8080) and their health checks inside the VPC"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -34,43 +34,9 @@ resource "aws_security_group" "alb" {
   }
 }
 
-resource "aws_security_group" "frontend" {
-  name        = "${var.project_name}-frontend-sg"
-  description = "Frontend: HTTP(80) from the ALB SG only, SSH(22) from my IP only"
-  vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    description     = "HTTP from the ALB only"
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description = "SSH from my PC only"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.my_ip_cidr]
-  }
-
-  egress {
-    description = "All outbound (package installs)"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-frontend-sg"
-  }
-}
-
 resource "aws_security_group" "backend" {
   name        = "${var.project_name}-backend-sg"
-  description = "Backend: Spring Boot(8080) from the ALB SG only, SSH(22) from my IP only"
+  description = "Backend (Fargate): Spring Boot(8080) from the ALB SG only"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -81,16 +47,9 @@ resource "aws_security_group" "backend" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  ingress {
-    description = "SSH from my PC only"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.my_ip_cidr]
-  }
-
   egress {
-    description = "All outbound (package installs, RDS, S3)"
+    # ECR からイメージを取る・ログを送る・SSM から秘密の値を読む・S3 に画像を置く（どれも AWS の公開の URL）・RDS（VPC の中）
+    description = "All outbound (ECR, CloudWatch Logs, SSM, S3, RDS)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -108,7 +67,7 @@ resource "aws_security_group" "rds" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description     = "PostgreSQL from the backend server only"
+    description     = "PostgreSQL from the API tasks only"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
