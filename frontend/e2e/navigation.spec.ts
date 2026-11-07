@@ -29,6 +29,25 @@ test.describe('画面の移動', () => {
     }
   })
 
+  test('ない投稿の URL を開くと「この投稿は見つかりません」を出し、処理されない失敗を残さない', async ({ page, request }) => {
+    // 投稿詳細はコメントも同時に取りに行く（#143）。投稿がないときはコメント欄を出さないので、その失敗を受け止め忘れると
+    // ブラウザに処理されない失敗（pageerror）が残る。部品のテストでは偽の通信が結果を受け取ってしまうので、ここで確かめる
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const me = newUser('dot')
+    await signupByApi(request, me)
+    await loginByUi(page, me)
+
+    const comments = page.waitForResponse((res) => res.url().includes('/api/posts/2147483647/comments'))
+    await page.goto('/posts/2147483647')
+
+    await expect(page.getByText('この投稿は見つかりません')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'コメント' })).toBeHidden()
+    expect((await comments).status()).toBe(404)
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0))) // 失敗の知らせが届くまで、ブラウザを1回まわす
+    expect(errors).toEqual([])
+  })
+
   test('ブラウザの戻る・進むで、前に見ていた画面に戻る', async ({ page, request }) => {
     const author = newUser('eve')
     const authorToken = await signupByApi(request, author)

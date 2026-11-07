@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { fetchPost, isApiError } from '../api/client'
-import type { LikeState, Post } from '../api/types'
+import { fetchComments, fetchPost, isApiError } from '../api/client'
+import type { Comment, CursorPage, LikeState, Post } from '../api/types'
 import { CommentSection } from '../components/CommentSection'
 import { PostCard } from '../components/PostCard'
 import { useGoBack } from '../lib/useGoBack'
@@ -20,15 +20,22 @@ export function PostDetailPage() {
   const focusRequest = (location.state as { focusComment?: boolean } | null)?.focusComment ? location.key : null
   const id = Number(postId)
   const validId = Number.isInteger(id) && id > 0
-  // 読み込んだ結果を、どの投稿 ID の結果かと一緒に持つ（URL が変わったら「読み込み中」に戻る）
-  const [result, setResult] = useState<{ id: number; post: Post | null; status: 'ready' | 'notFound' | 'error' } | null>(
-    null,
-  )
+  /**
+   * 読み込んだ結果を、どの投稿 ID の結果かと一緒に持つ（URL が変わったら「読み込み中」に戻る）。
+   * comments は、投稿と同時に取り始めたコメントの最初の20件（コメント欄に渡す）
+   */
+  const [result, setResult] = useState<{
+    id: number
+    post: Post | null
+    status: 'ready' | 'notFound' | 'error'
+    comments?: Promise<CursorPage<Comment>>
+  } | null>(null)
   const status = !validId ? 'notFound' : result?.id === id ? result.status : 'loading'
   const post = result?.id === id ? result.post : null
 
   const actions = usePostActions({
-    onUpdated: (updated) => setResult({ id: updated.id, post: updated, status: 'ready' }),
+    // comments は残す（なくすとコメント欄が取り直してしまう）
+    onUpdated: (updated) => setResult((prev) => ({ ...prev, id: updated.id, post: updated, status: 'ready' })),
     // 削除したらタイムラインに戻る（お知らせはタイムライン側で出す）
     // すでに削除されていたとき（別のタブで消した など）は、自分が削除したと誤解しないよう、エラーとして知らせる
     onDeleted: (_post, alreadyDeleted) =>
@@ -51,9 +58,13 @@ export function PostDetailPage() {
   useEffect(() => {
     if (!validId) return
     let cancelled = false
+    // 投稿を取り終えるのを待たずに、コメントも同時に取りに行く（順番に取ると、往復が1回分増える。#143）
+    const comments = fetchComments(id)
+    // 投稿が見つからないときなど、コメント欄を出さずに終わることがある。そのときの失敗は使わないので、ここで受け止めておく
+    comments.catch(() => {})
     fetchPost(id)
       .then((res) => {
-        if (!cancelled) setResult({ id, post: res, status: 'ready' })
+        if (!cancelled) setResult({ id, post: res, status: 'ready', comments })
       })
       .catch((err) => {
         if (!cancelled)
@@ -91,6 +102,7 @@ export function PostDetailPage() {
           <CommentSection
             key={post.id}
             postId={post.id}
+            initialPage={result?.comments}
             focusRequest={focusRequest}
             onCountChange={handleCommentCountChange}
             notify={actions.notify}

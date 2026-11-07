@@ -49,13 +49,51 @@ describe('PostDetailPage：読み込み（状態遷移）', () => {
     renderDetail()
 
     expect(screen.getByText('読み込み中…')).toBeInTheDocument()
+    // 投稿を取り終えるのを待たずに、コメントも同時に取りに行く（往復を1回分減らす。#143）
+    expect(fetchComments).toHaveBeenCalledWith(10)
     response.resolve(myPost)
 
     expect(await screen.findByText('詳細の本文')).toBeInTheDocument()
     expect(fetchPost).toHaveBeenCalledWith(10)
     expect(screen.getByRole('region', { name: 'コメント' })).toBeInTheDocument()
-    // コメント欄の読み込みは、表示したあとに始まる（遅い環境では少し遅れる）ので、始まるまで待つ
-    await vi.waitFor(() => expect(fetchComments).toHaveBeenCalledWith(10))
+    expect(await screen.findByText('まだコメントはありません')).toBeInTheDocument()
+    // 同時に始めた結果を使い、コメント欄を出したときに取り直さない
+    expect(fetchComments).toHaveBeenCalledTimes(1)
+  })
+
+  test('コメントが投稿より先に届いても、投稿を出すときに一緒に出す', async () => {
+    const post = deferred<Post>()
+    vi.mocked(fetchPost).mockReturnValue(post.promise)
+    vi.mocked(fetchComments).mockResolvedValue(aPage([aComment({ content: '先に届いたコメント' })]))
+    renderDetail()
+
+    post.resolve(myPost)
+
+    expect(await screen.findByText('先に届いたコメント')).toBeInTheDocument()
+    expect(fetchComments).toHaveBeenCalledTimes(1)
+  })
+
+  test('投稿が見つからないときは、コメントの失敗を重ねて出さない', async () => {
+    vi.mocked(fetchPost).mockRejectedValue(new ApiError(404, 'POST_NOT_FOUND', '文言'))
+    vi.mocked(fetchComments).mockRejectedValue(new ApiError(404, 'POST_NOT_FOUND', '文言'))
+    renderDetail()
+
+    expect(await screen.findByText('この投稿は見つかりません')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'コメント' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/コメントを読み込めませんでした/)).not.toBeInTheDocument()
+  })
+
+  test('投稿は読めてコメントだけ失敗したら、コメント欄で再試行でき、再試行ではもう一度取りに行く', async () => {
+    vi.mocked(fetchPost).mockResolvedValue(myPost)
+    vi.mocked(fetchComments)
+      .mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', '文言'))
+      .mockResolvedValueOnce(aPage([aComment({ content: '再試行で読めたコメント' })]))
+    renderDetail()
+
+    await userEvent.click(await screen.findByRole('button', { name: '再試行' }))
+
+    expect(await screen.findByText('再試行で読めたコメント')).toBeInTheDocument()
+    expect(fetchComments).toHaveBeenCalledTimes(2)
   })
 
   // 同値分割：正の整数 / 0 / 負の数 / 小数 / 数字でない
@@ -74,7 +112,8 @@ describe('PostDetailPage：読み込み（状態遷移）', () => {
     renderDetail()
 
     expect(await screen.findByText(message)).toBeInTheDocument()
-    expect(fetchComments).not.toHaveBeenCalled()
+    // コメントは投稿と同時に取りに行っているが（#143）、投稿を出せないときはコメント欄も出さない
+    expect(screen.queryByRole('region', { name: 'コメント' })).not.toBeInTheDocument()
   })
 
   test('別の投稿へ移動したら、読み込み中に戻ってその投稿を読み込む。前の投稿の結果があとから届いても使わない', async () => {
@@ -153,7 +192,7 @@ describe('PostDetailPage：いいね・編集・削除', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('いいねに失敗しました')
   })
 
-  test('編集して保存したら、新しい本文を出す', async () => {
+  test('編集して保存したら、新しい本文を出す。コメントは取り直さない', async () => {
     vi.mocked(updatePost).mockResolvedValue({ ...myPost, content: '直した本文' })
     renderDetail()
 
@@ -164,6 +203,7 @@ describe('PostDetailPage：いいね・編集・削除', () => {
     await userEvent.click(screen.getByRole('button', { name: '保存する' }))
 
     expect(await screen.findByText('直した本文')).toBeInTheDocument()
+    expect(fetchComments).toHaveBeenCalledTimes(1)
   })
 
   async function deleteThePost() {

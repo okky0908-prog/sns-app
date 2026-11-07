@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, createComment, deleteComment, errorMessage, fetchComments, fetchPost, isApiError } from '../api/client'
-import type { Comment } from '../api/types'
+import type { Comment, CursorPage } from '../api/types'
 import { countChars, formatRelativeTime } from '../lib/format'
 import { withoutDuplicates } from '../lib/list'
 import { Avatar } from './Avatar'
@@ -13,6 +13,11 @@ const POST_DELETED = 'この投稿は削除されています'
 
 interface CommentSectionProps {
   postId: number
+  /**
+   * 最初の20件の読み込み（すでに始めたもの）。投稿詳細が投稿と同時に取り始めて渡す（往復を1回分減らす。#143）。
+   * なければ、表示したときに自分で取りに行く。再試行のときは、これを使わず取りに行き直す
+   */
+  initialPage?: Promise<CursorPage<Comment>>
   /**
    * 投稿カードの 💬 が押されたことを表す値（押されるたびに変わる）。変わったらコメント入力欄にカーソルを合わせる。
    * null なら合わせない
@@ -28,7 +33,7 @@ interface CommentSectionProps {
  * S-06 投稿詳細のコメント欄（docs/feature-specs/04_comment.md）。入力欄と、古い順のコメント一覧（20件ずつ「さらに表示」）。
  * コメントした人のアイコン・表示名・@ユーザー名は、その人のプロフィール（S-07）へのリンク
  */
-export function CommentSection({ postId, focusRequest, onCountChange, notify }: CommentSectionProps) {
+export function CommentSection({ postId, initialPage, focusRequest, onCountChange, notify }: CommentSectionProps) {
   /** サーバーから読み込んだコメント（古い順） */
   const [comments, setComments] = useState<Comment[]>([])
   /**
@@ -51,8 +56,8 @@ export function CommentSection({ postId, focusRequest, onCountChange, notify }: 
   const canSubmit = length >= 1 && length <= MAX_LENGTH && !submitting
 
   const loadFirstPage = useCallback(
-    (isCancelled: () => boolean = () => false) =>
-      fetchComments(postId)
+    (isCancelled: () => boolean = () => false, request: Promise<CursorPage<Comment>> = fetchComments(postId)) =>
+      request
         .then((res) => {
           if (isCancelled()) return
           setComments(res.items)
@@ -67,11 +72,11 @@ export function CommentSection({ postId, focusRequest, onCountChange, notify }: 
 
   useEffect(() => {
     let cancelled = false
-    void loadFirstPage(() => cancelled)
+    void loadFirstPage(() => cancelled, initialPage)
     return () => {
       cancelled = true
     }
-  }, [loadFirstPage])
+  }, [loadFirstPage, initialPage])
 
   useEffect(() => {
     if (focusRequest !== null) inputRef.current?.focus()
