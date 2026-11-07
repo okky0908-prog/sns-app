@@ -204,13 +204,12 @@ public class PostService {
       }
     }
     return posts.stream()
-        .map(
-            post ->
-                PostResponse.from(
-                    post,
-                    me,
-                    imageStorage.urlOf(post.getAuthorIconKey()),
-                    imagesByPost.getOrDefault(post.getId(), List.of())))
+        .map(post ->
+            PostResponse.from(
+                post,
+                me,
+                imageStorage.urlOf(post.getAuthorIconKey()),
+                imagesByPost.getOrDefault(post.getId(), List.of())))
         .toList();
   }
 

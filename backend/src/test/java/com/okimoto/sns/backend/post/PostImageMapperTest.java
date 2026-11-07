@@ -99,10 +99,9 @@ class PostImageMapperTest {
   void 同じ投稿で同じ表示順は弾く() {
     long postId = rows.post(alice, "投稿", T0);
 
-    assertThatThrownBy(
-            () ->
-                postImageMapper.insertAll(
-                    List.of(new PostImage(postId, "a", 1, T0), new PostImage(postId, "b", 1, T0))))
+    assertThatThrownBy(() ->
+            postImageMapper.insertAll(
+                List.of(new PostImage(postId, "a", 1, T0), new PostImage(postId, "b", 1, T0))))
         .isInstanceOf(DataIntegrityViolationException.class)
         .hasMessageContaining("uq_post_images_post_sort");
   }

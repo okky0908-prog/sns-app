@@ -85,16 +85,15 @@ public class FollowService {
         last -> CreatedAtCursor.of(last.getFollowedAt(), last.getFollowId()).encode(),
         page ->
             page.stream()
-                .map(
-                    row ->
-                        UserListItemResponse.of(
-                            row.getId(),
-                            row.getUsername(),
-                            row.getDisplayName(),
-                            row.getBio(),
-                            imageStorage.urlOf(row.getIconKey()),
-                            row.isFollowedByMe(),
-                            me))
+                .map(row ->
+                    UserListItemResponse.of(
+                        row.getId(),
+                        row.getUsername(),
+                        row.getDisplayName(),
+                        row.getBio(),
+                        imageStorage.urlOf(row.getIconKey()),
+                        row.isFollowedByMe(),
+                        me))
                 .toList());
   }
 

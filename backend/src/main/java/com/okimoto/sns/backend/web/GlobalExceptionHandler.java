@@ -63,14 +63,12 @@ public class GlobalExceptionHandler {
   ResponseEntity<ApiError> handleParameterValidation(HandlerMethodValidationException e) {
     List<ApiError.FieldError> errors =
         e.getParameterValidationResults().stream()
-            .flatMap(
-                result ->
-                    result.getResolvableErrors().stream()
-                        .map(
-                            error ->
-                                new ApiError.FieldError(
-                                    result.getMethodParameter().getParameterName(),
-                                    error.getDefaultMessage())))
+            .flatMap(result ->
+                result.getResolvableErrors().stream()
+                    .map(error ->
+                        new ApiError.FieldError(
+                            result.getMethodParameter().getParameterName(),
+                            error.getDefaultMessage())))
             .toList();
     return respond(ApiError.of(ErrorCode.VALIDATION_FAILED, errors));
   }

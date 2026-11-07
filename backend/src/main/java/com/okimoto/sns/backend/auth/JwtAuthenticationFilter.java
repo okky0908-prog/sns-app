@@ -37,14 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     if (header != null && header.startsWith(BEARER_PREFIX)) {
       jwtService
           .parseUserId(header.substring(BEARER_PREFIX.length()))
-          .ifPresent(
-              userId -> {
-                SecurityContextHolder.getContext()
-                    .setAuthentication(
-                        UsernamePasswordAuthenticationToken.authenticated(
-                            new AuthenticatedUser(userId), null, List.of()));
-                LogFields.userId(userId);
-              });
+          .ifPresent(userId -> {
+            SecurityContextHolder.getContext()
+                .setAuthentication(
+                    UsernamePasswordAuthenticationToken.authenticated(
+                        new AuthenticatedUser(userId), null, List.of()));
+            LogFields.userId(userId);
+          });
     }
     filterChain.doFilter(request, response);
   }

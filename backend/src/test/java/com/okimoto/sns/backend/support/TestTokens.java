@@ -19,13 +19,12 @@ public final class TestTokens {
   /** 偽物の JwtService に、トークンの読み方を教える（各テストの準備で呼ぶ） */
   public static void teach(JwtService jwtService) {
     when(jwtService.parseUserId(anyString()))
-        .thenAnswer(
-            invocation -> {
-              String token = invocation.getArgument(0);
-              return token.matches("user-\\d+")
-                  ? Optional.of(Long.parseLong(token.substring("user-".length())))
-                  : Optional.empty();
-            });
+        .thenAnswer(invocation -> {
+          String token = invocation.getArgument(0);
+          return token.matches("user-\\d+")
+              ? Optional.of(Long.parseLong(token.substring("user-".length())))
+              : Optional.empty();
+        });
   }
 
   /** ログイン済み（ユーザー userId）のリクエストにする（通常のリクエストにも multipart にも使える） */

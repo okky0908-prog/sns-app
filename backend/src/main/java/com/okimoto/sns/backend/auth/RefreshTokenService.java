@@ -107,11 +107,10 @@ public class RefreshTokenService {
   public void revoke(String token) {
     refreshTokenMapper
         .findByTokenHash(hash(token))
-        .ifPresent(
-            found -> {
-              refreshTokenMapper.revoke(found.getId(), OffsetDateTime.now(clock));
-              AuditLog.loggedOut(found.getUserId());
-            });
+        .ifPresent(found -> {
+          refreshTokenMapper.revoke(found.getId(), OffsetDateTime.now(clock));
+          AuditLog.loggedOut(found.getUserId());
+        });
   }
 
   /**

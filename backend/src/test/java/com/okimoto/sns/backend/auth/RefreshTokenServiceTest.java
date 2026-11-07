@@ -68,13 +68,12 @@ class RefreshTokenServiceTest {
 
     verify(mapper)
         .insert(
-            argThat(
-                row ->
-                    row.getUserId() == 7
-                        && row.getTokenHash().equals(RefreshTokenService.hash(token))
-                        && !row.getTokenHash().equals(token)
-                        && row.getExpiresAt().equals(NOW.plusDays(14))
-                        && row.getCreatedAt().equals(NOW)));
+            argThat(row ->
+                row.getUserId() == 7
+                    && row.getTokenHash().equals(RefreshTokenService.hash(token))
+                    && !row.getTokenHash().equals(token)
+                    && row.getExpiresAt().equals(NOW.plusDays(14))
+                    && row.getCreatedAt().equals(NOW)));
     // 32バイトの乱数を Base64（URL 用・= なし）にしたもの
     assertThat(token).hasSize(43).matches("[A-Za-z0-9_-]+");
     assertThat(service.issue(7)).isNotEqualTo(token);
