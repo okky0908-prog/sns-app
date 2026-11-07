@@ -37,10 +37,9 @@ public enum ImageType {
   /** ファイルの中身から形式を判定する。jpg / png / gif のどれでもなければ空 */
   public static Optional<ImageType> detect(byte[] bytes) {
     return Arrays.stream(values())
-        .filter(
-            type ->
-                bytes.length >= type.signature.length
-                    && Arrays.equals(Arrays.copyOf(bytes, type.signature.length), type.signature))
+        .filter(type ->
+            bytes.length >= type.signature.length
+                && Arrays.equals(Arrays.copyOf(bytes, type.signature.length), type.signature))
         .findFirst();
   }
 }

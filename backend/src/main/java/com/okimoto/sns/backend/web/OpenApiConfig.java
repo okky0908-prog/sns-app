@@ -72,7 +72,8 @@ public class OpenApiConfig {
                     画面との対応は docs/api.md を参照。
 
                     ログインが必要な API は、右上の「Authorize」にアクセストークン（ログイン・新規登録の \
-                    accessToken）を入れてから試す。"""))
+                    accessToken）を入れてから試す。\
+                    """))
         // 仕様書を開いたサーバー自身に送る（ローカルなら http://localhost:8080）
         .addServersItem(new Server().url("/").description("この API を動かしているサーバー"))
         .components(
@@ -114,17 +115,14 @@ public class OpenApiConfig {
         Arrays.stream(type.getCtxAnnotations())
             .filter(TextLength.class::isInstance)
             .findFirst()
-            .ifPresent(
-                annotation -> {
-                  TextLength length = (TextLength) annotation;
-                  applyTextLength(property, length);
-                  // 1文字以上なら null も通らないので、必須にする（例：新規登録の displayName）
-                  if (length.min() > 0
-                      && type.getParent() != null
-                      && type.getPropertyName() != null) {
-                    type.getParent().addRequiredItem(type.getPropertyName());
-                  }
-                });
+            .ifPresent(annotation -> {
+              TextLength length = (TextLength) annotation;
+              applyTextLength(property, length);
+              // 1文字以上なら null も通らないので、必須にする（例：新規登録の displayName）
+              if (length.min() > 0 && type.getParent() != null && type.getPropertyName() != null) {
+                type.getParent().addRequiredItem(type.getPropertyName());
+              }
+            });
       }
       return property;
     };
@@ -160,15 +158,13 @@ public class OpenApiConfig {
       Set<String> publicPaths = Set.copyOf(SecurityConfig.PUBLIC_POST_PATHS);
       openApi
           .getPaths()
-          .forEach(
-              (path, item) ->
-                  item.readOperationsMap()
-                      .forEach(
-                          (method, operation) -> {
-                            boolean isPublic =
-                                method == PathItem.HttpMethod.POST && publicPaths.contains(path);
-                            customizeOperation(operation, isPublic);
-                          }));
+          .forEach((path, item) ->
+              item.readOperationsMap()
+                  .forEach((method, operation) -> {
+                    boolean isPublic =
+                        method == PathItem.HttpMethod.POST && publicPaths.contains(path);
+                    customizeOperation(operation, isPublic);
+                  }));
       requireResponseProperties(openApi);
       openApi.getComponents().getSchemas().values().forEach(OpenApiConfig::cleanSchema);
       // 一覧がないと Swagger UI は URL の順（/api/comments が先）に並べるので、明示する。
@@ -268,10 +264,9 @@ public class OpenApiConfig {
     code.setDescription(
         "エラーの種類。画面側はステータスや文言ではなく、これで見分ける\n\n| code | ステータス | 標準の文言 |\n|---|---|---|\n"
             + Arrays.stream(ErrorCode.values())
-                .map(
-                    error ->
-                        "| `%s` | %d | %s |"
-                            .formatted(error.name(), error.status().value(), error.message()))
+                .map(error ->
+                    "| `%s` | %d | %s |"
+                        .formatted(error.name(), error.status().value(), error.message()))
                 .collect(Collectors.joining("\n")));
     schemas.forEach(openApi.getComponents()::addSchemas);
   }

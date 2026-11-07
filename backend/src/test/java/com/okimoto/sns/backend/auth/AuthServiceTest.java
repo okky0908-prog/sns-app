@@ -97,14 +97,13 @@ class AuthServiceTest {
 
       verify(userMapper)
           .insert(
-              argThat(
-                  user ->
-                      user.getUsername().equals("Yamada")
-                          && user.getEmail().equals("yamada@example.com")
-                          && user.getDisplayName().equals("山田太郎")
-                          && !user.getPasswordHash().equals("password123")
-                          && passwordEncoder.matches("password123", user.getPasswordHash())
-                          && user.getCreatedAt().equals(NOW)));
+              argThat(user ->
+                  user.getUsername().equals("Yamada")
+                      && user.getEmail().equals("yamada@example.com")
+                      && user.getDisplayName().equals("山田太郎")
+                      && !user.getPasswordHash().equals("password123")
+                      && passwordEncoder.matches("password123", user.getPasswordHash())
+                      && user.getCreatedAt().equals(NOW)));
       assertThat(result.accessToken()).isEqualTo("access-token");
       assertThat(result.refreshToken()).isEqualTo("refresh-token");
       assertThat(result.user().id()).isEqualTo(7);
