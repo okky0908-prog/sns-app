@@ -113,13 +113,26 @@ check() {
     FAILED=1
   fi
 }
+check_unreachable() {
+  # ALB のセキュリティグループは CloudFront の IP からしか受け付けないので、手元からの接続は届かずタイムアウトする。
+  # 応答が返ってきたら（403 でも）、CloudFront 以外からつながる状態になっているので失敗にする。
+  # （秘密のヘッダーの確認で 403 を返すのは、ほかの人の CloudFront から来た接続を断る2段目の守りで、手元からは確かめられない）
+  local label="$1" url="$2" status
+  status="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "${url}" 2>/dev/null || true)"
+  if [ "${status}" = "000" ]; then
+    echo "  OK  ${label}: つながらない"
+  else
+    echo "  NG  ${label}: ${status}（つながらないはず）" >&2
+    FAILED=1
+  fi
+}
 FAILED=0
 check "画面（/）" "${APP_URL}" 200
 check "画面の URL を直接開く（/posts/1）" "${APP_URL}posts/1" 200
 check "API（/api/health）" "${APP_URL}api/health" 200
 check "ログインが必要な API（/api/timeline）" "${APP_URL}api/timeline" 401
 check "ない API（/api/no-such-api）は画面にしない" "${APP_URL}api/no-such-api" 401
-check "ALB に直接アクセス（CloudFront を通らない）" "http://${ALB_DNS}/api/health" 403
+check_unreachable "ALB に直接アクセス（CloudFront を通らない）" "http://${ALB_DNS}/api/health"
 
 if [ "${FAILED}" -ne 0 ]; then
   echo "==> 動作確認で失敗した項目があります" >&2
