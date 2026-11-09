@@ -13,7 +13,8 @@ resource "aws_security_group" "alb" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    # CloudFront 以外からの接続は受け付けない。ほかの人の CloudFront からの接続は、リスナーで秘密のヘッダーを見て断る（alb.tf）
+    # CloudFront（VPC オリジン）以外からの接続は受け付けない。ALB は内部用なので、そもそもインターネットからは届かない。
+    # VPC オリジンは自分のアカウントの CloudFront だけが使える（cloudfront_app.tf）
     description     = "HTTP from CloudFront only"
     from_port       = 80
     to_port         = 80

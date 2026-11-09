@@ -1,7 +1,7 @@
 # --- アプリ用の CloudFront（HTTPS の入口）---
 # 本番はリフレッシュトークンの Cookie に Secure 属性を付けるため、HTTPS が必須（docs/infrastructure.md「HTTPS」）。
 # 独自ドメインがなくても、CloudFront の URL（https://xxxx.cloudfront.net）なら無料の証明書で HTTPS にできる。
-# パスで振り分ける：/api/* → ALB → Fargate（HTTP）、それ以外 → 画面の S3（OAC）。
+# パスで振り分ける：/api/* → VPC オリジン → 内部用の ALB → Fargate（HTTP）、それ以外 → 画面の S3（OAC）。
 # ブラウザからは1つのドメインに見えるため、CORS の設定はいらない
 
 # キャッシュしない（Managed-CachingDisabled）。API はログインした人ごとに中身が違うため。
@@ -14,6 +14,27 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 # これを使わないと、CloudFront は GET の Authorization ヘッダー（アクセストークン）と Cookie（リフレッシュトークン）を取り除いてしまう
 data "aws_cloudfront_origin_request_policy" "all_viewer" {
   name = "Managed-AllViewer"
+}
+
+# CloudFront から VPC の中の ALB へ届くための口（CloudFront が ALB のサブネットにネットワークの口（ENI）を作る）。
+# 自分のアカウントの CloudFront だけが使えるので、ほかの人の CloudFront からは ALB に届かない
+resource "aws_cloudfront_vpc_origin" "api" {
+  vpc_origin_endpoint_config {
+    name                   = "${var.project_name}-api-alb"
+    arn                    = aws_lb.this.arn
+    http_port              = 80
+    https_port             = 443
+    origin_protocol_policy = "http-only"
+
+    origin_ssl_protocols {
+      items    = ["TLSv1.2"]
+      quantity = 1
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-api-vpc-origin"
+  }
 }
 
 resource "aws_cloudfront_distribution" "app" {
@@ -30,24 +51,15 @@ resource "aws_cloudfront_distribution" "app" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
-  # API
+  # API。VPC オリジンで、インターネットを通らずに VPC の中の内部用の ALB へ届く（Issue #161）
   origin {
     origin_id   = "api-alb"
     domain_name = aws_lb.this.dns_name
 
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_protocol_policy   = "http-only"
-      origin_ssl_protocols     = ["TLSv1.2"]
+    vpc_origin_config {
+      vpc_origin_id            = aws_cloudfront_vpc_origin.api.id
       origin_read_timeout      = 30
       origin_keepalive_timeout = 5
-    }
-
-    # ALB はこのヘッダーが付いたリクエストだけを通す（alb.tf）
-    custom_header {
-      name  = local.origin_verify_header
-      value = random_password.origin_verify.result
     }
   }
 

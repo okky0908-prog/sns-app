@@ -23,7 +23,9 @@ flowchart LR
         Logs[("CloudWatch Logs<br/>API のログ")]
 
         subgraph VPC["VPC（既定のVPC）"]
-            ALB["ALB<br/>HTTP 80番<br/>CloudFront からだけ受け付ける"]
+            subgraph Private["プライベートサブネット（ALB 用。インターネットへの経路なし）"]
+                ALB["ALB（内部用）<br/>HTTP 80番<br/>CloudFront の VPC オリジンからだけ受け付ける"]
+            end
 
             subgraph AZa["アベイラビリティゾーン a"]
                 Task["ECS Fargate のタスク<br/>Spring Boot（API）8080番"]
@@ -34,7 +36,7 @@ flowchart LR
 
     Browser -->|"画面・API<br/>https://xxxx.cloudfront.net"| CFApp
     CFApp -->|"それ以外（画面）<br/>OAC で読み取り"| S3Front
-    CFApp -->|"/api/*<br/>HTTP・秘密のヘッダー付き"| ALB
+    CFApp -->|"/api/*<br/>VPC オリジン（インターネットを通らない）"| ALB
     ALB -->|"8080番"| Task
     Task -->|"5432番<br/>VPC内のみ"| RDS
     Task -->|"画像のアップロード・削除<br/>（タスクロール）"| S3Img
@@ -51,8 +53,8 @@ flowchart LR
 |---|---|
 | 画面（`/`, `/users/yamada` など） | ブラウザ → CloudFront（アプリ用）→ S3（画面）。画面の URL は CloudFront Functions で `/index.html` に書き換える |
 | JS・CSS（`/assets/*`） | ブラウザ → CloudFront（アプリ用。キャッシュする）→ S3（画面） |
-| API（`/api/...`） | ブラウザ → CloudFront（アプリ用）→ ALB → Fargate のタスク（Spring Boot）→ RDS |
-| 画像のアップロード | ブラウザ → CloudFront（アプリ用）→ ALB → Spring Boot → S3（画像）（ブラウザから S3 へ直接は送らない） |
+| API（`/api/...`） | ブラウザ → CloudFront（アプリ用）→ VPC オリジン → ALB（内部用）→ Fargate のタスク（Spring Boot）→ RDS |
+| 画像のアップロード | ブラウザ → CloudFront（アプリ用）→ VPC オリジン → ALB（内部用）→ Spring Boot → S3（画像）（ブラウザから S3 へ直接は送らない） |
 | 画像の表示 | ブラウザ → CloudFront（画像用）→ S3（画像）（API は通らない） |
 
 - 画面と API を **CloudFront のパスで振り分ける**（`/api/*` は ALB、それ以外は S3）。ブラウザからは1つのドメインに見えるため、CORS の設定はいらない
@@ -69,22 +71,32 @@ flowchart LR
 |---|---|
 | ブラウザ → CloudFront | HTTPS（HTTP で来たら HTTPS にリダイレクトする） |
 | CloudFront → S3（画面・画像） | HTTPS（OAC の署名付き） |
-| CloudFront → ALB | HTTP（AWS の中を通る） |
+| CloudFront → ALB | HTTP。**VPC オリジン**で、インターネットを通らず、AWS の内部のネットワークで VPC の中の ALB（内部用）へ届く（Issue #161） |
 
 - CloudFront は、API と `index.html` を**キャッシュしない**（`Managed-CachingDisabled`。API はログインした人ごとに中身が違う。`index.html` はデプロイしたらすぐ新しい版を返すため）。ファイル名にハッシュが付く `/assets/*`（Vite がビルドした JS・CSS）だけはキャッシュする（`Managed-CachingOptimized`）。そのため、デプロイのたびにキャッシュを消す（invalidation）必要はない
 - `/api/*` では、ブラウザから届いたヘッダー・Cookie・検索条件を、すべてそのまま ALB に送る（`Managed-AllViewer`）。これを使わないと、CloudFront は GET の `Authorization` ヘッダー（アクセストークン）と Cookie（リフレッシュトークン）を取り除いてしまう
 - CloudFront を2つに分けるのは、画面の URL（`/posts/:postId`）と画像のキー（`posts/2026/10/...`）が同じパスになり、1つでは振り分けられないため
 - 独自ドメインを取ったら、CloudFront に別名（`app.example.com`）と ACM の証明書を付ける（「今後の課題」）
 
+#### VPC オリジン
+
+CloudFront が VPC の中に**ネットワークの口（ENI）**を作り、そこから内部用の ALB へ届く（`aws_cloudfront_vpc_origin`）。ALB はプライベートサブネットにあり、公開 IP を持たないので、**インターネットからは届かない**（DNS 名もプライベート IP を返す）。
+
+- CloudFront から ALB までは HTTP のまま（HTTPS にするには ALB に証明書が要り、独自ドメインが必要）。ただし、インターネットには出ない
+- VPC オリジンは自分のアカウントの CloudFront だけが使える。そのため、以前の「秘密のヘッダー（`X-Origin-Verify`）で、ほかの人の CloudFront から来たものを断る」仕組みはやめた
+- 前提：ALB を**プライベートサブネット**（インターネットゲートウェイへの経路がないサブネット）に置く。VPC にはインターネットゲートウェイが必要（既定の VPC にはある）。東京では、アベイラビリティゾーン `apne1-az3` は使えない
+- 初めて VPC オリジンを作るとき、CloudFront がサービスにリンクされたロール（`AWSServiceRoleForCloudFrontVPCOrigin`）と、セキュリティグループ（`CloudFront-VPCOrigins-Service-SG`）を自動で作る。どちらも AWS が管理するので触らない
+- VPC オリジンの作成・変更には 10〜15 分かかる
+
 ## 構成要素
 
 | 要素 | 方針 | Terraform |
 |---|---|---|
 | リージョン | 東京（ap-northeast-1） | `main.tf` |
-| ネットワーク | 既定の VPC とそのサブネットを使う（本棚アプリと同じ）。ALB と RDS はどちらも**2つ以上のアベイラビリティゾーンのサブネットを指定する必要がある**。ALB はサブネットごとに公開IPv4 が付いて課金されるので、Fargate のいるアベイラビリティゾーンともう1つの2つにする。RDS は既定のサブネットをすべて指定する | `main.tf` |
-| HTTPS の入口 | CloudFront（アプリ用）。オリジンは画面の S3 と ALB の2つ | `cloudfront_app.tf` |
+| ネットワーク | 既定の VPC を使う（本棚アプリと同じ）。Fargate と RDS は既定のサブネット（パブリック）に置く。ALB 用に**プライベートサブネットを2つ**（`172.31.128.0/24`・`172.31.129.0/24`。Fargate のいるアベイラビリティゾーンともう1つ）と、インターネットへの経路を持たないルートテーブルを作る。ALB と RDS はどちらも2つ以上のアベイラビリティゾーンのサブネットを指定する必要がある。RDS は既定のサブネットをすべて指定する | `main.tf`・`network.tf` |
+| HTTPS の入口 | CloudFront（アプリ用）。オリジンは画面の S3 と ALB（VPC オリジン）の2つ | `cloudfront_app.tf` |
 | 画面の配信 | S3 バケット（`sns-app-frontend-<アカウントID>`）。パブリックアクセスはすべてブロックし、アプリ用の CloudFront（OAC）からだけ読める。画面の URL の書き換えは CloudFront Functions | `frontend.tf` |
-| ロードバランサー | ALB。リスナーは HTTP 80番。秘密のヘッダーが付いた `/api/*` だけを API のターゲットグループ（ターゲットの種類は IP）へ送る。Fargate のタスクは入れ替えのたびに IP が変わるので、決まった名前で受け付ける入口として ALB を使う | `alb.tf` |
+| ロードバランサー | ALB（内部用。プライベートサブネット）。リスナーは HTTP 80番。`/api/*` だけを API のターゲットグループ（ターゲットの種類は IP）へ送る。Fargate のタスクは入れ替えのたびに IP が変わるので、決まった名前で受け付ける入口として ALB を使う | `alb.tf` |
 | API | ECS Fargate のタスク1つ（0.5 vCPU・1GB。CPU は ARM64）。Spring Boot の jar を、Java 25（Amazon Corretto 25）のコンテナで動かす（`backend/Dockerfile`）。root では動かさない | `ecs.tf` |
 | コンテナのイメージ | ECR（`sns-app-backend`）。送ったときに脆弱性を調べる（基本スキャン）。古いイメージは5つまで残して消す | `ecs.tf` |
 | 秘密の値 | SSM パラメータストア（SecureString。標準のパラメータは無料）。DB のパスワードは Terraform が `terraform.tfvars` の値から作る。**JWT の署名鍵は `deploy.sh` が初回だけ作る**（Terraform の state にも手元にも値を残さない）。タスク定義の `secrets` で、起動のときに環境変数として渡す | `ecs.tf`・`deploy.sh` |
@@ -99,10 +111,8 @@ flowchart LR
 
 | ターゲットグループ | 振り分ける条件 | 転送先 | ヘルスチェック |
 |---|---|---|---|
-| backend | `/api/*` かつ秘密のヘッダーあり | Fargate のタスクの 8080番（IP で登録。登録と解除は ECS のサービスが行う） | `GET /api/health` が 200（Spring Boot Actuator の health を `/api/health` で公開している） |
+| backend | `/api/*` | Fargate のタスクの 8080番（IP で登録。登録と解除は ECS のサービスが行う） | `GET /api/health` が 200（Spring Boot Actuator の health を `/api/health` で公開している） |
 | （なし） | それ以外 | 403 を返す | |
-
-- **秘密のヘッダー**（`X-Origin-Verify`）：CloudFront がオリジンへのリクエストに付ける値。値は Terraform が作り（`random_password`）、state にだけ残る。セキュリティグループの CloudFront の送信元の一覧は「どこかの CloudFront」なので、ほかの人が作った CloudFront から ALB に来たものはここで断る
 
 ### ECS のサービス
 
@@ -121,7 +131,7 @@ flowchart LR
 
 | 対象 | 受け付ける接続 |
 |---|---|
-| ALB | HTTP（80番）：**CloudFront からだけ**（AWS が管理するプレフィックスリスト `com.amazonaws.global.cloudfront.origin-facing`） |
+| ALB | HTTP（80番）：**CloudFront からだけ**（AWS が管理するプレフィックスリスト `com.amazonaws.global.cloudfront.origin-facing`。VPC オリジンからの接続もこの範囲から来る）。ALB は内部用なので、そもそもインターネットからは届かない |
 | API（Fargate のタスク） | 8080番：**ALB のセキュリティグループからだけ**。SSH はない（ECS Exec を使う） |
 | RDS | PostgreSQL（5432番）：API のタスクのセキュリティグループからだけ |
 
@@ -210,7 +220,8 @@ EC2 の無料利用枠（月750時間）を使わない代わりに、サーバ�
 | 項目 | 無料利用枠 | 今回の使い方 |
 |---|---|---|
 | **ECS Fargate** | なし | 動いている時間だけ、CPU とメモリの量に応じて課金される（0.5 vCPU・1GB・ARM64 で、1日中動かすと月に 2,000〜3,000 円程度）。使わないときは `infra/servers.sh stop` でタスクを 0 にする |
-| 公開IPv4 | 月750時間（12か月） | Fargate のタスクに1つ（動いている間だけ）。ALB にも2つ（サブネットごとに1つ）付き、その分は課金される |
+| 公開IPv4 | 月750時間（12か月） | Fargate のタスクに1つ（動いている間だけ）。ALB は内部用なので付かない |
+| CloudFront の VPC オリジン | 追加の料金なし | 1つ使う |
 | **ALB** | アカウント作成から12か月は月750時間の無料枠あり。それ以降は**止める機能がない**ため、存在しているだけで時間課金される（月に数千円程度） | 使う期間だけ作り、使わない期間は `terraform destroy` で ALB ごと削除する |
 | RDS | 月750時間・20GB | 1日中動かしても収まる。自動バックアップは取らない |
 | ECR | 月500MB（12か月） | イメージ1つは約 200MB。5つまで残すので、少し超えることがある（1GB で月に十数円程度） |
@@ -247,7 +258,7 @@ terraform -chdir=infra apply    # 15〜20分ほどかかる（RDS と CloudFront
 infra/deploy.sh                 # ビルドして配置し、動作を確認する
 ```
 
-- `deploy.sh` の最後に、画面・画面の URL を直接開く・API・ない API（画面にならないこと）・ALB への直接アクセス（セキュリティグループで止まり、つながらないこと）・セキュリティのヘッダー（CSP・HSTS）を確かめる
+- `deploy.sh` の最後に、画面・画面の URL を直接開く・API・ない API（画面にならないこと）・ALB への直接アクセス（つながらないこと）・ALB の DNS 名がプライベート IP だけを返すこと・セキュリティのヘッダー（CSP・HSTS）を確かめる
 - 画面を変えたときは、続けて本番のスモークテストを実行する（`cd frontend && SMOKE_URL=$(terraform -chdir=../infra output -raw app_url) npm run test:smoke`）。ログイン・画像つき投稿・画像の表示・アイコンのプレビューを本物のブラウザで操作し、CSP の違反やエラーがないことを確かめる
 - AWS Budgets の通知先のメールアドレスには、確認のメールは届かない（そのまま通知が届く）
 

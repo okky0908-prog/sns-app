@@ -114,15 +114,26 @@ check() {
   fi
 }
 check_unreachable() {
-  # ALB のセキュリティグループは CloudFront の IP からしか受け付けないので、手元からの接続は届かずタイムアウトする。
-  # 応答が返ってきたら（403 でも）、CloudFront 以外からつながる状態になっているので失敗にする。
-  # （秘密のヘッダーの確認で 403 を返すのは、ほかの人の CloudFront から来た接続を断る2段目の守りで、手元からは確かめられない）
+  # ALB は内部用（プライベート IP だけ）で、セキュリティグループも CloudFront の IP からしか受け付けないので、手元からの接続は届かずタイムアウトする。
+  # 応答が返ってきたら（403 でも）、CloudFront 以外からつながる状態になっているので失敗にする
   local label="$1" url="$2" status
   status="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "${url}" 2>/dev/null || true)"
   if [ "${status}" = "000" ]; then
     echo "  OK  ${label}: つながらない"
   else
     echo "  NG  ${label}: ${status}（つながらないはず）" >&2
+    FAILED=1
+  fi
+}
+check_private_dns() {
+  # ALB は内部用（internal）で、DNS 名はプライベート IP（10.・172.16〜31.・192.168.）だけを返す（CloudFront の VPC オリジン。Issue #161）。
+  # インターネットから見た答えを確かめるため、公開の DNS サーバー（1.1.1.1）に問い合わせる（手元の DNS サーバーは dig を断ることがある）
+  local label="$1" host="$2" ips
+  ips="$(dig +short @1.1.1.1 "${host}" A | grep -E '^[0-9.]+$' || true)"
+  if [ -n "${ips}" ] && ! grep -qvE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)' <<< "${ips}"; then
+    echo "  OK  ${label}: $(tr '\n' ' ' <<< "${ips}")"
+  else
+    echo "  NG  ${label}: $(tr '\n' ' ' <<< "${ips:-（引けない）}")（プライベート IP だけのはず）" >&2
     FAILED=1
   fi
 }
@@ -143,6 +154,7 @@ check "API（/api/health）" "${APP_URL}api/health" 200
 check "ログインが必要な API（/api/timeline）" "${APP_URL}api/timeline" 401
 check "ない API（/api/no-such-api）は画面にしない" "${APP_URL}api/no-such-api" 401
 check_unreachable "ALB に直接アクセス（CloudFront を通らない）" "http://${ALB_DNS}/api/health"
+check_private_dns "ALB はインターネットに公開していない" "${ALB_DNS}"
 check_header "画面の CSP（ほかのサイトの枠に埋め込ませない）" "${APP_URL}" "content-security-policy: default-src 'self'"
 check_header "画面の HSTS" "${APP_URL}" "strict-transport-security: max-age=31536000"
 check_header "API の HSTS" "${APP_URL}api/health" "strict-transport-security: max-age=31536000"

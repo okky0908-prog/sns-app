@@ -27,20 +27,24 @@
       "Resource": "*"
     },
     {
-      "Sid": "Ec2SecurityGroups",
+      "Sid": "Ec2SecurityGroupsAndPrivateSubnets",
       "Effect": "Allow",
       "Action": [
         "ec2:CreateSecurityGroup",
         "ec2:DeleteSecurityGroup",
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:AuthorizeSecurityGroupEgress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupEgress",
-        "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-        "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+        "ec2:AuthorizeSecurityGroup*",
+        "ec2:RevokeSecurityGroup*",
+        "ec2:UpdateSecurityGroupRuleDescriptions*",
         "ec2:ModifySecurityGroupRules",
         "ec2:CreateTags",
-        "ec2:DeleteTags"
+        "ec2:DeleteTags",
+        "ec2:CreateSubnet",
+        "ec2:DeleteSubnet",
+        "ec2:ModifySubnetAttribute",
+        "ec2:CreateRouteTable",
+        "ec2:DeleteRouteTable",
+        "ec2:AssociateRouteTable",
+        "ec2:DisassociateRouteTable"
       ],
       "Resource": "*"
     },
@@ -48,23 +52,10 @@
       "Sid": "LoadBalancer",
       "Effect": "Allow",
       "Action": [
-        "elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:DeleteLoadBalancer",
-        "elasticloadbalancing:ModifyLoadBalancerAttributes",
-        "elasticloadbalancing:SetSecurityGroups",
-        "elasticloadbalancing:SetSubnets",
-        "elasticloadbalancing:CreateTargetGroup",
-        "elasticloadbalancing:DeleteTargetGroup",
-        "elasticloadbalancing:ModifyTargetGroup",
-        "elasticloadbalancing:ModifyTargetGroupAttributes",
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:DeleteListener",
-        "elasticloadbalancing:ModifyListener",
-        "elasticloadbalancing:ModifyListenerAttributes",
-        "elasticloadbalancing:CreateRule",
-        "elasticloadbalancing:DeleteRule",
-        "elasticloadbalancing:ModifyRule",
-        "elasticloadbalancing:SetRulePriorities",
+        "elasticloadbalancing:Create*",
+        "elasticloadbalancing:Delete*",
+        "elasticloadbalancing:Modify*",
+        "elasticloadbalancing:Set*",
         "elasticloadbalancing:AddTags",
         "elasticloadbalancing:RemoveTags"
       ],
@@ -119,7 +110,10 @@
         "cloudfront:PublishFunction",
         "cloudfront:CreateResponseHeadersPolicy",
         "cloudfront:UpdateResponseHeadersPolicy",
-        "cloudfront:DeleteResponseHeadersPolicy"
+        "cloudfront:DeleteResponseHeadersPolicy",
+        "cloudfront:CreateVpcOrigin",
+        "cloudfront:UpdateVpcOrigin",
+        "cloudfront:DeleteVpcOrigin"
       ],
       "Resource": "*"
     },
@@ -264,7 +258,8 @@
           "iam:AWSServiceName": [
             "elasticloadbalancing.amazonaws.com",
             "rds.amazonaws.com",
-            "ecs.amazonaws.com"
+            "ecs.amazonaws.com",
+            "vpcorigin.cloudfront.amazonaws.com"
           ]
         }
       }
