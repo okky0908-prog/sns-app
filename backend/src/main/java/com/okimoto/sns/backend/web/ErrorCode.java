@@ -46,6 +46,11 @@ public enum ErrorCode {
   PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "送信するデータが大きすぎます"),
   UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "リクエストの形式（Content-Type）に対応していません"),
 
+  // ===== 429 =====
+  /** 同じメールアドレスでログインの失敗が続いたので、しばらくログインを受け付けない（総当たり攻撃の対策） */
+  TOO_MANY_LOGIN_ATTEMPTS(
+      HttpStatus.TOO_MANY_REQUESTS, "ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください"),
+
   // ===== 500 / 503 =====
   /** 想定していないエラー（バグなど）。内部の情報は利用者に出さず、ログにだけ残す */
   INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "サーバーでエラーが発生しました。時間をおいてもう一度お試しください"),

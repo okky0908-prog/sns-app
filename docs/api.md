@@ -88,6 +88,7 @@
 | 409 | `ALREADY_REGISTERED` | ユーザー名・メールアドレスが登録済み（どの項目かは `errors` に入る） |
 | 413 | `PAYLOAD_TOO_LARGE` | アップロードする画像のサイズが上限を超えた |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | Content-Type が違う（JSON の API に JSON 以外を送った など） |
+| 429 | `TOO_MANY_LOGIN_ATTEMPTS` | 同じメールアドレスでログインの失敗が続いたので、しばらくログインを受け付けない（[認証の機能仕様](./feature-specs/01_auth.md)「ログインの試行回数の制限」） |
 | 500 | `INTERNAL_ERROR` | 想定していないエラー（バグなど）。原因はサーバーのログにだけ残す |
 | 500 | `IMAGE_UPLOAD_FAILED` | 画像を S3 に保存できなかった（ほかの項目も更新しない） |
 | 503 | `SERVICE_UNAVAILABLE` | DB につながらないなど、一時的に処理できない |

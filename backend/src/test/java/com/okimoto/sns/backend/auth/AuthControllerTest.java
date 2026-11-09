@@ -275,6 +275,23 @@ class AuthControllerTest {
   }
 
   @Test
+  void login_失敗が5回続いたら_正しいパスワードでも429() throws Exception {
+    // 制限の記録はアプリのメモリにあり、テストのロールバックでは消えないので、ほかのテストと重ならないメールアドレスを使う
+    signupAndGetToken("lockeduser", "locked-159@example.com");
+    for (int i = 0; i < 5; i++) {
+      postJson("/api/auth/login", Map.of("email", "locked-159@example.com", "password", "wrong-pw"))
+          .andExpect(status().isUnauthorized());
+    }
+    postJson(
+            "/api/auth/login", Map.of("email", "locked-159@example.com", "password", "password123"))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.status").value(429))
+        .andExpect(jsonPath("$.code").value("TOO_MANY_LOGIN_ATTEMPTS"))
+        .andExpect(jsonPath("$.message").value("ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください"))
+        .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+  }
+
+  @Test
   void login_空で送ると400() throws Exception {
     postJson("/api/auth/login", Map.of("email", "", "password", ""))
         .andExpect(status().isBadRequest())

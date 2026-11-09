@@ -246,6 +246,7 @@ flowchart LR
 | `signup` | INFO | 新規登録した | `user_id` |
 | `login` | INFO | ログインした | `user_id` |
 | `login_failed` | WARN | ログインに失敗した（パスワード違い・登録されていない） | `user.email`（一部を隠す） |
+| `login_locked` | WARN | ログインの失敗が続いたので、そのメールアドレスのログインをロックした（[認証の機能仕様](./feature-specs/01_auth.md)「ログインの試行回数の制限」）。ロック中の 429 は記録しない | `user.email`（一部を隠す） |
 | `logout` | INFO | ログアウトした | `user_id` |
 | `refresh_token_reuse` | WARN | 使用済みのリフレッシュトークンが使われ、そのユーザーのトークンをすべて無効にした | `user_id` |
 | `post_delete` | INFO | 投稿を削除した | `user_id`・`post.id` |

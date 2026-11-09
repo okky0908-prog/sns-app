@@ -972,6 +972,7 @@ components:
             | `ALREADY_REGISTERED` | 409 | すでに登録されています |
             | `PAYLOAD_TOO_LARGE` | 413 | 送信するデータが大きすぎます |
             | `UNSUPPORTED_MEDIA_TYPE` | 415 | リクエストの形式（Content-Type）に対応していません |
+            | `TOO_MANY_LOGIN_ATTEMPTS` | 429 | ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください |
             | `INTERNAL_ERROR` | 500 | サーバーでエラーが発生しました。時間をおいてもう一度お試しください |
             | `IMAGE_UPLOAD_FAILED` | 500 | 画像のアップロードに失敗しました。時間をおいてもう一度お試しください |
             | `SERVICE_UNAVAILABLE` | 503 | ただいまサービスを利用できません。時間をおいてもう一度お試しください |
@@ -991,6 +992,7 @@ components:
           - ALREADY_REGISTERED
           - PAYLOAD_TOO_LARGE
           - UNSUPPORTED_MEDIA_TYPE
+          - TOO_MANY_LOGIN_ATTEMPTS
           - INTERNAL_ERROR
           - IMAGE_UPLOAD_FAILED
           - SERVICE_UNAVAILABLE

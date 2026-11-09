@@ -39,6 +39,15 @@ public final class AuditLog {
         .log("ログインに失敗しました: {}", masked);
   }
 
+  /** ログインの失敗が続いたので、そのメールアドレスのログインをロックした（総当たり攻撃の疑い。Issue #159） */
+  public static void loginLocked(String email) {
+    String masked = maskEmail(email);
+    log.atWarn()
+        .addKeyValue(ACTION, "login_locked")
+        .addKeyValue("user.email", masked)
+        .log("ログインの失敗が続いたため、ロックしました: {}", masked);
+  }
+
   public static void loggedOut(long userId) {
     LogFields.userId(userId);
     log.atInfo().addKeyValue(ACTION, "logout").log("ログアウトしました");
