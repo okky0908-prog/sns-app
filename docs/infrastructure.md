@@ -140,6 +140,32 @@ flowchart LR
 
 - 画像は CloudFront に最長1日ほどキャッシュされる（`Managed-CachingOptimized`）。投稿を削除すると S3 のファイルは消えるが、URL を知っている人は、キャッシュが切れるまで見られることがある
 
+### セキュリティのヘッダー
+
+S3 は画面の応答にセキュリティのヘッダーを付けないので、CloudFront の**レスポンスヘッダーポリシー**で付ける（`infra/security_headers.tf`。Issue #160）。アプリ用の CloudFront は、画面・`/assets/*`・`/api/*` のすべてに同じポリシーを付ける（Spring も一部を付けるが、HTTP で受けているので HSTS は付かない）。
+
+| ヘッダー | アプリ用 | 画像用 | 防ぐもの |
+|---|---|---|---|
+| `Strict-Transport-Security` | `max-age=31536000`（1年） | 同じ | HTTP への格下げ（一度来たブラウザは、次から必ず HTTPS でつなぐ）。`cloudfront.net` のほかのサブドメインは他人のものなので、`includeSubDomains`・`preload` は付けない |
+| `Content-Security-Policy` | 下の表 | `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox` | XSS で入れられたスクリプトや、ほかの場所からの読み込み。画像用は、URL を直接開いたときに、万一中身が HTML や SVG でもスクリプトを動かさない |
+| `X-Frame-Options` | `DENY` | — | ほかのサイトの枠（iframe）に埋め込む攻撃（クリックジャッキング） |
+| `X-Content-Type-Options` | `nosniff` | 同じ | `Content-Type` と違う種類として解釈させる攻撃 |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | 同じ | ほかのサイトへ移るときに、URL のパス（投稿 ID など）を送らない |
+| `Permissions-Policy` | カメラ・マイク・位置情報・決済・USB を使わせない | — | 使わない機能の悪用 |
+
+アプリ用の CSP：
+
+| 指定 | 値 | 理由 |
+|---|---|---|
+| `default-src`・`script-src`・`style-src`・`connect-src`・`font-src` | `'self'` | JS・CSS・API はすべて同じドメイン。外部のサイトから読み込むものはない。`'unsafe-inline'` は入れない（`index.html` にインラインのスクリプト・スタイルはなく、React の `style` 属性は DOM の API で入るので許可はいらない） |
+| `img-src` | `'self' blob: https://<画像用の CloudFront>` | 投稿とアイコンの画像。`blob:` は画像を選んだときのプレビュー（`URL.createObjectURL`） |
+| `object-src` | `'none'` | プラグイン（`<object>`・`<embed>`）を使わない |
+| `base-uri`・`form-action` | `'self'` | `<base>` やフォームの送信先を書き換える攻撃 |
+| `frame-ancestors` | `'none'` | `X-Frame-Options: DENY` と同じ（CSP の新しい書き方） |
+
+- 外部のサイト（フォント・解析ツールなど）から読み込むものを足すときは、CSP にそのドメインを足す。足さないと、ブラウザが読み込みを止める（コンソールに「Refused to ...」と出る）
+- CSP は CloudFront が付けるので、手元の開発サーバーや E2E テストでは効かない。デプロイしたあと、本番のスモークテスト（`SMOKE_URL=<アプリの URL> npm run test:smoke`。`frontend/smoke/`）で、画面を操作しても CSP の違反が出ないことを確かめる
+
 ## 本番用の設定
 
 Spring Boot の `application-production.yml` で、次の値を環境変数から受け取る。値はタスク定義に Terraform が入れる（秘密の値は SSM パラメータストアから ECS が入れる）。プロファイル（`production`）は `backend/Dockerfile` で指定している。
@@ -221,7 +247,8 @@ terraform -chdir=infra apply    # 15〜20分ほどかかる（RDS と CloudFront
 infra/deploy.sh                 # ビルドして配置し、動作を確認する
 ```
 
-- `deploy.sh` の最後に、画面・画面の URL を直接開く・API・ない API（画面にならないこと）・ALB への直接アクセス（セキュリティグループで止まり、つながらないこと）を確かめる
+- `deploy.sh` の最後に、画面・画面の URL を直接開く・API・ない API（画面にならないこと）・ALB への直接アクセス（セキュリティグループで止まり、つながらないこと）・セキュリティのヘッダー（CSP・HSTS）を確かめる
+- 画面を変えたときは、続けて本番のスモークテストを実行する（`cd frontend && SMOKE_URL=$(terraform -chdir=../infra output -raw app_url) npm run test:smoke`）。ログイン・画像つき投稿・画像の表示・アイコンのプレビューを本物のブラウザで操作し、CSP の違反やエラーがないことを確かめる
 - AWS Budgets の通知先のメールアドレスには、確認のメールは届かない（そのまま通知が届く）
 
 ## デプロイ・運用の考え方

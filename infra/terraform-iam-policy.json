@@ -116,7 +116,10 @@
         "cloudfront:CreateFunction",
         "cloudfront:UpdateFunction",
         "cloudfront:DeleteFunction",
-        "cloudfront:PublishFunction"
+        "cloudfront:PublishFunction",
+        "cloudfront:CreateResponseHeadersPolicy",
+        "cloudfront:UpdateResponseHeadersPolicy",
+        "cloudfront:DeleteResponseHeadersPolicy"
       ],
       "Resource": "*"
     },

@@ -57,12 +57,13 @@ resource "aws_cloudfront_distribution" "images" {
   }
 
   default_cache_behavior {
-    target_origin_id       = "images-s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
-    compress               = true
+    target_origin_id           = "images-s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.images.id
   }
 
   restrictions {

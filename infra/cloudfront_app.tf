@@ -53,12 +53,13 @@ resource "aws_cloudfront_distribution" "app" {
 
   # 画面。画面の URL は index.html に書き換えて S3 から返す（frontend.tf の CloudFront Functions）
   default_cache_behavior {
-    target_origin_id       = "frontend-s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_disabled.id
-    compress               = true
+    target_origin_id           = "frontend-s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.app.id
 
     function_association {
       event_type   = "viewer-request"
@@ -68,25 +69,27 @@ resource "aws_cloudfront_distribution" "app" {
 
   # API。すべてのメソッドを ALB へ送り、キャッシュしない
   ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    target_origin_id         = "api-alb"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
-    compress                 = true
+    path_pattern               = "/api/*"
+    target_origin_id           = "api-alb"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.app.id
   }
 
   # Vite がビルドした JS・CSS（ファイル名に中身のハッシュが付く）は、長くキャッシュしてよい
   ordered_cache_behavior {
-    path_pattern           = "/assets/*"
-    target_origin_id       = "frontend-s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
-    compress               = true
+    path_pattern               = "/assets/*"
+    target_origin_id           = "frontend-s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.app.id
   }
 
   restrictions {
