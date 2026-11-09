@@ -126,6 +126,16 @@ check_unreachable() {
     FAILED=1
   fi
 }
+check_header() {
+  # 応答のヘッダーに、指定した文字列を含む行があるか（CloudFront のレスポンスヘッダーポリシー。security_headers.tf）
+  local label="$1" url="$2" expected="$3"
+  if curl -sS -m 15 -D - -o /dev/null "${url}" | tr -d '\r' | grep -qiF -- "${expected}"; then
+    echo "  OK  ${label}"
+  else
+    echo "  NG  ${label}: 「${expected}」がない" >&2
+    FAILED=1
+  fi
+}
 FAILED=0
 check "画面（/）" "${APP_URL}" 200
 check "画面の URL を直接開く（/posts/1）" "${APP_URL}posts/1" 200
@@ -133,6 +143,9 @@ check "API（/api/health）" "${APP_URL}api/health" 200
 check "ログインが必要な API（/api/timeline）" "${APP_URL}api/timeline" 401
 check "ない API（/api/no-such-api）は画面にしない" "${APP_URL}api/no-such-api" 401
 check_unreachable "ALB に直接アクセス（CloudFront を通らない）" "http://${ALB_DNS}/api/health"
+check_header "画面の CSP（ほかのサイトの枠に埋め込ませない）" "${APP_URL}" "content-security-policy: default-src 'self'"
+check_header "画面の HSTS" "${APP_URL}" "strict-transport-security: max-age=31536000"
+check_header "API の HSTS" "${APP_URL}api/health" "strict-transport-security: max-age=31536000"
 
 if [ "${FAILED}" -ne 0 ]; then
   echo "==> 動作確認で失敗した項目があります" >&2

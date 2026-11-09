@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:browser-perf": "playwright test --config playwright.browser-perf.config.ts",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "gen:api": "npm --prefix tools/openapi-typescript run generate",
     "preview": "vite preview"
   },

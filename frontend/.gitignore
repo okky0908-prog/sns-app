@@ -32,3 +32,5 @@ playwright-report
 # ブラウザのパフォーマンステストの結果（npm run test:browser-perf）
 browser-perf-results
 browser-perf-report
+# 本番環境のスモークテストの結果（npm run test:smoke）
+smoke-results
