@@ -23,10 +23,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.6"
-    }
   }
 }
 
@@ -79,12 +75,13 @@ data "aws_subnet" "primary" {
   default_for_az    = true
 }
 
-# ALB のサブネットは2つ（Fargate のいるアベイラビリティゾーンと、もう1つ）にする。
-# ALB にはサブネットごとに公開IPv4 が付いて課金されるので、必要な数（2つ以上のアベイラビリティゾーン）だけにする。
-# 既定のサブネットはアベイラビリティゾーンごとに1つなので、違うサブネットを選べば違うアベイラビリティゾーンになる
+# ALB は2つのアベイラビリティゾーン（Fargate のいるところと、もう1つ）に置く（ALB は2つ以上が必要）。
+# 既定のサブネットはアベイラビリティゾーンごとに1つなので、違うサブネットを選べば違うアベイラビリティゾーンになる。
+# ALB 自体は、この2つのアベイラビリティゾーンに作るプライベートサブネットに置く（network.tf）
+data "aws_subnet" "secondary" {
+  id = sort([for id in data.aws_subnets.default.ids : id if id != data.aws_subnet.primary.id])[0]
+}
+
 locals {
-  alb_subnet_ids = concat(
-    [data.aws_subnet.primary.id],
-    slice(sort([for id in data.aws_subnets.default.ids : id if id != data.aws_subnet.primary.id]), 0, 1),
-  )
+  alb_azs = [local.primary_az, data.aws_subnet.secondary.availability_zone]
 }

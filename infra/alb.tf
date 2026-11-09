@@ -1,24 +1,14 @@
 # --- ALB ---
 # API（Fargate）の前に置く。CloudFront は /api/* だけをここへ送る（画面は S3 から配る。cloudfront_app.tf）。
-# Fargate のタスクは入れ替えのたびに IP が変わるので、決まった名前で受け付ける入口として ALB を使う
-
-# CloudFront だけが知っている値。CloudFront がオリジン（ALB）へのリクエストにヘッダーで付け、ALB はこの値が付いたものだけを通す。
-# セキュリティグループの CloudFront のプレフィックスリストは「どこかの CloudFront」なので、ほかの人の CloudFront から来たものはここで断る。
-# 値は state にだけ残る（state は Git に入れない）
-resource "random_password" "origin_verify" {
-  length  = 32
-  special = false
-}
-
-locals {
-  origin_verify_header = "X-Origin-Verify"
-}
+# Fargate のタスクは入れ替えのたびに IP が変わるので、決まった名前で受け付ける入口として ALB を使う。
+# 内部用（internal）にしてプライベートサブネットに置き、インターネットからは届かないようにする。
+# CloudFront は VPC オリジン（cloudfront_app.tf）で、インターネットを通らずに VPC の中のこの ALB へ届く（Issue #161）
 
 resource "aws_lb" "this" {
   name               = "${var.project_name}-alb"
   load_balancer_type = "application"
-  internal           = false
-  subnets            = local.alb_subnet_ids
+  internal           = true
+  subnets            = aws_subnet.private[*].id
   security_groups    = [aws_security_group.alb.id]
 
   # 形の正しくないヘッダーは、ターゲットに渡す前に捨てる
@@ -54,13 +44,13 @@ resource "aws_lb_target_group" "backend" {
   }
 }
 
-# HTTP 80番。HTTPS はブラウザと CloudFront の間で使い、CloudFront から ALB までは AWS の中を HTTP で通る
+# HTTP 80番。HTTPS はブラウザと CloudFront の間で使い、CloudFront から ALB までは VPC オリジンで、AWS の内部のネットワークを HTTP で通る
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
 
-  # 秘密のヘッダーが付いていない（CloudFront を通っていない）リクエストは断る
+  # /api/* 以外は断る（CloudFront は /api/* だけを送る）
   default_action {
     type = "fixed-response"
 
@@ -84,13 +74,6 @@ resource "aws_lb_listener_rule" "backend" {
   condition {
     path_pattern {
       values = ["/api/*"]
-    }
-  }
-
-  condition {
-    http_header {
-      http_header_name = local.origin_verify_header
-      values           = [random_password.origin_verify.result]
     }
   }
 }

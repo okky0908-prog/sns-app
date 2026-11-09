@@ -26,7 +26,7 @@ description: このリポジトリのTerraformコード（infra/配下）に対�
 - [ ] `terraform.tfvars`・`*.tfstate`・`*.tfstate.backup`・`.terraform/`が`.gitignore`されているか（stateには秘密情報が平文で残るため）
 - [ ] セキュリティグループのingressが必要最小限か
   - [ ] `0.0.0.0/0`から受け付けるものがないか。ALB の 80番は CloudFront のプレフィックスリスト（`com.amazonaws.global.cloudfront.origin-facing`）からだけか
-  - [ ] ALB のリスナーが、CloudFront の秘密のヘッダー（`X-Origin-Verify`）のないリクエストを 403 で断っているか（ほかの人の CloudFront から来たものを通さないため）
+  - [ ] ALB が内部用（`internal = true`）で、プライベートサブネット（インターネットゲートウェイへの経路がないルートテーブル）に置かれているか。CloudFront からは VPC オリジン（`aws_cloudfront_vpc_origin`）で届くか（インターネットに出さないため）
   - [ ] Fargate のタスク（8080番）が、**ALBのセキュリティグループからだけ**受け付けているか（公開IPに直接アクセスできないか）
   - [ ] SSH（22番）など、ほかの受け付けがないか（コンテナに入るのは ECS Exec を使う）
   - [ ] RDS（5432番）が API のタスクのセキュリティグループからだけ受け付けているか
@@ -76,7 +76,7 @@ description: このリポジトリのTerraformコード（infra/配下）に対�
 - [ ] ALB のターゲットグループのヘルスチェックが正しいか
   - [ ] API：`GET /api/health` が 200（ポート 8080、ターゲットの種類は`ip`）
   - [ ] Spring Boot の起動（Flyway を含む）を待つ猶予（`health_check_grace_period_seconds`）があるか
-- [ ] ALB のリスナールールで、秘密のヘッダーが付いた`/api/*`だけを API のターゲットグループへ送り、それ以外は 403 か
+- [ ] ALB のリスナールールで、`/api/*`だけを API のターゲットグループへ送り、それ以外は 403 か
 - [ ] 入れ替えのときに止まる時間がないか（`deployment_minimum_healthy_percent = 100`）。失敗したら前の版に戻るか（`deployment_circuit_breaker`）
 - [ ] 画面の URL（`/users/yamada`など）を開いたり読み込み直したりしても、`index.html`が返るか（CloudFront Functions。`node --test infra/cloudfront_functions/*.test.mjs`が通るか）。CloudFront の「エラーのときに index.html を返す」設定で代わりにしていないか（API の 404・403 まで画面に置き換わるため）
 - [ ] `deploy.sh`が冪等か（2回目以降も安全か。例：JWT の署名鍵は、すでにあれば作り直さない）

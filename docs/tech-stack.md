@@ -94,7 +94,7 @@
 | DB | RDS for PostgreSQL 17 | ○ | |
 | ロードバランサー | ALB | 新規 | |
 | 画像 | S3 + CloudFront | 新規 | |
-| HTTPS の入口 | CloudFront（アプリ用） | 新規 | 独自ドメインなしで HTTPS にするため。`/api/*` は ALB へ、それ以外は画面の S3 へ振り分ける |
+| HTTPS の入口 | CloudFront（アプリ用） | 新規 | 独自ドメインなしで HTTPS にするため。`/api/*` は内部用の ALB へ（VPC オリジン）、それ以外は画面の S3 へ振り分ける |
 | 請求アラート | AWS Budgets | 新規 | ALB は止められず課金が続くので、消し忘れに気づけるようにする |
 
 ## 前回（`github-demo`）との違いのまとめ
