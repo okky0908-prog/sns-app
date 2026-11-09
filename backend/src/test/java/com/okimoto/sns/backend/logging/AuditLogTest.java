@@ -159,6 +159,25 @@ class AuditLogTest {
   }
 
   @Test
+  void ログインの失敗が続いてロックしたら_1回だけ警告で記録し_ロック中の429は記録しない() throws Exception {
+    // 制限の記録はアプリのメモリにあり、ロールバックでは消えないので、ほかのテストと重ならないメールアドレスを使う
+    String email = "audit-lock-159@example.com";
+    signup("auditlock", email);
+    for (int i = 0; i < 5; i++) {
+      login(email, "wrong-password");
+    }
+
+    login(email, PASSWORD);
+
+    ILoggingEvent log = onlyAudit("login_locked");
+    assertThat(log.getLevel()).isEqualTo(Level.WARN);
+    assertThat(LogCapture.keyValues(log)).containsEntry("user.email", "a***@example.com");
+    assertThat(audit("login_failed")).hasSize(5);
+    assertThat(audit("login")).isEmpty();
+    assertThat(logs.allText()).doesNotContain(email);
+  }
+
+  @Test
   void ログアウトしたら_そのユーザーのIDで記録する() throws Exception {
     MvcResult signedUp = signup("audit05", "audit05@example.com");
     long userId = json(signedUp).at("/user/id").asLong();

@@ -504,12 +504,13 @@ export interface components {
              *     | `ALREADY_REGISTERED` | 409 | すでに登録されています |
              *     | `PAYLOAD_TOO_LARGE` | 413 | 送信するデータが大きすぎます |
              *     | `UNSUPPORTED_MEDIA_TYPE` | 415 | リクエストの形式（Content-Type）に対応していません |
+             *     | `TOO_MANY_LOGIN_ATTEMPTS` | 429 | ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください |
              *     | `INTERNAL_ERROR` | 500 | サーバーでエラーが発生しました。時間をおいてもう一度お試しください |
              *     | `IMAGE_UPLOAD_FAILED` | 500 | 画像のアップロードに失敗しました。時間をおいてもう一度お試しください |
              *     | `SERVICE_UNAVAILABLE` | 503 | ただいまサービスを利用できません。時間をおいてもう一度お試しください |
              * @enum {string}
              */
-            code: "VALIDATION_FAILED" | "MALFORMED_REQUEST" | "CANNOT_FOLLOW_SELF" | "UNAUTHENTICATED" | "INVALID_CREDENTIALS" | "SESSION_EXPIRED" | "FORBIDDEN" | "POST_NOT_FOUND" | "COMMENT_NOT_FOUND" | "USER_NOT_FOUND" | "RESOURCE_NOT_FOUND" | "METHOD_NOT_ALLOWED" | "ALREADY_REGISTERED" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "INTERNAL_ERROR" | "IMAGE_UPLOAD_FAILED" | "SERVICE_UNAVAILABLE";
+            code: "VALIDATION_FAILED" | "MALFORMED_REQUEST" | "CANNOT_FOLLOW_SELF" | "UNAUTHENTICATED" | "INVALID_CREDENTIALS" | "SESSION_EXPIRED" | "FORBIDDEN" | "POST_NOT_FOUND" | "COMMENT_NOT_FOUND" | "USER_NOT_FOUND" | "RESOURCE_NOT_FOUND" | "METHOD_NOT_ALLOWED" | "ALREADY_REGISTERED" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "TOO_MANY_LOGIN_ATTEMPTS" | "INTERNAL_ERROR" | "IMAGE_UPLOAD_FAILED" | "SERVICE_UNAVAILABLE";
             /** @description 項目ごとの入力エラー。なければ空 */
             errors: components["schemas"]["FieldError"][];
             /** @description 利用者にそのまま見せてよい文言 */

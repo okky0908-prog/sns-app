@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +21,7 @@ import com.okimoto.sns.backend.user.UserMapper;
 import com.okimoto.sns.backend.web.ApiError;
 import com.okimoto.sns.backend.web.ErrorCode;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -61,7 +63,10 @@ class AuthServiceTest {
           refreshTokenService,
           imageStorage,
           TransactionOperations.withoutTransaction(),
-          Clock.fixed(NOW.toInstant(), ZoneOffset.UTC));
+          Clock.fixed(NOW.toInstant(), ZoneOffset.UTC),
+          new LoginAttemptLimiter(
+              Clock.fixed(NOW.toInstant(), ZoneOffset.UTC),
+              new LoginAttemptProperties(5, Duration.ofMinutes(15), Duration.ofMinutes(15))));
 
   @BeforeEach
   void setUp() {
@@ -239,6 +244,77 @@ class AuthServiceTest {
       assertApiError(
           () -> service.login(new LoginRequest("yamada@example.com", "あ".repeat(25))),
           ErrorCode.INVALID_CREDENTIALS);
+    }
+  }
+
+  /** ログインの試行回数の制限（Issue #159）。回数・期間の境界は LoginAttemptLimiterTest で確かめ、ここではログインの流れとのつながりを確かめる。 */
+  @Nested
+  class ログインの試行回数の制限 {
+
+    @Test
+    void 失敗が5回続いたら_正しいパスワードでも429にし_トークンを発行しない() {
+      when(userMapper.findByEmail("yamada@example.com"))
+          .thenReturn(Optional.of(savedUser("password123")));
+      failLogin("yamada@example.com", 5);
+
+      assertApiError(
+          () -> service.login(new LoginRequest("yamada@example.com", "password123")),
+          ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+      verify(refreshTokenService, never()).issue(anyLong());
+    }
+
+    @Test
+    void ロック中は_ユーザーを探さず_パスワードも照合しない() {
+      when(userMapper.findByEmail("yamada@example.com"))
+          .thenReturn(Optional.of(savedUser("password123")));
+      failLogin("yamada@example.com", 5);
+
+      assertApiError(
+          () -> service.login(new LoginRequest("yamada@example.com", "password123")),
+          ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+      verify(userMapper, times(5)).findByEmail("yamada@example.com");
+    }
+
+    @Test
+    void 登録されていないメールアドレスも同じように数える() {
+      when(userMapper.findByEmail(anyString())).thenReturn(Optional.empty());
+      failLogin("nobody@example.com", 5);
+
+      assertApiError(
+          () -> service.login(new LoginRequest("nobody@example.com", "password123")),
+          ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+    }
+
+    @Test
+    void 大文字や前後の空白が違っても_同じメールアドレスとして数える() {
+      when(userMapper.findByEmail("yamada@example.com"))
+          .thenReturn(Optional.of(savedUser("password123")));
+      failLogin("Yamada@Example.com", 2);
+      failLogin(" yamada@example.com ", 3);
+
+      assertApiError(
+          () -> service.login(new LoginRequest("yamada@example.com", "password123")),
+          ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+    }
+
+    @Test
+    void 成功したら_それまでの失敗は数えない() {
+      when(userMapper.findByEmail("yamada@example.com"))
+          .thenReturn(Optional.of(savedUser("password123")));
+      failLogin("yamada@example.com", 4);
+      service.login(new LoginRequest("yamada@example.com", "password123"));
+
+      // 成功の前の4回を数えていたら、2回目の失敗から 429 になる
+      failLogin("yamada@example.com", 4);
+    }
+
+    /** パスワード違いで、指定した回数だけログインに失敗する（どれも 401 であること） */
+    private void failLogin(String email, int times) {
+      for (int i = 0; i < times; i++) {
+        assertApiError(
+            () -> service.login(new LoginRequest(email, "wrong-password")),
+            ErrorCode.INVALID_CREDENTIALS);
+      }
     }
   }
 

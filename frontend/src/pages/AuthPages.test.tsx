@@ -72,6 +72,19 @@ describe('LoginPage：ログイン', () => {
     expect(location()).toHaveTextContent('/login')
   })
 
+  test('失敗が続いてロックされたら（429）、サーバーの文言を出し、入力は残す', async () => {
+    const message = 'ログインの失敗が続いたため、しばらくログインできません。15分ほど待ってからもう一度お試しください'
+    renderLogin(vi.fn().mockRejectedValue(new ApiError(429, 'TOO_MANY_LOGIN_ATTEMPTS', message)))
+
+    await userEvent.type(email(), 'a@example.com')
+    await userEvent.type(password(), 'password')
+    await userEvent.click(submit())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(password()).toHaveValue('password')
+    expect(submit()).toBeEnabled()
+  })
+
   test('それ以外の失敗（通信エラーなど）は、入力を残したまま文言を出す', async () => {
     renderLogin(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
 

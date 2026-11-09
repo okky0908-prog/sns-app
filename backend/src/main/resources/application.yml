@@ -63,6 +63,11 @@ app:
     reuse-grace: 10s
     # 期限切れの行を削除する定期処理の実行時刻（cron 式。秒 分 時 日 月 曜日。日本時間）。毎日 4:00（RefreshTokenCleanupJob）
     cleanup-cron: "0 0 4 * * *"
+  # ログインの試行回数の制限（総当たり攻撃の対策）。同じメールアドレスで、最初の失敗から window の間に max-failures 回失敗したら、lock-duration の間ロックする
+  login-attempt:
+    max-failures: 5
+    window: 15m
+    lock-duration: 15m
   # 画像の保存先（S3）。既定値はローカル開発の LocalStack（docker-compose）に合わせてある
   storage:
     bucket: ${S3_BUCKET:sns-app-images}

@@ -47,6 +47,7 @@ public class AuthService {
   private final ImageStorage imageStorage;
   private final TransactionOperations transactionOperations;
   private final Clock clock;
+  private final LoginAttemptLimiter loginAttemptLimiter;
 
   /** 存在しないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
   private final String dummyPasswordHash;
@@ -58,7 +59,9 @@ public class AuthService {
       RefreshTokenService refreshTokenService,
       ImageStorage imageStorage,
       TransactionOperations transactionOperations,
-      Clock clock) {
+      Clock clock,
+      LoginAttemptLimiter loginAttemptLimiter) {
+    this.loginAttemptLimiter = loginAttemptLimiter;
     this.userMapper = userMapper;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
@@ -129,6 +132,8 @@ public class AuthService {
    */
   public AuthResult login(LoginRequest request) {
     String email = normalizeEmail(request.email());
+    // 失敗が続いてロック中なら、ユーザーを探さず、パスワードも照合しない（Issue #159）
+    loginAttemptLimiter.checkNotLocked(email);
     Optional<User> user = userMapper.findByEmail(email);
     // ユーザーがいなくても同じようにハッシュの照合をして、応答時間から登録済みのメールアドレスを推測されないようにする
     String hash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
@@ -136,9 +141,11 @@ public class AuthService {
         fitsBcrypt(request.password()) && passwordEncoder.matches(request.password(), hash);
     if (user.isEmpty() || !matches) {
       AuditLog.loginFailed(email);
+      loginAttemptLimiter.recordFailure(email);
       // どちらが違うかは教えない
       throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
     }
+    loginAttemptLimiter.recordSuccess(email);
     AuditLog.loggedIn(user.get().getId());
     return issueTokens(user.get());
   }
