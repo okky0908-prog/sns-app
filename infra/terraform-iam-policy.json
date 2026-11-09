@@ -22,7 +22,10 @@
         "ssm:DescribeParameters",
         "budgets:ViewBudget",
         "budgets:ListTagsForResource",
-        "sts:GetCallerIdentity"
+        "sts:GetCallerIdentity",
+        "logs:TestMetricFilter",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:GetMetricData"
       ],
       "Resource": "*"
     },
@@ -195,12 +198,36 @@
         "logs:UntagResource",
         "logs:ListTagsForResource",
         "logs:FilterLogEvents",
-        "logs:StartLiveTail"
+        "logs:StartLiveTail",
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "logs:DescribeMetricFilters"
       ],
       "Resource": [
         "arn:aws:logs:*:*:log-group:/ecs/sns-app-*",
         "arn:aws:logs:*:*:log-group:/ecs/sns-app-*:*"
       ]
+    },
+    {
+      "Sid": "AlertTopic",
+      "Effect": "Allow",
+      "Action": "sns:*",
+      "Resource": "arn:aws:sns:*:*:sns-app-*"
+    },
+    {
+      "Sid": "Alarms",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:SetAlarmState",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:cloudwatch:*:*:alarm:sns-app-*"
     },
     {
       "Sid": "Secrets",

@@ -48,6 +48,16 @@ output "ecs_service_name" {
   value       = aws_ecs_service.backend.name
 }
 
+output "api_health_alarm_name" {
+  description = "「API の正常なタスクがない」アラームの名前。servers.sh stop でわざとタスクを止めるときは通知を止め、start・deploy.sh で戻す"
+  value       = aws_cloudwatch_metric_alarm.api_no_healthy_task.alarm_name
+}
+
+output "alerts_topic_arn" {
+  description = "監視のアラームの通知先（SNS のトピック）"
+  value       = aws_sns_topic.alerts.arn
+}
+
 output "backend_log_group" {
   description = "API のログ（CloudWatch Logs）。見るときは aws logs tail <この値> --follow"
   value       = aws_cloudwatch_log_group.backend.name

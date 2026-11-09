@@ -15,6 +15,8 @@ tfout() {
 REGION="$(tfout aws_region)"
 CLUSTER="$(tfout ecs_cluster_name)"
 SERVICE="$(tfout ecs_service_name)"
+# 「API の正常なタスクがない」アラーム（monitoring.tf）。わざと止めている間は鳴らさない
+HEALTH_ALARM="$(tfout api_health_alarm_name)"
 
 status() {
   aws ecs describe-services --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}" \
@@ -30,10 +32,15 @@ case "${1:-}" in
     scale 1
     echo "==> タスクが動き出し、ALB のヘルスチェックに通るのを待っています（2〜3分）"
     aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"
+    aws cloudwatch enable-alarm-actions --region "${REGION}" --alarm-names "${HEALTH_ALARM}"
+    echo "==> アラーム ${HEALTH_ALARM} の通知を戻しました"
     status
     echo "==> アプリのURL: $(tfout app_url)"
     ;;
   stop)
+    # 止めると正常なタスクが 0 になり、アラームが鳴ってしまうので、先に通知を止める（start・deploy.sh で戻す）
+    aws cloudwatch disable-alarm-actions --region "${REGION}" --alarm-names "${HEALTH_ALARM}"
+    echo "==> アラーム ${HEALTH_ALARM} の通知を止めました"
     scale 0
     echo "==> タスクの停止を待っています"
     aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"

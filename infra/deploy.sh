@@ -93,6 +93,8 @@ if ! aws ecs wait services-stable --region "${AWS_REGION}" --cluster "${CLUSTER}
 fi
 ROLLOUT="$(aws ecs describe-services --region "${AWS_REGION}" --cluster "${CLUSTER}" --services "${SERVICE}" \
   --query 'services[0].deployments[?status==`PRIMARY`].rolloutState | [0]' --output text)"
+# servers.sh stop で止めていた「API の正常なタスクがない」アラームの通知を戻す（タスクが動き出してから）
+aws cloudwatch enable-alarm-actions --region "${AWS_REGION}" --alarm-names "$(tfout api_health_alarm_name)"
 if [ "${ROLLOUT}" != "COMPLETED" ]; then
   # 新しいタスクが起動に失敗し続けると、前の版に戻して止まる（Terraform の deployment_circuit_breaker）
   echo "入れ替えに失敗し、前の版に戻りました（${ROLLOUT}）。最近のログ：" >&2
