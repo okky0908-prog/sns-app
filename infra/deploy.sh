@@ -80,8 +80,17 @@ echo "==> フロントエンドをビルド（API は同じドメインの /api 
 echo "==> 画面を S3 へ送る"
 # JS・CSS（ファイル名にハッシュが付く）を先に送り、最後に index.html を送る（途中で古い index.html が新しいファイルを探さないように）。
 # 前の版の JS・CSS も消さない（入れ替えの途中で、古い index.html を開いている人が読み込めなくならないように）
-aws s3 sync --region "${AWS_REGION}" "${REPO_ROOT}/frontend/dist/" "s3://${FRONTEND_BUCKET}/" --exclude index.html --only-show-errors
-aws s3 cp --region "${AWS_REGION}" "${REPO_ROOT}/frontend/dist/index.html" "s3://${FRONTEND_BUCKET}/index.html" --only-show-errors
+# ブラウザのキャッシュ（Cache-Control。docs/infrastructure.md「キャッシュ」）：
+#   /assets/*  … ファイル名に中身のハッシュが付き、中身が変わればファイル名も変わるので、1年キャッシュして確かめにも来させない（immutable）。
+#   index.html … デプロイしたらすぐ新しい版を読ませるため、毎回変わっていないかを確かめさせる（no-cache）
+#   それ以外   … favicon.svg など。ファイル名にハッシュがないので1日
+# sync は中身の同じファイルを送り直さず、Cache-Control を付け直せないので、毎回 cp で送る（合わせて数百 KB）
+aws s3 cp --region "${AWS_REGION}" "${REPO_ROOT}/frontend/dist/assets/" "s3://${FRONTEND_BUCKET}/assets/" --recursive \
+  --cache-control "public, max-age=31536000, immutable" --only-show-errors
+aws s3 cp --region "${AWS_REGION}" "${REPO_ROOT}/frontend/dist/" "s3://${FRONTEND_BUCKET}/" --recursive \
+  --exclude index.html --exclude 'assets/*' --cache-control "public, max-age=86400" --only-show-errors
+aws s3 cp --region "${AWS_REGION}" "${REPO_ROOT}/frontend/dist/index.html" "s3://${FRONTEND_BUCKET}/index.html" \
+  --cache-control "no-cache" --only-show-errors
 
 # --- 入れ替えが終わるのを待つ ---
 
@@ -169,6 +178,10 @@ check_private_dns "ALB はインターネットに公開していない" "${ALB_
 check_header "画面の CSP（ほかのサイトの枠に埋め込ませない）" "${APP_URL}" "content-security-policy: default-src 'self'"
 check_header "画面の HSTS" "${APP_URL}" "strict-transport-security: max-age=31536000"
 check_header "API の HSTS" "${APP_URL}api/health" "strict-transport-security: max-age=31536000"
+ASSET_PATH="$(curl -sS -m 15 "${APP_URL}" | grep -oE '/assets/[^"]+\.js' | head -1 || true)"
+check_header "JS・CSS は長くキャッシュする（${ASSET_PATH:-見つからない}）" "${APP_URL}${ASSET_PATH#/}" "cache-control: public, max-age=31536000, immutable"
+check_header "index.html は毎回確かめる" "${APP_URL}" "cache-control: no-cache"
+check_header "画面の URL（index.html）も毎回確かめる" "${APP_URL}posts/1" "cache-control: no-cache"
 
 if [ "${FAILED}" -ne 0 ]; then
   echo "==> 動作確認で失敗した項目があります" >&2

@@ -74,6 +74,15 @@ flowchart LR
 | CloudFront → ALB | HTTP。**VPC オリジン**で、インターネットを通らず、AWS の内部のネットワークで VPC の中の ALB（内部用）へ届く（Issue #161） |
 
 - CloudFront は、API と `index.html` を**キャッシュしない**（`Managed-CachingDisabled`。API はログインした人ごとに中身が違う。`index.html` はデプロイしたらすぐ新しい版を返すため）。ファイル名にハッシュが付く `/assets/*`（Vite がビルドした JS・CSS）だけはキャッシュする（`Managed-CachingOptimized`）。そのため、デプロイのたびにキャッシュを消す（invalidation）必要はない
+- **ブラウザのキャッシュ**（`Cache-Control`。`deploy.sh` が S3 に送るときに付ける。Issue #163）
+
+  | ファイル | `Cache-Control` | 理由 |
+  |---|---|---|
+  | `/assets/*`（JS・CSS） | `public, max-age=31536000, immutable` | ファイル名に中身のハッシュが付き、中身が変わればファイル名も変わる。1年キャッシュし、変わっていないかを確かめにも来させない（2回目からの表示が速くなる） |
+  | `index.html`（画面の URL も） | `no-cache` | デプロイしたらすぐ新しい版（新しい JS・CSS のファイル名）を読ませる。毎回、変わっていないかをサーバーに確かめる（変わっていなければ 304 で中身は送らない） |
+  | そのほか（`favicon.svg`） | `public, max-age=86400` | ファイル名にハッシュがないので、1日にとどめる |
+
+  `aws s3 sync` は中身の同じファイルを送り直さず、`Cache-Control` を付け直せないので、`deploy.sh` は毎回 `aws s3 cp` で送る
 - `/api/*` では、ブラウザから届いたヘッダー・Cookie・検索条件を、すべてそのまま ALB に送る（`Managed-AllViewer`）。これを使わないと、CloudFront は GET の `Authorization` ヘッダー（アクセストークン）と Cookie（リフレッシュトークン）を取り除いてしまう
 - CloudFront を2つに分けるのは、画面の URL（`/posts/:postId`）と画像のキー（`posts/2026/10/...`）が同じパスになり、1つでは振り分けられないため
 - 独自ドメインを取ったら、CloudFront に別名（`app.example.com`）と ACM の証明書を付ける（「今後の課題」）
