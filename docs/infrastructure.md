@@ -105,6 +105,7 @@ CloudFront が VPC の中に**ネットワークの口（ENI）**を作り、そ
 | 画像の保存 | S3 バケット1つ（`sns-app-images-<アカウントID>`）。パブリックアクセスはすべてブロックする。フォルダ（プレフィックス）を `posts/` と `icons/` に分ける | `images.tf` |
 | 画像の配信 | CloudFront（画像用）。OAC（Origin Access Control）で、CloudFront からだけ S3 を読めるようにする | `images.tf` |
 | 請求アラート | AWS Budgets。月の予算（既定 30 ドル）を超えそう・80% を超えたらメールで知らせる | `budget.tf` |
+| 監視のアラーム | CloudWatch Alarms。[ログ・監視の運用方針](./observability.md)の監視項目を、ALB・ECS・RDS のメトリクスと、ログから作るメトリクス（メトリクスフィルター）で見る。P1・P2 は SNS でメールに知らせ、P3 は記録だけ（「7.5 段階 2 の実装」） | `monitoring.tf` |
 | 構築方法 | Terraform（`infra/` 配下）。構成の正確な内容はコードを正とする | |
 
 ### ALB のターゲットグループとリスナー
@@ -226,13 +227,15 @@ EC2 の無料利用枠（月750時間）を使わない代わりに、サーバ�
 | RDS | 月750時間・20GB | 1日中動かしても収まる。自動バックアップは取らない |
 | ECR | 月500MB（12か月） | イメージ1つは約 200MB。5つまで残すので、少し超えることがある（1GB で月に十数円程度） |
 | CloudWatch Logs | 月5GB の取り込み・保存 | 14日で消すので、学習用なら収まる |
+| CloudWatch のアラーム・メトリクス | アラームのメトリクス10個、カスタムメトリクス10個 | アラームのメトリクスは13個（5xx の割合は3つのメトリクスを使う）なので、少し超える（月に数十円）。ログから作るメトリクスは6個で収まる |
+| SNS（アラームの通知） | メール1,000件 | 収まる |
 | SSM パラメータストア | 標準のパラメータは無料 | 2つ使う |
 | S3 | 5GB（12か月） | 学習用の画像と画面のファイルなら収まる |
 | CloudFront・CloudFront Functions | 月1TBの転送・1,000万リクエスト・200万回の関数の実行（常時無料） | 2つ合わせても収まる |
 | AWS Budgets | 通知だけの予算（自動の操作を付けないもの）は無料 | 1つ使う |
 
 - 料金の目安は変わることがあるので、構築前に AWS の料金ページで確認する
-- 請求アラート（AWS Budgets）は Terraform で一緒に作る。通知先のメールアドレスは `terraform.tfvars` の `budget_alert_email`
+- 請求アラート（AWS Budgets）と監視のアラームは Terraform で一緒に作る。通知先のメールアドレスは `terraform.tfvars` の `budget_alert_email`。監視のアラームは、初回に AWS から確認のメール（AWS Notification - Subscription Confirmation）が届くので、リンクを押して承認する（押すまで通知は届かない）
 
 ## 構築の手順
 
@@ -269,7 +272,7 @@ infra/deploy.sh                 # ビルドして配置し、動作を確認す�
 - API：`./gradlew bootJar` で jar を作り、`docker build` でイメージにして ECR に送る（タグは git の短いハッシュと `latest`）。ECS のサービスを入れ替え（`update-service --force-new-deployment`）、新しいタスクが ALB のヘルスチェックに通るまで待つ。失敗して前の版に戻ったときは、最近のログを出して止まる
 - 画面：`npm run build` で作った `dist/` を S3 に送る。JS・CSS を先に送り、最後に `index.html` を送る（途中で、古い `index.html` が新しいファイルを探さないように）。前の版の JS・CSS は消さない（入れ替えの途中で、古い画面を開いている人が読み込めなくならないように）
 - DB のテーブルは、Spring Boot の起動時に Flyway が作成・更新する
-- API の起動・停止は `infra/servers.sh start|stop|status`（ECS のタスクの数を 1／0 にする）。画面（S3・CloudFront）は止めなくてよい
+- API の起動・停止は `infra/servers.sh start|stop|status`（ECS のタスクの数を 1／0 にする）。画面（S3・CloudFront）は止めなくてよい。`stop` は「API の正常なタスクがない」アラームの通知を止めてから止め、`start`・`deploy.sh` が通知を戻す（わざと止めたときに鳴らないように）
 - タスクを止めている間にアプリを開くと、画面は出るが、API は ALB が 503 を返す（ログインなどができない）
 - ALB は止められないため、使わない期間は `terraform destroy` で環境ごと削除する（RDS のデータと S3 の画像も消えるので、残したい場合は先にスナップショットを取る）
 
@@ -281,5 +284,5 @@ infra/deploy.sh                 # ビルドして配置し、動作を確認す�
 | 冗長化 | 今はタスク1つ・RDS はシングルAZ。必要になったらタスクを2つにしてアベイラビリティゾーン c にも置き、RDS をマルチAZにする（ALB があるので、タスクを増やすのは `desired_count` を変えるだけ） |
 | Terraform の state | ローカル保存からリモート（S3）保存への移行 |
 | デプロイの自動化 | `deploy.sh` を GitHub Actions に移す（OIDC で AWS に入り、main にマージしたらデプロイする） |
-| ログ・監視 | [ログ・監視の運用方針](./observability.md)の段階 2 の残り（アラーム・ダッシュボード・外形監視、ALB のアクセスログ）を Terraform に入れる。ログの送り先（CloudWatch Logs）は #155 で入れた |
+| ログ・監視 | [ログ・監視の運用方針](./observability.md)の段階 2 の残り（ダッシュボード・外形監視、ALB のアクセスログ、ログの長期保存）を Terraform に入れる。ログの送り先（CloudWatch Logs）は #155、アラームは #162 で入れた |
 | WAF | 公開して不正なアクセスが増えたら、CloudFront に AWS WAF を付ける（有料） |

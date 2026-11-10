@@ -119,7 +119,7 @@ variable "monthly_budget_usd" {
 }
 
 variable "budget_alert_email" {
-  description = "請求アラートを受け取るメールアドレス"
+  description = "請求アラートと監視のアラーム（monitoring.tf）を受け取るメールアドレス"
   type        = string
 
   validation {

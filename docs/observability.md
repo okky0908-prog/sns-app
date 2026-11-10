@@ -342,6 +342,31 @@ DD_LOGS_INJECTION=true
 
 - **アプリから Datadog へ直接メトリクスを送る仕組み（Micrometer の Datadog Registry）**：Agent と APM で、必要なメトリクス（応答時間・件数）は集まる。アプリが送り先（Datadog）を知らなくてよい形（「4.1 集め方」：アプリは標準出力に出すだけ）を保つため、入れない。業務の数値（投稿数など）をメトリクスで見たくなったら、Agent の DogStatsD 経由で送ることを先に検討する
 
+### 7.5 段階 2 の実装（アラーム）
+
+5.2 の監視項目を、CloudWatch のアラームで作った（`infra/monitoring.tf`。Issue #162）。P1・P2 は SNS のトピック（`sns-app-alerts`）からメールで知らせ、P3 は通知せずに記録だけにする（アラームの状態は CloudWatch のコンソールで見る）。アラームの説明に、5.3 の「何が起きているか・影響・最初に見るもの」を書いた。
+
+| # | アラーム（`sns-app-` の後ろ） | データの元 | 条件 | 緊急度 |
+|---|---|---|---|---|
+| A1 の代わり | `api-no-healthy-task` | ALB の `HealthyHostCount` | 2分続けて 1 未満（データがないときも鳴らす） | P1 |
+| A2 | `api-5xx-rate` | ALB の `HTTPCode_Target_5XX_Count`＋`HTTPCode_ELB_5XX_Count` ÷ `RequestCount` | 5分間で 5% を超える。リクエストが10件未満のときは判定しない | P1 |
+| A3 | `db-unavailable` | ログ `{ $.error_code = "SERVICE_UNAVAILABLE" }` | 5分間に3件以上 | P1 |
+| A4 | `api-latency-p95` | ALB の `TargetResponseTime`（p95） | 10分間 1秒を超える | P2 |
+| A5 | `image-upload-failed` | ログ `{ $.error_code = "IMAGE_UPLOAD_FAILED" }` | 10分間に5件以上 | P2 |
+| A6 | `login-failed-surge` | ログ `{ $.event.action = "login_failed" }` | 10分間に30件以上 | P2 |
+| A8 | `rds-free-storage` | RDS の `FreeStorageSpace` | 割り当て（20GB）の 20% を下回る | P2 |
+| A9 | `api-cpu`・`api-memory` | ECS の `CPUUtilization`・`MemoryUtilization` | 10分間 80%・90% を超える | P2 |
+| A12 | `client-error-surge` | ログ `{ $.event.action = "client_error" }` | 1時間に20件以上 | P2 |
+| A7 | `refresh-token-reuse` | ログ `{ $.event.action = "refresh_token_reuse" }` | 1件でも | P3 |
+| A11 | `invalid-token-surge` | ログ `{ $.event.action = "invalid_token" }` | 10分間に20件以上 | P3 |
+
+5.2 と変えたところ：
+
+- **A1**：外形監視（CloudWatch Synthetics）は5分ごとに動かしても月に千円以上かかるので、ALB から見た正常なタスクの数で代わりにする。`infra/servers.sh stop` でわざとタスクを止めるときは、このアラームの通知を止める（`start`・`deploy.sh` で戻す）
+- **A6・A12**：「普段の◯倍」は、CloudWatch の異常検知（普段のデータが2週間ほど要る）の代わりに、決まった件数にした。普段の件数が分かってきたら見直す
+- **A10**：監視の道具のエージェントが止まったことに気づく項目。CloudWatch は AWS のサービスがデータを送るので、エージェントがなく、対象外にした。API のタスクが止まったことは A1 の代わりのアラームで気づける
+- ログから作るメトリクスは、名前空間 `SnsApp` に出す。条件は構造化ログの項目（`error_code`・`event.action`）で書き、本文（`message`）の文字列では探さない（文言を変えても数えられるように）
+
 ## 8. 見直し
 
 | いつ | 何を見るか |

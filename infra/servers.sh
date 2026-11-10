@@ -15,10 +15,26 @@ tfout() {
 REGION="$(tfout aws_region)"
 CLUSTER="$(tfout ecs_cluster_name)"
 SERVICE="$(tfout ecs_service_name)"
+# 「API の正常なタスクがない」アラーム（monitoring.tf）。わざと止めている間は鳴らさない
+HEALTH_ALARM="$(tfout api_health_alarm_name)"
 
 status() {
   aws ecs describe-services --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}" \
     --query 'services[0].{desired:desiredCount,running:runningCount,pending:pendingCount}' --output table
+}
+
+# アラームが ALARM（止めていた間の状態）から戻るのを待ってから、通知を戻す。
+# 先に戻すと、ALARM のメールは届かないのに「OK に戻った」メールだけが届いてしまう
+enable_health_alarm() {
+  local state
+  echo "==> アラーム ${HEALTH_ALARM} が OK に戻るのを待っています（最大6分）"
+  for _ in $(seq 1 36); do
+    state="$(aws cloudwatch describe-alarms --region "${REGION}" --alarm-names "${HEALTH_ALARM}" --query 'MetricAlarms[0].StateValue' --output text)"
+    [ "${state}" != "ALARM" ] && break
+    sleep 10
+  done
+  aws cloudwatch enable-alarm-actions --region "${REGION}" --alarm-names "${HEALTH_ALARM}"
+  echo "==> アラーム ${HEALTH_ALARM} の通知を戻しました（状態: ${state}）"
 }
 
 scale() {
@@ -30,10 +46,14 @@ case "${1:-}" in
     scale 1
     echo "==> タスクが動き出し、ALB のヘルスチェックに通るのを待っています（2〜3分）"
     aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"
+    enable_health_alarm
     status
     echo "==> アプリのURL: $(tfout app_url)"
     ;;
   stop)
+    # 止めると正常なタスクが 0 になり、アラームが鳴ってしまうので、先に通知を止める（start・deploy.sh で戻す）
+    aws cloudwatch disable-alarm-actions --region "${REGION}" --alarm-names "${HEALTH_ALARM}"
+    echo "==> アラーム ${HEALTH_ALARM} の通知を止めました"
     scale 0
     echo "==> タスクの停止を待っています"
     aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"

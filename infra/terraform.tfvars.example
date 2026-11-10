@@ -2,7 +2,7 @@
 # cp terraform.tfvars.example terraform.tfvars
 
 db_password        = "change-me-to-a-random-password" # RDS の管理者パスワード（12文字以上。英数字・- _ だけ。例: openssl rand -hex 16）
-budget_alert_email = "you@example.com"                # 請求アラートを受け取るメールアドレス
+budget_alert_email = "you@example.com"                # 請求アラート・監視のアラームを受け取るメールアドレス
 # monthly_budget_usd       = 30      # 請求アラートの月の予算（米ドル）
 # backend_cpu              = 512     # API の Fargate のタスクの CPU（1024 = 1 vCPU）
 # backend_memory           = 1024    # API の Fargate のタスクのメモリ（MiB）
