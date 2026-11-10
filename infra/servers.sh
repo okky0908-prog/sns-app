@@ -23,6 +23,20 @@ status() {
     --query 'services[0].{desired:desiredCount,running:runningCount,pending:pendingCount}' --output table
 }
 
+# アラームが ALARM（止めていた間の状態）から戻るのを待ってから、通知を戻す。
+# 先に戻すと、ALARM のメールは届かないのに「OK に戻った」メールだけが届いてしまう
+enable_health_alarm() {
+  local state
+  echo "==> アラーム ${HEALTH_ALARM} が OK に戻るのを待っています（最大6分）"
+  for _ in $(seq 1 36); do
+    state="$(aws cloudwatch describe-alarms --region "${REGION}" --alarm-names "${HEALTH_ALARM}" --query 'MetricAlarms[0].StateValue' --output text)"
+    [ "${state}" != "ALARM" ] && break
+    sleep 10
+  done
+  aws cloudwatch enable-alarm-actions --region "${REGION}" --alarm-names "${HEALTH_ALARM}"
+  echo "==> アラーム ${HEALTH_ALARM} の通知を戻しました（状態: ${state}）"
+}
+
 scale() {
   aws ecs update-service --region "${REGION}" --cluster "${CLUSTER}" --service "${SERVICE}" --desired-count "$1" > /dev/null
 }
@@ -32,8 +46,7 @@ case "${1:-}" in
     scale 1
     echo "==> タスクが動き出し、ALB のヘルスチェックに通るのを待っています（2〜3分）"
     aws ecs wait services-stable --region "${REGION}" --cluster "${CLUSTER}" --services "${SERVICE}"
-    aws cloudwatch enable-alarm-actions --region "${REGION}" --alarm-names "${HEALTH_ALARM}"
-    echo "==> アラーム ${HEALTH_ALARM} の通知を戻しました"
+    enable_health_alarm
     status
     echo "==> アプリのURL: $(tfout app_url)"
     ;;

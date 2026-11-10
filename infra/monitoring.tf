@@ -139,18 +139,33 @@ locals {
 resource "aws_cloudwatch_metric_alarm" "api_no_healthy_task" {
   alarm_name          = "${local.alarm_prefix}api-no-healthy-task"
   alarm_description   = "[P1] A1（の代わり）API の正常なタスクがない（2分続けて0）。影響：画面は出るが、ログイン・投稿など API を使う操作がすべて失敗する（503）。最初に見るもの：ECS のサービスのイベント、${local.logs_insights_hint}（起動の失敗）。戻し方：直前の版でデプロイし直す"
-  namespace           = "AWS/ApplicationELB"
-  metric_name         = "HealthyHostCount"
-  dimensions          = local.alb_dimensions
-  statistic           = "Minimum"
-  period              = 60
   evaluation_periods  = 2
   comparison_operator = "LessThanThreshold"
   threshold           = 1
-  # データが来ない（ALB にターゲットがない）ときも、動いていないとみなす
-  treat_missing_data = "breaching"
-  alarm_actions      = local.alarm_actions.P1
-  ok_actions         = local.alarm_actions.P1
+  treat_missing_data  = "breaching"
+  alarm_actions       = local.alarm_actions.P1
+  ok_actions          = local.alarm_actions.P1
+
+  # タスクが1つもないと、ALB は HealthyHostCount を 0 ではなく「データなし」にする。
+  # 「データなし」の扱い（treat_missing_data）は、少し前の値（1）が残っている間は使われず、止まってもしばらく鳴らない。
+  # そのため、データのない時間を 0 として数える（FILL）
+  metric_query {
+    id          = "healthy"
+    expression  = "FILL(raw, 0)"
+    label       = "正常なタスクの数"
+    return_data = true
+  }
+
+  metric_query {
+    id = "raw"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "HealthyHostCount"
+      dimensions  = local.alb_dimensions
+      period      = 60
+      stat        = "Minimum"
+    }
+  }
 }
 
 # A2：5xx（アプリが返したもの＋ALB が返したもの）の割合。リクエストが少ないときは1件の失敗で 100% になるので、10件以上のときだけ判定する
