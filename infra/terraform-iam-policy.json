@@ -141,7 +141,8 @@
         "ecr:PutImage",
         "ecr:BatchGetImage",
         "ecr:BatchDeleteImage",
-        "ecr:ListImages"
+        "ecr:ListImages",
+        "ecr:DescribeImageScanFindings"
       ],
       "Resource": "arn:aws:ecr:*:*:repository/sns-app-*"
     },

@@ -107,7 +107,7 @@ CloudFront が VPC の中に**ネットワークの口（ENI）**を作り、そ
 | 画面の配信 | S3 バケット（`sns-app-frontend-<アカウントID>`）。パブリックアクセスはすべてブロックし、アプリ用の CloudFront（OAC）からだけ読める。画面の URL の書き換えは CloudFront Functions | `frontend.tf` |
 | ロードバランサー | ALB（内部用。プライベートサブネット）。リスナーは HTTP 80番。`/api/*` だけを API のターゲットグループ（ターゲットの種類は IP）へ送る。Fargate のタスクは入れ替えのたびに IP が変わるので、決まった名前で受け付ける入口として ALB を使う | `alb.tf` |
 | API | ECS Fargate のタスク1つ（0.5 vCPU・1GB。CPU は ARM64）。Spring Boot の jar を、Java 25（Amazon Corretto 25）のコンテナで動かす（`backend/Dockerfile`）。root では動かさない | `ecs.tf` |
-| コンテナのイメージ | ECR（`sns-app-backend`）。送ったときに脆弱性を調べる（基本スキャン）。古いイメージは5つまで残して消す | `ecs.tf` |
+| コンテナのイメージ | ECR（`sns-app-backend`）。送ったときに脆弱性を調べる（基本スキャン。OS のパッケージを調べる）。`deploy.sh` はスキャンの終わりを待ち、**CRITICAL が1件でもあれば入れ替えずに止める**（`ALLOW_CRITICAL_VULNERABILITIES=1` で進める）。HIGH は一覧を出して知らせる。Java のライブラリは基本スキャンでは調べないので、Dependabot で更新する（調べるには拡張スキャン（Amazon Inspector。有料）が要る）。イメージは来歴情報を付けずに作る（`docker build --provenance=false --sbom=false`）。付けるとタグがイメージインデックスを指し、スキャンの結果をタグで引けないため。古いイメージは5つまで残して消す | `ecs.tf`・`deploy.sh` |
 | 秘密の値 | SSM パラメータストア（SecureString。標準のパラメータは無料）。DB のパスワードは Terraform が `terraform.tfvars` の値から作る。**JWT の署名鍵は `deploy.sh` が初回だけ作る**（Terraform の state にも手元にも値を残さない）。タスク定義の `secrets` で、起動のときに環境変数として渡す | `ecs.tf`・`deploy.sh` |
 | ログ | CloudWatch Logs（`/ecs/sns-app-backend`。14日残す）。Spring Boot は本番で JSON（ECS 形式）のログを出す | `ecs.tf` |
 | データベース | RDS for PostgreSQL 17（db.t3.micro、20GB、シングルAZ。Fargate と同じアベイラビリティゾーン）。`publicly_accessible = false` でインターネットに公開しない | `rds.tf` |

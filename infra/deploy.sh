@@ -60,13 +60,49 @@ echo "==> バックエンドをビルド（./gradlew bootJar）"
 
 echo "==> コンテナのイメージを作る（${PLATFORM}、版 ${APP_VERSION}）"
 # --pull：土台のイメージ（amazoncorretto:25-al2023-headless。Java 25 の最新を指す）を毎回取り直し、セキュリティの修正を取り込む
-docker build --quiet --pull --platform "${PLATFORM}" --build-arg "APP_VERSION=${APP_VERSION}" \
+# --provenance=false --sbom=false：来歴情報を付けず、ふつうの1つのイメージとして送る。付けると、タグがイメージインデックス
+#   （本体と来歴情報をまとめたもの）を指し、ECR の基本スキャンの結果をタグで引けない（ScanNotFoundException）
+docker build --quiet --pull --provenance=false --sbom=false --platform "${PLATFORM}" --build-arg "APP_VERSION=${APP_VERSION}" \
   -t "${ECR_URL}:${APP_VERSION}" -t "${ECR_URL}:latest" "${REPO_ROOT}/backend" > /dev/null
 
 echo "==> ECR へ送る"
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ECR_URL%%/*}" > /dev/null
 docker push --quiet "${ECR_URL}:${APP_VERSION}" > /dev/null
 docker push --quiet "${ECR_URL}:latest" > /dev/null
+
+echo "==> イメージの脆弱性スキャンの結果を確かめる（ECR の基本スキャン。OS のパッケージを調べる）"
+# 送ったときに ECR が自動でスキャンする（ecs.tf の scan_on_push）。終わるのを待ってから、入れ替えるかを決める。
+# CRITICAL が1件でもあれば入れ替えずに止める（ALLOW_CRITICAL_VULNERABILITIES=1 で止めずに進める）。HIGH は件数を知らせる。
+# Java のライブラリは基本スキャンでは調べない（Dependabot で更新する。docs/infrastructure.md「コンテナのイメージ」）
+ECR_REPO="${ECR_URL#*/}"
+# 送った直後はスキャンがまだない（ScanNotFoundException）。aws ecr wait image-scan-complete はそれを失敗として扱うので、自分で待つ（最大5分）
+SCAN_STATUS=""
+for _ in $(seq 1 60); do
+  SCAN_STATUS="$(aws ecr describe-image-scan-findings --region "${AWS_REGION}" --repository-name "${ECR_REPO}" \
+    --image-id "imageTag=${APP_VERSION}" --query 'imageScanStatus.status' --output text 2> /dev/null || echo "NOT_FOUND")"
+  case "${SCAN_STATUS}" in COMPLETE | FAILED | UNSUPPORTED_IMAGE) break ;; esac
+  sleep 5
+done
+if [ "${SCAN_STATUS}" != "COMPLETE" ] && [ "${ALLOW_CRITICAL_VULNERABILITIES:-0}" != "1" ]; then
+  echo "スキャンの結果を確かめられなかったので、入れ替えずに止めました（状態: ${SCAN_STATUS}）。" >&2
+  echo "確かめずに進めるときは ALLOW_CRITICAL_VULNERABILITIES=1 infra/deploy.sh で進められます。" >&2
+  exit 1
+fi
+read -r CRITICAL HIGH <<< "$(aws ecr describe-image-scan-findings --region "${AWS_REGION}" --repository-name "${ECR_REPO}" \
+  --image-id "imageTag=${APP_VERSION}" \
+  --query '[imageScanFindings.findingSeverityCounts.CRITICAL || `0`, imageScanFindings.findingSeverityCounts.HIGH || `0`]' --output text)"
+echo "    CRITICAL: ${CRITICAL}件、HIGH: ${HIGH}件"
+if [ "${CRITICAL}" -gt 0 ] || [ "${HIGH}" -gt 0 ]; then
+  aws ecr describe-image-scan-findings --region "${AWS_REGION}" --repository-name "${ECR_REPO}" --image-id "imageTag=${APP_VERSION}" \
+    --query 'imageScanFindings.findings[?severity==`CRITICAL` || severity==`HIGH`].[severity, name, attributes[?key==`package_name`].value | [0], attributes[?key==`package_version`].value | [0]]' \
+    --output text | sed 's/^/    /'
+  echo "    （直し方：backend/Dockerfile の土台のイメージは deploy.sh が --pull で毎回最新を取るので、修正版が出ていればデプロイし直すだけで直る）"
+fi
+if [ "${CRITICAL}" -gt 0 ] && [ "${ALLOW_CRITICAL_VULNERABILITIES:-0}" != "1" ]; then
+  echo "CRITICAL の脆弱性があるので、入れ替えずに止めました（今動いている版はそのまま）。" >&2
+  echo "修正版を待てないときは ALLOW_CRITICAL_VULNERABILITIES=1 infra/deploy.sh で進められます。" >&2
+  exit 1
+fi
 
 echo "==> ECS のサービスを入れ替える（タスクが 0 なら 1 にする。起動のたびに Flyway がテーブルを作成・更新する）"
 aws ecs update-service --region "${AWS_REGION}" --cluster "${CLUSTER}" --service "${SERVICE}" \
