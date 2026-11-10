@@ -209,6 +209,10 @@ check "画面の URL を直接開く（/posts/1）" "${APP_URL}posts/1" 200
 check "API（/api/health）" "${APP_URL}api/health" 200
 check "ログインが必要な API（/api/timeline）" "${APP_URL}api/timeline" 401
 check "ない API（/api/no-such-api）は画面にしない" "${APP_URL}api/no-such-api" 401
+check "ないファイル（/no-such-file.js）は 404" "${APP_URL}no-such-file.js" 404
+check "ない画像（画像用の CloudFront）は 404" "$(tfout image_base_url)/posts/no-such-image.png" 404
+# 画像のバケットは CloudFront に一覧の権限（s3:ListBucket）を許可しているので、/ が一覧にならないこと（images.tf の default_root_object）
+check "画像用の CloudFront の / はバケットの一覧にしない" "$(tfout image_base_url)/" 404
 check_unreachable "ALB に直接アクセス（CloudFront を通らない）" "http://${ALB_DNS}/api/health"
 check_private_dns "ALB はインターネットに公開していない" "${ALB_DNS}"
 check_header "画面の CSP（ほかのサイトの枠に埋め込ませない）" "${APP_URL}" "content-security-policy: default-src 'self'"

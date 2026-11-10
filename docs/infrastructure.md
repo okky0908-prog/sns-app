@@ -154,9 +154,11 @@ CloudFront が VPC の中に**ネットワークの口（ENI）**を作り、そ
 |---|---|
 | API のタスクロール | 画像のバケットへの `s3:PutObject`・`s3:DeleteObject`（アップロードと削除）。ECS Exec 用の `ssmmessages:*Channel` |
 | タスクの実行ロール（ECS がタスクを起動するときに使う） | ECR からイメージを取る・ログを送る（`AmazonECSTaskExecutionRolePolicy`）。SSM のこのアプリの2つのパラメータを読む（`ssm:GetParameters`） |
-| CloudFront（アプリ用・OAC） | 画面のバケットの `s3:GetObject`（読み取りだけ）。`AWS:SourceArn` で自分のディストリビューションに限る |
-| CloudFront（画像用・OAC） | 画像のバケットの `s3:GetObject`（読み取りだけ）。同上 |
+| CloudFront（アプリ用・OAC） | 画面のバケットの `s3:GetObject`（読み取り）と `s3:ListBucket`（一覧。ないファイルを 403 ではなく 404 にするため。Issue #165）。`AWS:SourceArn` で自分のディストリビューションに限る |
+| CloudFront（画像用・OAC） | 画像のバケットの `s3:GetObject`・`s3:ListBucket`。同上 |
 | それ以外（インターネット） | 何もできない |
+
+- **`s3:ListBucket` を許可する理由と注意**：S3 は、一覧の権限がない相手には、ないファイルを「ない（404）」と教えずに 403 を返す。許可すると 404 になる。ただし、バケットのルート（`/`）への GET は「一覧を取る」操作になるので、**CloudFront の `/` が S3 のルートに届かないようにする**（アプリ用・画像用とも `default_root_object = "index.html"` で、`/` を `index.html` の取得に置き換える）。検索条件（`?list-type=2` など）は、どちらの CloudFront も S3 に送らない。`deploy.sh` で「画像用の CloudFront の `/` が 404」であることを確かめる
 
 - 画像は CloudFront に最長1日ほどキャッシュされる（`Managed-CachingOptimized`）。投稿を削除すると S3 のファイルは消えるが、URL を知っている人は、キャッシュが切れるまで見られることがある
 
