@@ -55,6 +55,25 @@ data "aws_iam_policy_document" "frontend_bucket" {
       values   = [aws_cloudfront_distribution.app.arn]
     }
   }
+
+  # 一覧を見る権限。これがないと、S3 はないファイルを「ない（404）」と教えず 403 を返す（Issue #165）。
+  # CloudFront は検索条件（?list-type=2 など）を S3 に送らないので、外からバケットの一覧は取れない
+  statement {
+    sid       = "AllowCloudFrontToReturn404"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.frontend.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.app.arn]
+    }
+  }
 }
 
 resource "aws_s3_bucket_policy" "frontend" {

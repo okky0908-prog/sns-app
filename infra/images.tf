@@ -49,6 +49,9 @@ resource "aws_cloudfront_distribution" "images" {
   comment         = "${var.project_name} images"
   price_class     = var.cloudfront_price_class
   is_ipv6_enabled = true
+  # ルート（/）を S3 にそのまま送ると、S3 は「バケットの一覧」を返してしまう（下のバケットポリシーで s3:ListBucket を許可しているため）。
+  # 存在しないファイル名に置き換えて、404 にする（Issue #165）
+  default_root_object = "index.html"
 
   origin {
     origin_id                = "images-s3"
@@ -88,6 +91,25 @@ data "aws_iam_policy_document" "images_bucket" {
     sid       = "AllowCloudFrontReadOnly"
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.images.arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.images.arn]
+    }
+  }
+
+  # 一覧を見る権限。これがないと、S3 はないファイルを「ない（404）」と教えず 403 を返す（Issue #165）。
+  # CloudFront は検索条件（?list-type=2 など）を S3 に送らないので、外からバケットの一覧は取れない
+  statement {
+    sid       = "AllowCloudFrontToReturn404"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.images.arn]
 
     principals {
       type        = "Service"

@@ -33,7 +33,8 @@ description: このリポジトリのTerraformコード（infra/配下）に対�
 - [ ] RDSが`publicly_accessible = false`になっているか
 - [ ] S3バケット（画像・画面の2つ）が非公開になっているか
   - [ ] `aws_s3_bucket_public_access_block`で4項目（`block_public_acls`・`block_public_policy`・`ignore_public_acls`・`restrict_public_buckets`）がすべて`true`か
-  - [ ] バケットポリシーで`s3:GetObject`を許可しているのが CloudFront（OAC、`AWS:SourceArn`で自分のディストリビューションに限定）だけか（画像 → 画像用、画面 → アプリ用）
+  - [ ] バケットポリシーで`s3:GetObject`・`s3:ListBucket`を許可しているのが CloudFront（OAC、`AWS:SourceArn`で自分のディストリビューションに限定）だけか（画像 → 画像用、画面 → アプリ用）
+  - [ ] `s3:ListBucket` を許可しているバケットで、CloudFront の `/` が S3 のルート（一覧）に届かないか（`default_root_object` があるか）
 - [ ] IAMポリシーが最小権限になっているか
   - [ ] タスクロールの S3 の権限が、画像のバケットに対する`s3:PutObject`・`s3:DeleteObject`だけか（`s3:*`や`Resource: "*"`になっていないか）。ほかは ECS Exec 用の`ssmmessages:*Channel`だけか
   - [ ] タスクの実行ロールが読める SSM パラメータが、このアプリの2つ（DB のパスワード・JWT の署名鍵）だけか
