@@ -6,15 +6,27 @@
 #   perf/db-report.sh reset         pg_stat_statements の集計を空にする（シナリオを流す直前に実行する）
 #   perf/db-report.sh top [件数]    合計時間の長い SQL を順に出す（既定は 10 件。シナリオを流したあとに実行する）
 #   perf/db-report.sh explain [ID]  「5. 重点的に確かめる箇所」の EXPLAIN (ANALYZE, BUFFERS)（ID はログイン中のユーザー。既定は 1）
+#
+# AWS の RDS（段階 2）に対しては、先頭に PERF_TARGET=aws を付ける（例: PERF_TARGET=aws perf/db-report.sh top）。
+# 一度きりの ECS のタスクで psql を動かすので、1回に1分ほどかかる（perf/lib/aws-psql.sh）
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-psql_perf() {
-  docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T postgres \
-    sh -c 'psql -U "$POSTGRES_USER" -d sns_perf -v ON_ERROR_STOP=1 "$@"' psql "$@"
-}
+# PERF_TARGET=aws のときは、AWS の RDS の sns_perf に、一度きりの ECS のタスクから流す（perf/lib/aws-psql.sh）
+if [ "${PERF_TARGET:-local}" = "aws" ]; then
+  # shellcheck source=lib/aws-psql.sh
+  source "$ROOT_DIR/perf/lib/aws-psql.sh"
+  psql_perf() {
+    aws_psql -d sns_perf "$@"
+  }
+else
+  psql_perf() {
+    docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T postgres \
+      sh -c 'psql -U "$POSTGRES_USER" -d sns_perf -v ON_ERROR_STOP=1 "$@"' psql "$@"
+  }
+fi
 
 case "${1:-}" in
   reset)

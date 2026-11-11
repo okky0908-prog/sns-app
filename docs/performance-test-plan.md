@@ -37,13 +37,14 @@
 
 | 段階 | 環境 | 目的 | 結果の扱い |
 |---|---|---|---|
-| **1. ローカル（先にやる）** | docker compose の PostgreSQL（専用の DB `sns_perf`）＋ バックエンドの jar を本番と同じ JVM の設定（`-Xms256m -Xmx512m`）で起動 ＋ k6（Docker） | SQL・インデックスの問題を、お金をかけずに見つける | Mac は t3.micro より速いので、**変更の前と後を比べる**ための値として扱う。合否は参考にとどめる |
-| **2. AWS（apply のあと）** | CloudFront（アプリ用）→ ALB → ECS Fargate（0.5 vCPU・1GB）→ RDS（db.t3.micro） | 本番と同じ構成で、基準を満たすかを確かめる | この段階の結果で合否を決める |
+| **1. ローカル（先にやる）** | docker compose の PostgreSQL（専用の DB `sns_perf`）＋ バックエンドの jar をヒープ 512MB（`-Xms256m -Xmx512m`。本番のタスクのメモリ 1GB の 75% に近い値）で起動 ＋ k6（Docker） | SQL・インデックスの問題を、お金をかけずに見つける | Mac は本番（Fargate 0.5 vCPU）よりずっと速いので、**変更の前と後を比べる**ための値として扱う。合否は参考にとどめる |
+| **2. AWS（apply のあと）** | CloudFront（アプリ用）→ VPC オリジン → ALB（内部用）→ ECS Fargate（0.5 vCPU・1GB・ARM64）→ RDS（db.t3.micro） ＋ k6（手元の Docker） | 本番と同じ構成で、基準を満たすかを確かめる | この段階の結果で合否を決める |
 
 - 開発用の DB（`sns`）は使わない。テストデータを大量に入れるので、**専用の DB `sns_perf`** を同じ PostgreSQL のコンテナに作る（自動テストが使い捨てのコンテナを使うのと同じく、開発用のデータを汚さないため）
 - 画像のアップロードは、LocalStack では本物の S3 の速さが分からないので、段階 2 でだけ確かめる
 - 段階 2 は、短い時間（数十分）だけ動かし、終わったら止める（[インフラ構成](infrastructure.md)の起動・停止）。CloudFront の負荷テストの条件に収まるよう、負荷は「同時に50人」程度から大きく上げない
-- 段階 2 では、ALB に直接ではなく CloudFront の URL に負荷をかける（ALB は CloudFront からだけ受け付けるため）
+- 段階 2 では、CloudFront の URL に負荷をかける（ALB は内部用で、外からは届かないため）
+- 段階 2 の DB は、RDS の中に作る専用の DB `sns_perf`（本番の DB `sns` には触らない）。RDS は VPC の中にあるので、DB の操作（`sns_perf` の作成・データの投入・SQL の集計）は、一度きりの ECS のタスク（PostgreSQL 17 の公式イメージの psql。`infra/perf.tf`）で行う（「8. 動かし方」の「AWS での手順」）
 
 ## 4. テストデータ
 
@@ -96,7 +97,7 @@ cd backend && POSTGRES_DB=sns_perf ./gradlew bootRun
 | 一覧のいいね数・コメント数（`selectWithAuthor`） | 1回の SQL にまとまっていて N+1 にはなっていないが、投稿ごとに `count(*)` の副問い合わせが動く。いいねが多い投稿で遅くなるおそれがある |
 | ユーザー検索（`UserMapper.xml`） | `ILIKE '%…%'` は通常のインデックスを使えず、ユーザーを全件読む。[技術スタック](tech-stack.md)の「pg_trgm はユーザーが増えたときに追加する」を判断する材料にする |
 | 新しい投稿の件数（`countNewInFollowingTimeline`・`countNewInAll`） | 画面を開いている全員が60秒ごとに呼ぶので、呼ばれる回数が一番多い |
-| ログイン | BCrypt はわざと重く作られている。t3.micro では、ログインが集中すると CPU を使い切り、ほかの API まで遅くなるおそれがある |
+| ログイン | BCrypt はわざと重く作られている。本番の API は 0.5 vCPU なので、ログインが集中すると CPU を使い切り、ほかの API まで遅くなるおそれがある |
 | DB の接続プール | HikariCP の既定は10本。同時に50人のときに、接続の空き待ちが起きないか |
 
 ## 6. シナリオ
@@ -184,6 +185,35 @@ perf/run.sh load                     # 50人・10分。短く試すときは VUS
 - 結果には、全部の API をまとめた値に加えて、API ごとの p95 が出る（`http_req_duration{name:GET /api/timeline}` など）。API ごとの値は合否に使わず、遅い API を見つけるために見る
 - テストを流すとデータが少し増える（投稿・コメント・いいね・フォロー）。前回と同じデータで比べるときは、`perf/setup-db.sh` で入れ直す
 - データを入れ直したときは、`perf/setup-db.sh` を実行したあとにバックエンドを再起動しなくてよい（ID は 1 から振り直される）
+
+### AWS での手順
+
+```bash
+# 0. 環境を作り、デプロイしておく（terraform apply → infra/deploy.sh）
+# 1. RDS に sns_perf と pg_stat_statements を作る（一度きりの ECS のタスクで psql を動かす。1回に1分ほど）
+perf/setup-db-aws.sh create
+
+# 2. API を sns_perf につなぎ替え、metrics を公開する（タスクが入れ替わり、起動のときに Flyway がテーブルを作る）
+terraform -chdir=infra apply -var perf_test=true
+aws ecs wait services-stable --cluster sns-app --services sns-app-backend
+
+# 3. データを入れる（基準の規模で約1分）
+perf/setup-db-aws.sh seed base
+
+# 4. CloudFront の URL（最後の / は付けない）に流す。SQL の集計は PERF_TARGET=aws を付ける
+URL=$(terraform -chdir=infra output -raw app_url); URL=${URL%/}
+perf/run.sh smoke "$URL"
+PERF_TARGET=aws perf/db-report.sh reset
+perf/run.sh load "$URL"
+PERF_TARGET=aws perf/db-report.sh top
+
+# 5. 終わったら、API を本番の DB（sns）に戻す
+terraform -chdir=infra apply
+```
+
+- API の CPU・メモリ、RDS の CPU は CloudWatch（ECS・RDS のメトリクス）で見る。ヒープ・接続プールは、ローカルと同じく監視役が `backend_*` として記録する
+- 測定中は、監視のアラーム（API の CPU など）が鳴ってメールが届くことがある
+- `perf_test = true` の間、画面に出るのはテストデータになる（API が `sns_perf` につながるため）
 
 ### metrics（JVM のヒープ・接続プール）
 

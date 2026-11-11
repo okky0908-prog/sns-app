@@ -127,3 +127,9 @@ variable "budget_alert_email" {
     error_message = "budget_alert_email はメールアドレスの形で指定してください。"
   }
 }
+
+variable "perf_test" {
+  description = "性能テストの間だけ true にする。API を専用の DB（sns_perf）につなぎ、metrics を公開する（perf.tf・docs/performance-test-plan.md「段階 2」）。終わったら false に戻す"
+  type        = bool
+  default     = false
+}
