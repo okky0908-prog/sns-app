@@ -26,25 +26,10 @@ usage() {
   exit 1
 }
 
-# 規模ごとの値（docs/performance-test-plan.md「4. テストデータ」の表）。
-# 基準の規模はユーザーが 500 人しかいないので、偏りのあるデータの人数は「自分以外の全員」までにしている
-case "${1:-}" in
-  base)
-    SEED_VARS=(
-      -v users=500 -v posts=5000 -v follows_per_user=50 -v likes=50000 -v comments=10000
-      -v heavy_follows=499 -v star_followers=499 -v hot_likes=500 -v hot_comments=500
-    )
-    ;;
-  x10)
-    SEED_VARS=(
-      -v users=5000 -v posts=50000 -v follows_per_user=100 -v likes=500000 -v comments=100000
-      -v heavy_follows=500 -v star_followers=1000 -v hot_likes=1000 -v hot_comments=500
-    )
-    ;;
-  *)
-    usage
-    ;;
-esac
+# 規模ごとの値（docs/performance-test-plan.md「4. テストデータ」の表）。AWS 用（setup-db-aws.sh）と同じものを使う
+# shellcheck source=lib/seed-vars.sh
+source "$ROOT_DIR/perf/lib/seed-vars.sh"
+seed_vars "${1:-}" || usage
 
 compose() {
   docker compose -f "$ROOT_DIR/docker-compose.yml" "$@"

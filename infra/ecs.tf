@@ -162,10 +162,11 @@ resource "aws_ecs_task_definition" "backend" {
     portMappings = [{ containerPort = 8080, protocol = "tcp" }]
 
     # 本番用の設定（backend/src/main/resources/application-production.yml が読む）。プロファイルは Dockerfile で指定している
-    environment = [
+    # 性能テストの間（perf_test = true）だけ、専用の DB（sns_perf）につなぎ、metrics を公開する（perf.tf）
+    environment = concat([
       { name = "DB_HOST", value = aws_db_instance.this.address },
       { name = "POSTGRES_PORT", value = tostring(aws_db_instance.this.port) },
-      { name = "POSTGRES_DB", value = aws_db_instance.this.db_name },
+      { name = "POSTGRES_DB", value = var.perf_test ? local.perf_db_name : aws_db_instance.this.db_name },
       { name = "POSTGRES_USER", value = aws_db_instance.this.username },
       # Cookie に Secure 属性を付ける（ブラウザと CloudFront の間は HTTPS）
       { name = "REFRESH_TOKEN_COOKIE_SECURE", value = "true" },
@@ -174,7 +175,9 @@ resource "aws_ecs_task_definition" "backend" {
       # 空なら AWS の S3 に、タスクロールの権限で接続する（ローカルの LocalStack 用の設定を使わない）
       { name = "S3_ENDPOINT", value = "" },
       { name = "IMAGE_BASE_URL", value = "https://${aws_cloudfront_distribution.images.domain_name}" },
-    ]
+      ], var.perf_test ? [
+      { name = "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE", value = "health,metrics" },
+    ] : [])
 
     secrets = [
       { name = "POSTGRES_PASSWORD", valueFrom = aws_ssm_parameter.db_password.arn },

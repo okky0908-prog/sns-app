@@ -13,9 +13,7 @@
         "cloudfront:Get*",
         "cloudfront:List*",
         "cloudfront:DescribeFunction",
-        "ecs:DescribeClusters",
-        "ecs:DescribeServices",
-        "ecs:DescribeTaskDefinition",
+        "ecs:Describe*",
         "ecs:ListTagsForResource",
         "ecr:DescribeRepositories",
         "logs:DescribeLogGroups",
@@ -165,8 +163,9 @@
         "ecs:TagResource",
         "ecs:UntagResource",
         "ecs:ExecuteCommand",
-        "ecs:DescribeTasks",
-        "ecs:ListTasks"
+        "ecs:ListTasks",
+        "ecs:RunTask",
+        "ecs:StopTask"
       ],
       "Resource": [
         "arn:aws:ecs:*:*:cluster/sns-app",

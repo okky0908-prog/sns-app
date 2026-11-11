@@ -83,3 +83,13 @@ output "db_username" {
   value       = aws_db_instance.this.username
   sensitive   = true
 }
+
+output "perf_db_task_definition" {
+  description = "性能テストで DB を操作する一度きりのタスクの定義（perf/lib/aws-psql.sh が使う）"
+  value       = aws_ecs_task_definition.perf_db.family
+}
+
+output "perf_db_network" {
+  description = "一度きりのタスクを置く場所（API と同じサブネットとセキュリティグループ。RDS は API のセキュリティグループからだけ受け付けるため）"
+  value       = "awsvpcConfiguration={subnets=[${data.aws_subnet.primary.id}],securityGroups=[${aws_security_group.backend.id}],assignPublicIp=ENABLED}"
+}
