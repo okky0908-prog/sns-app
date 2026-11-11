@@ -47,6 +47,7 @@ X（旧Twitter）のような、タイムライン形式のテキスト中心の
 | [機能定義書](docs/feature-specs/README.md) | 機能分類ごとの処理の流れ・エラー時の動き・受け入れ条件（8本） |
 | [テスト計画書](docs/test-plan.md) | テストの技法（ブラックボックス・ホワイトボックス）、層ごとの対象とケースの設計、完了の基準 |
 | [パフォーマンステスト計画書](docs/performance-test-plan.md) | 性能の合格の基準、k6 のシナリオ、テストデータの規模、重点的に確かめる SQL、動かし方（手で動かす） |
+| [パフォーマンステストの結果](docs/performance-test-results.md) | ローカルと AWS での測定の記録、見つかった問題と改善の前後の比較 |
 | [モックアップ実装計画書](docs/mockup-plan.md) | 本実装前に作成した静的モックアップの内容と動作確認結果 |
 
 ER図・画面遷移図・シーケンス図は Mermaid で書いている。VSCode では拡張機能「Markdown Preview Mermaid Support」を入れるとプレビューで表示できる。
@@ -78,7 +79,7 @@ AWS への構築とデプロイの手順は [インフラ構成](docs/infrastruc
 
 ## セットアップ・起動方法
 
-[機能一覧](docs/features.md) の機能（F-01〜F-71）はすべて実装済み。各機能の受け入れ条件は、自動テストとブラウザでの操作で確かめてある（[機能定義書](docs/feature-specs/README.md)）。AWS 上への構築は未定（[インフラ構成](docs/infrastructure.md)）。
+[機能一覧](docs/features.md) の機能（F-01〜F-71）はすべて実装済み。各機能の受け入れ条件は、自動テストとブラウザでの操作で確かめてある（[機能定義書](docs/feature-specs/README.md)）。AWS 上への構築・デプロイも Terraform とスクリプトで行える（[インフラ構成](docs/infrastructure.md)）。AWS は学習目的の一時的な稼働とし、使わない期間は `terraform destroy` で消す。
 
 固定ポート（`backend: 8080` / `frontend: 5173` / `postgres: 5432` / `localstack: 4566`）で起動する。ポートが競合したときの対処など詳しい手順は[.claude/skills/run/SKILL.md](.claude/skills/run/SKILL.md)を参照。
 
@@ -185,7 +186,10 @@ npm run gen:api                            # docs/openapi.yaml から src/api/sc
 PR と main への push のたびに、[.github/workflows/ci.yml](.github/workflows/ci.yml) で次を自動で実行する。マージは CI が通ってから行う。
 
 - バックエンド：`./gradlew check`（PostgreSQL と LocalStack は Testcontainers が立ち上げる）と、API 仕様書 `docs/openapi.yaml` が最新か（テストで書き出したものとコミットしたものが同じか）の確認
-- フロントエンド：`npm ci`・`npm run lint`・`npm test`・`npm run build` と、API の型 `src/api/schema.ts` が最新か（`docs/openapi.yaml` から作り直したものとコミットしたものが同じか）の確認
+- フロントエンド：`npm ci`・`npm run lint`・`npm run test:coverage`・`npm run build` と、API の型 `src/api/schema.ts` が最新か（`docs/openapi.yaml` から作り直したものとコミットしたものが同じか）の確認
+- E2E テスト：`npm run test:e2e`（Playwright。画面 → API → DB まで通す）
+- パフォーマンステストのシナリオ：k6 のスクリプトの型チェック（`perf/` の `npm run typecheck`。負荷はかけない）
+- Terraform：`terraform fmt -check`・`terraform validate` と、CloudFront Functions のテスト（`node --test`）
 
 ### ライブラリの脆弱性・更新（Dependabot）
 

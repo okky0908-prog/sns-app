@@ -115,6 +115,7 @@ CloudFront が VPC の中に**ネットワークの口（ENI）**を作り、そ
 | 画像の配信 | CloudFront（画像用）。OAC（Origin Access Control）で、CloudFront からだけ S3 を読めるようにする | `images.tf` |
 | 請求アラート | AWS Budgets。月の予算（既定 30 ドル）を超えそう・80% を超えたらメールで知らせる | `budget.tf` |
 | 監視のアラーム | CloudWatch Alarms。[ログ・監視の運用方針](./observability.md)の監視項目を、ALB・ECS・RDS のメトリクスと、ログから作るメトリクス（メトリクスフィルター）で見る。P1・P2 は SNS でメールに知らせ、P3 は記録だけ（「7.5 段階 2 の実装」） | `monitoring.tf` |
+| 性能テストの道具 | 一度きりの ECS のタスク（`postgres:17` の psql）のタスク定義。VPC の中の RDS に、性能テスト専用の DB `sns_perf` を作り、データを入れ、SQL の集計を取るために使う。変数 `perf_test = true` で apply すると、API を `sns_perf` につなぎ、Actuator の metrics を公開する（既定は false。測り終えたら戻す）。手順は[パフォーマンステスト計画書](./performance-test-plan.md)「AWS での手順」 | `perf.tf` |
 | 構築方法 | Terraform（`infra/` 配下）。構成の正確な内容はコードを正とする | |
 
 ### ALB のターゲットグループとリスナー
@@ -282,7 +283,7 @@ infra/deploy.sh                 # ビルドして配置し、動作を確認す�
 
 **ビルドはすべてローカルで行い、成果物だけを AWS に送る**（`infra/deploy.sh`）。
 
-- API：`./gradlew bootJar` で jar を作り、`docker build` でイメージにして ECR に送る（タグは git の短いハッシュと `latest`）。ECS のサービスを入れ替え（`update-service --force-new-deployment`）、新しいタスクが ALB のヘルスチェックに通るまで待つ。失敗して前の版に戻ったときは、最近のログを出して止まる
+- API：`./gradlew bootJar` で jar を作り、`docker build` でイメージにして ECR に送る（タグは git の短いハッシュと `latest`）。ECS のサービスを入れ替え（`update-service --force-new-deployment`）、新しいタスクが ALB のヘルスチェックに通るまで待つ。始めた入れ替えの結果を ID で確かめ、失敗して前の版に戻ったときは、最近のログを出して止まる（#178）
 - 画面：`npm run build` で作った `dist/` を S3 に送る。JS・CSS を先に送り、最後に `index.html` を送る（途中で、古い `index.html` が新しいファイルを探さないように）。前の版の JS・CSS は消さない（入れ替えの途中で、古い画面を開いている人が読み込めなくならないように）
 - DB のテーブルは、Spring Boot の起動時に Flyway が作成・更新する
 - API の起動・停止は `infra/servers.sh start|stop|status`（ECS のタスクの数を 1／0 にする）。画面（S3・CloudFront）は止めなくてよい。`stop` は「API の正常なタスクがない」アラームの通知を止めてから止め、`start`・`deploy.sh` が通知を戻す（わざと止めたときに鳴らないように）
@@ -294,7 +295,8 @@ infra/deploy.sh                 # ビルドして配置し、動作を確認す�
 | 項目 | 内容 |
 |---|---|
 | 独自ドメイン | 取得したら、Route 53 と ACM（us-east-1 の証明書）を使って、アプリ用の CloudFront に別名を付ける |
-| 冗長化 | 今はタスク1つ・RDS はシングルAZ。必要になったらタスクを2つにしてアベイラビリティゾーン c にも置き、RDS をマルチAZにする（ALB があるので、タスクを増やすのは `desired_count` を変えるだけ） |
+| 冗長化 | 今はタスク1つ・RDS はシングルAZ。必要になったらタスクを2つにしてアベイラビリティゾーン c にも置き、RDS をマルチAZにする（ALB があるので、タスクを増やすのは `desired_count` を変えるだけ）。ただし、ログインの試行回数の記録（#159）はタスクのメモリにあるので、タスクを増やすときは DB などの共有の場所に移す（BCrypt の同時実行の制限（#176）は、タスクごとに絞ればよいのでそのままでよい） |
+| API の CPU | 0.5 vCPU では、ログイン（BCrypt の照合）は1秒に3件ほどが上限（[性能テストの結果](./performance-test-results.md)「AWS での測定」）。超えた分は「混み合っています」（503）を返す。利用者が増えたら、タスクの CPU を 1 vCPU に上げる（`backend_cpu`） |
 | Terraform の state | ローカル保存からリモート（S3）保存への移行 |
 | デプロイの自動化 | `deploy.sh` を GitHub Actions に移す（OIDC で AWS に入り、main にマージしたらデプロイする） |
 | ログ・監視 | [ログ・監視の運用方針](./observability.md)の段階 2 の残り（ダッシュボード・外形監視、ALB のアクセスログ、ログの長期保存）を Terraform に入れる。ログの送り先（CloudWatch Logs）は #155、アラームは #162 で入れた |

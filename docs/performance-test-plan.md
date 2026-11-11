@@ -243,7 +243,7 @@ curl -s -H "Authorization: Bearer $TOKEN" localhost:8080/api/metrics/jvm.gc.paus
 | 2 | テストデータの SQL（基準・10倍）と、専用の DB `sns_perf` を作る手順（Issue #125） |
 | 3 | k6 のシナリオ（スモーク・負荷）、`perf/run.sh`、合格の基準（`thresholds`）、性能テストのときだけ metrics を公開する設定（Issue #127） |
 | 4 | 初回の測定（ストレス・耐久・ログイン集中を含む）と、結果の記録（[結果](performance-test-results.md)）。遅い箇所は**改善ごとに別の Issue** にする（Issue #129） |
-| 5 | AWS での測定（apply のあと） |
+| 5 | AWS での測定（apply のあと）と、結果の記録（[結果](performance-test-results.md)）。見つかった問題は #176 で直した（Issue #175） |
 | 6 | ブラウザのパフォーマンステスト（「10」。Issue #142） |
 
 - k6 のスクリプトとテストデータの SQL は、テストのための道具なので、[CLAUDE.md](../CLAUDE.md) の TDD の対象外とする
