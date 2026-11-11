@@ -976,6 +976,7 @@ components:
             | `INTERNAL_ERROR` | 500 | サーバーでエラーが発生しました。時間をおいてもう一度お試しください |
             | `IMAGE_UPLOAD_FAILED` | 500 | 画像のアップロードに失敗しました。時間をおいてもう一度お試しください |
             | `SERVICE_UNAVAILABLE` | 503 | ただいまサービスを利用できません。時間をおいてもう一度お試しください |
+            | `SERVER_BUSY` | 503 | ただいま混み合っています。少し待ってからもう一度お試しください |
           enum:
           - VALIDATION_FAILED
           - MALFORMED_REQUEST
@@ -996,6 +997,7 @@ components:
           - INTERNAL_ERROR
           - IMAGE_UPLOAD_FAILED
           - SERVICE_UNAVAILABLE
+          - SERVER_BUSY
         errors:
           type: array
           description: 項目ごとの入力エラー。なければ空

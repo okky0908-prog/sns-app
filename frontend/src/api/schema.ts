@@ -508,9 +508,10 @@ export interface components {
              *     | `INTERNAL_ERROR` | 500 | サーバーでエラーが発生しました。時間をおいてもう一度お試しください |
              *     | `IMAGE_UPLOAD_FAILED` | 500 | 画像のアップロードに失敗しました。時間をおいてもう一度お試しください |
              *     | `SERVICE_UNAVAILABLE` | 503 | ただいまサービスを利用できません。時間をおいてもう一度お試しください |
+             *     | `SERVER_BUSY` | 503 | ただいま混み合っています。少し待ってからもう一度お試しください |
              * @enum {string}
              */
-            code: "VALIDATION_FAILED" | "MALFORMED_REQUEST" | "CANNOT_FOLLOW_SELF" | "UNAUTHENTICATED" | "INVALID_CREDENTIALS" | "SESSION_EXPIRED" | "FORBIDDEN" | "POST_NOT_FOUND" | "COMMENT_NOT_FOUND" | "USER_NOT_FOUND" | "RESOURCE_NOT_FOUND" | "METHOD_NOT_ALLOWED" | "ALREADY_REGISTERED" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "TOO_MANY_LOGIN_ATTEMPTS" | "INTERNAL_ERROR" | "IMAGE_UPLOAD_FAILED" | "SERVICE_UNAVAILABLE";
+            code: "VALIDATION_FAILED" | "MALFORMED_REQUEST" | "CANNOT_FOLLOW_SELF" | "UNAUTHENTICATED" | "INVALID_CREDENTIALS" | "SESSION_EXPIRED" | "FORBIDDEN" | "POST_NOT_FOUND" | "COMMENT_NOT_FOUND" | "USER_NOT_FOUND" | "RESOURCE_NOT_FOUND" | "METHOD_NOT_ALLOWED" | "ALREADY_REGISTERED" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "TOO_MANY_LOGIN_ATTEMPTS" | "INTERNAL_ERROR" | "IMAGE_UPLOAD_FAILED" | "SERVICE_UNAVAILABLE" | "SERVER_BUSY";
             /** @description 項目ごとの入力エラー。なければ空 */
             errors: components["schemas"]["FieldError"][];
             /** @description 利用者にそのまま見せてよい文言 */

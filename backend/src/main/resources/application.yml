@@ -68,6 +68,11 @@ app:
     max-failures: 5
     window: 15m
     lock-duration: 15m
+  # パスワードの照合・ハッシュ化（BCrypt）を同時に動かす数の上限と、空きを待つ時間（Issue #176）。
+  # BCrypt が CPU を使い切って、ほかの API まで止まらないようにする。待っても空かなければ 503（SERVER_BUSY）を返す
+  password-hashing:
+    max-concurrent: 1
+    max-wait: 1s
   # 画像の保存先（S3）。既定値はローカル開発の LocalStack（docker-compose）に合わせてある
   storage:
     bucket: ${S3_BUCKET:sns-app-images}

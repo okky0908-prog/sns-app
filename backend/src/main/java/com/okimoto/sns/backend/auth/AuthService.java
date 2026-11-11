@@ -48,6 +48,7 @@ public class AuthService {
   private final TransactionOperations transactionOperations;
   private final Clock clock;
   private final LoginAttemptLimiter loginAttemptLimiter;
+  private final PasswordHashingGate passwordHashingGate;
 
   /** 存在しないメールアドレスでログインされたときに照合に使う、ダミーのハッシュ */
   private final String dummyPasswordHash;
@@ -60,8 +61,10 @@ public class AuthService {
       ImageStorage imageStorage,
       TransactionOperations transactionOperations,
       Clock clock,
-      LoginAttemptLimiter loginAttemptLimiter) {
+      LoginAttemptLimiter loginAttemptLimiter,
+      PasswordHashingGate passwordHashingGate) {
     this.loginAttemptLimiter = loginAttemptLimiter;
+    this.passwordHashingGate = passwordHashingGate;
     this.userMapper = userMapper;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
@@ -105,7 +108,7 @@ public class AuthService {
             username,
             request.displayName().strip(),
             email,
-            passwordEncoder.encode(request.password()),
+            passwordHashingGate.run(() -> passwordEncoder.encode(request.password())),
             OffsetDateTime.now(clock));
     return transactionOperations.execute(status -> saveAndIssueTokens(user));
   }
@@ -137,8 +140,10 @@ public class AuthService {
     Optional<User> user = userMapper.findByEmail(email);
     // ユーザーがいなくても同じようにハッシュの照合をして、応答時間から登録済みのメールアドレスを推測されないようにする
     String hash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
+    // 照合は同時に動かす数を絞る（Issue #176）。空きを待ちきれなければ 503 で、失敗としては数えない
     boolean matches =
-        fitsBcrypt(request.password()) && passwordEncoder.matches(request.password(), hash);
+        fitsBcrypt(request.password())
+            && passwordHashingGate.run(() -> passwordEncoder.matches(request.password(), hash));
     if (user.isEmpty() || !matches) {
       AuditLog.loginFailed(email);
       loginAttemptLimiter.recordFailure(email);

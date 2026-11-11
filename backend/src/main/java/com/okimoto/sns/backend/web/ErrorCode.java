@@ -57,7 +57,9 @@ public enum ErrorCode {
   /** 画像の保存先（S3）に保存できなかった。ほかの項目も更新しない */
   IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "画像のアップロードに失敗しました。時間をおいてもう一度お試しください"),
   /** DB につながらないなど、一時的に処理できない */
-  SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ただいまサービスを利用できません。時間をおいてもう一度お試しください");
+  SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ただいまサービスを利用できません。時間をおいてもう一度お試しください"),
+  /** ログイン・新規登録が集中して、パスワードの照合の順番を待ちきれなかった（Issue #176。ほかの API の CPU を残すため） */
+  SERVER_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "ただいま混み合っています。少し待ってからもう一度お試しください");
 
   private final HttpStatus status;
   private final String message;
