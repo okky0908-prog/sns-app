@@ -8,9 +8,11 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +21,7 @@ import com.okimoto.sns.backend.storage.ImageStorage;
 import com.okimoto.sns.backend.user.User;
 import com.okimoto.sns.backend.user.UserMapper;
 import com.okimoto.sns.backend.web.ApiError;
+import com.okimoto.sns.backend.web.ApiException;
 import com.okimoto.sns.backend.web.ErrorCode;
 import java.time.Clock;
 import java.time.Duration;
@@ -55,6 +58,8 @@ class AuthServiceTest {
   private final JwtService jwtService = mock(JwtService.class);
   private final RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
   private final ImageStorage imageStorage = mock(ImageStorage.class);
+  private final PasswordHashingGate passwordHashingGate =
+      spy(new PasswordHashingGate(new PasswordHashingProperties(2, Duration.ofSeconds(1))));
   private final AuthService service =
       new AuthService(
           userMapper,
@@ -66,7 +71,8 @@ class AuthServiceTest {
           Clock.fixed(NOW.toInstant(), ZoneOffset.UTC),
           new LoginAttemptLimiter(
               Clock.fixed(NOW.toInstant(), ZoneOffset.UTC),
-              new LoginAttemptProperties(5, Duration.ofMinutes(15), Duration.ofMinutes(15))));
+              new LoginAttemptProperties(5, Duration.ofMinutes(15), Duration.ofMinutes(15))),
+          passwordHashingGate);
 
   @BeforeEach
   void setUp() {
@@ -138,6 +144,16 @@ class AuthServiceTest {
           () -> service.signup(signup(username, "y@example.com", "password123")),
           "username",
           AuthService.USERNAME_RESERVED);
+      verify(userMapper, never()).insert(any());
+    }
+
+    @Test
+    void ハッシュ化の空きがなければ503にし_保存しない() {
+      doThrow(new ApiException(ErrorCode.SERVER_BUSY)).when(passwordHashingGate).run(any());
+
+      assertApiError(
+          () -> service.signup(signup("yamada", "yamada@example.com", "password123")),
+          ErrorCode.SERVER_BUSY);
       verify(userMapper, never()).insert(any());
     }
 
@@ -245,6 +261,18 @@ class AuthServiceTest {
           () -> service.login(new LoginRequest("yamada@example.com", "あ".repeat(25))),
           ErrorCode.INVALID_CREDENTIALS);
     }
+
+    @Test
+    void 照合の空きがなければ503にし_トークンを発行しない() {
+      when(userMapper.findByEmail("yamada@example.com"))
+          .thenReturn(Optional.of(savedUser("password123")));
+      doThrow(new ApiException(ErrorCode.SERVER_BUSY)).when(passwordHashingGate).run(any());
+
+      assertApiError(
+          () -> service.login(new LoginRequest("yamada@example.com", "password123")),
+          ErrorCode.SERVER_BUSY);
+      verify(refreshTokenService, never()).issue(anyLong());
+    }
   }
 
   /** ログインの試行回数の制限（Issue #159）。回数・期間の境界は LoginAttemptLimiterTest で確かめ、ここではログインの流れとのつながりを確かめる。 */
@@ -306,6 +334,23 @@ class AuthServiceTest {
 
       // 成功の前の4回を数えていたら、2回目の失敗から 429 になる
       failLogin("yamada@example.com", 4);
+    }
+
+    @Test
+    void 照合の空きがなくて503になったときは_失敗として数えない() {
+      when(userMapper.findByEmail("yamada@example.com"))
+          .thenReturn(Optional.of(savedUser("password123")));
+      doThrow(new ApiException(ErrorCode.SERVER_BUSY)).when(passwordHashingGate).run(any());
+      for (int i = 0; i < 5; i++) {
+        assertApiError(
+            () -> service.login(new LoginRequest("yamada@example.com", "wrong-password")),
+            ErrorCode.SERVER_BUSY);
+      }
+      doCallRealMethod().when(passwordHashingGate).run(any());
+
+      // 503 の5回を失敗として数えていたら、ここで 429 になる
+      assertThat(service.login(new LoginRequest("yamada@example.com", "password123")).accessToken())
+          .isEqualTo("access-token");
     }
 
     /** パスワード違いで、指定した回数だけログインに失敗する（どれも 401 であること） */
