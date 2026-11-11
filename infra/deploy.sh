@@ -105,8 +105,9 @@ if [ "${CRITICAL}" -gt 0 ] && [ "${ALLOW_CRITICAL_VULNERABILITIES:-0}" != "1" ];
 fi
 
 echo "==> ECS のサービスを入れ替える（タスクが 0 なら 1 にする。起動のたびに Flyway がテーブルを作成・更新する）"
-aws ecs update-service --region "${AWS_REGION}" --cluster "${CLUSTER}" --service "${SERVICE}" \
-  --desired-count 1 --force-new-deployment > /dev/null
+# 始めた入れ替えの ID を覚えておき、終わったあとにその結果を見る（前の版に戻されたときは、戻した入れ替えが PRIMARY になるため）
+DEPLOYMENT_ID="$(aws ecs update-service --region "${AWS_REGION}" --cluster "${CLUSTER}" --service "${SERVICE}" \
+  --desired-count 1 --force-new-deployment --query 'service.deployments[?status==`PRIMARY`].id | [0]' --output text)"
 
 # --- 画面 ---
 
@@ -136,8 +137,17 @@ if ! aws ecs wait services-stable --region "${AWS_REGION}" --cluster "${CLUSTER}
   aws logs tail "${LOG_GROUP}" --region "${AWS_REGION}" --since 15m >&2 || true
   exit 1
 fi
-ROLLOUT="$(aws ecs describe-services --region "${AWS_REGION}" --cluster "${CLUSTER}" --services "${SERVICE}" \
-  --query 'services[0].deployments[?status==`PRIMARY`].rolloutState | [0]' --output text)"
+# 始めた入れ替えの「状態 結果」（例: PRIMARY COMPLETED）。前の版に戻されると PRIMARY でなくなるか、一覧から消える（None）。
+# タスクの数がそろってから結果が COMPLETED になるまで少し遅れるので、IN_PROGRESS の間は待つ（最大5分。Issue #178）
+deployment_rollout() {
+  aws ecs describe-services --region "${AWS_REGION}" --cluster "${CLUSTER}" --services "${SERVICE}" \
+    --query "services[0].deployments[?id=='${DEPLOYMENT_ID}'].[status,rolloutState] | [0]" --output text | tr '\t' ' '
+}
+for _ in $(seq 1 30); do
+  ROLLOUT="$(deployment_rollout)"
+  [ "${ROLLOUT}" != "PRIMARY IN_PROGRESS" ] && break
+  sleep 10
+done
 # servers.sh stop で止めていた「API の正常なタスクがない」アラームの通知を戻す。
 # アラームが ALARM（止めていた間の状態）から戻るのを待ってから戻す（先に戻すと「OK に戻った」メールだけが届くため）
 HEALTH_ALARM="$(tfout api_health_alarm_name)"
@@ -149,12 +159,20 @@ if [ "$(aws cloudwatch describe-alarms --region "${AWS_REGION}" --alarm-names "$
   done
   aws cloudwatch enable-alarm-actions --region "${AWS_REGION}" --alarm-names "${HEALTH_ALARM}"
 fi
-if [ "${ROLLOUT}" != "COMPLETED" ]; then
-  # 新しいタスクが起動に失敗し続けると、前の版に戻して止まる（Terraform の deployment_circuit_breaker）
-  echo "入れ替えに失敗し、前の版に戻りました（${ROLLOUT}）。最近のログ：" >&2
-  aws logs tail "${LOG_GROUP}" --region "${AWS_REGION}" --since 15m >&2 || true
-  exit 1
-fi
+case "${ROLLOUT}" in
+  "PRIMARY COMPLETED") ;;
+  "PRIMARY IN_PROGRESS")
+    echo "入れ替えが5分たっても終わりませんでした（${DEPLOYMENT_ID}）。ECS のコンソールで状態を確かめてください。最近のログ：" >&2
+    aws logs tail "${LOG_GROUP}" --region "${AWS_REGION}" --since 15m >&2 || true
+    exit 1
+    ;;
+  *)
+    # 新しいタスクが起動に失敗し続けると、前の版に戻して止まる（Terraform の deployment_circuit_breaker）
+    echo "入れ替えに失敗し、前の版に戻りました（${DEPLOYMENT_ID}: ${ROLLOUT}）。最近のログ：" >&2
+    aws logs tail "${LOG_GROUP}" --region "${AWS_REGION}" --since 15m >&2 || true
+    exit 1
+    ;;
+esac
 
 # --- 動作確認 ---
 
